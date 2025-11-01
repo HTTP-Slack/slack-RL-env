@@ -3,7 +3,7 @@ import Message from "../models/message.model.js";
 // @desc    get all messages matching queries
 // @route   GET /api/message
 // @access  Private
-// @queries one of (?channelId, ?conversationId), ?isSelf, organisation
+// @queries one of (?channelId, ?conversationId)(req), ?isSelf, organisation(req)
 export const getMessages = async (req, res) => {
   const { channelId, conversationId, isSelf, organisation } = req.query;
 
@@ -90,6 +90,16 @@ export const getMessage = async (req, res) => {
 // @desc    Create a new message
 // @route   POST /api/message
 // @access  Private
+/*
+  body
+  {
+    content, req
+    organisation, req
+    channelId OR
+    conversationId, (only 1)
+    isSelf = false,
+  }
+*/
 export const createMessage = async (req, res) => {
   try {
     const {
