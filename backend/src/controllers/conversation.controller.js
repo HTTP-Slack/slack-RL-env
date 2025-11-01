@@ -14,7 +14,6 @@ Each conversation has:
 */
 
 import Conversation from '../models/conversation.model.js';
-import User from '../models/user.model.js';
 
 // @desc    get conversations by org id
 // @route   GET /api/conversation/org/:id
@@ -26,10 +25,10 @@ export const getConversationsByOrg = async (req, res) => {
       _id: -1,
     });
 
-    if(!conversations) {
+    if (conversations.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "organization not found"
+        message: "No conversations found for this organization"
       });
     }
 
