@@ -1,5 +1,5 @@
 import Channel from '../models/channel.model.js';
-import User from '../models/user.model.js'
+import User from '../models/user.model.js';
 
 // @desc    create channel
 // @route   POST /api/channel/
@@ -54,7 +54,7 @@ export const getChannelByOrg = async (req, res) => {
       .populate('collaborators')
       .sort({ _id: -1 });
 
-    if(!channels) {
+    if (channels.length === 0) {
       return res.status(404).json({
         success: false,
         message: "channel with org id not found"
@@ -82,8 +82,7 @@ export const getChannel = async (req, res) => {
   try {
     const id = req.params.id;
     const channel = await Channel.findById(id)
-      .populate('collaborators')
-      .sort({ _id: -1 });
+      .populate('collaborators');
 
     if (!channel) {
       return res.status(404).json({

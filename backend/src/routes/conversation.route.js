@@ -9,7 +9,7 @@ import {
 
 const router = express.Router();
 
-router.get('/org/:id', protectRoute, getConversation);
-router.get('/:id', protectRoute, getConversationsByOrg);
+router.get('/org/:id', protectRoute, getConversationsByOrg);
+router.get('/:id', protectRoute, getConversation);
 
 export default router;
