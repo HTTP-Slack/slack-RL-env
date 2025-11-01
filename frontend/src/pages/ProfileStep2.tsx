@@ -8,7 +8,7 @@ const ProfileStep2 = () => {
 
   const handleNext = () => {
     console.log('Workspace name submitted:', workspaceName)
-    navigate('/profile-step3')
+    navigate('/profile-step3', { state: { workspaceName } })
   }
 
   // Generate initial from workspace name
