@@ -49,7 +49,7 @@ export const register = async (req, res) => {
     res.cookie('token', token, {
       httpOnly: true, // Makes it inaccessible to client-side JS
       secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
+      maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
     })
 
     // 6. Send success response
@@ -82,7 +82,7 @@ export const signin = async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide a email and password',
+        message: 'Please provide an email and password',
       });
     }
 

@@ -70,8 +70,6 @@ const initializeSocket = (io) => {
           id: messageId,
           message: updatedMessage,
         })
-
-        // socket.emit("message-updated", { messageId, message: updatedMessage });
       } catch (error) {
         console.log(error)
       }
