@@ -32,7 +32,7 @@ export const register = async (req, res) => {
       })
     }
 
-    // 3. Create user (storing password in plain text as requested)
+    // 3. Create user (password will be hashed by the pre-save hook)
     const user = await User.create({
       username,
       email,
@@ -50,7 +50,7 @@ export const register = async (req, res) => {
     });
   } catch (error) {
     console.log("Error in auth controller", error);
-    res.send(500).json({
+    res.status(500).json({
       success: false,
       message: "Internal server error",
       error: error
@@ -76,8 +76,8 @@ export const signin = async (req, res) => {
     // 2. Find user
     const user = await User.findOne({ email });
 
-    // 3. Check user and password (plain text comparison)
-    if (!user || user.password !== password) {
+    // 3. Check user and password using bcrypt
+    if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials',
@@ -95,7 +95,7 @@ export const signin = async (req, res) => {
     });
   } catch (error) {
     console.log("Error in auth controller", error);
-    res.send(500).json({
+    res.status(500).json({
       success: false,
       message: "Internal server error",
       error: error
