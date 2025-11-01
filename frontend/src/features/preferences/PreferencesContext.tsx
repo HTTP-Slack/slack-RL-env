@@ -2,6 +2,7 @@ import React, { createContext, useContext, useReducer, useEffect, ReactNode } fr
 import type { UserPreferences } from './types';
 import { DEFAULT_PREFERENCES } from './defaults';
 import { PreferencesStorage } from './storage';
+import { deepMerge } from './utils';
 
 interface PreferencesState {
   preferences: UserPreferences;
@@ -60,30 +61,6 @@ function preferencesReducer(state: PreferencesState, action: PreferencesAction):
     default:
       return state;
   }
-}
-
-function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
-  const result = { ...target };
-  
-  for (const key in source) {
-    const sourceValue = source[key];
-    const targetValue = result[key];
-    
-    if (
-      sourceValue &&
-      typeof sourceValue === 'object' &&
-      !Array.isArray(sourceValue) &&
-      targetValue &&
-      typeof targetValue === 'object' &&
-      !Array.isArray(targetValue)
-    ) {
-      result[key] = deepMerge(targetValue, sourceValue);
-    } else if (sourceValue !== undefined) {
-      result[key] = sourceValue as any;
-    }
-  }
-  
-  return result;
 }
 
 export function PreferencesProvider({ children }: { children: ReactNode }) {
