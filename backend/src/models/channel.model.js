@@ -14,7 +14,7 @@ const channelSchema = new mongoose.Schema({
   title: {
     type: String,
     default() {
-      return `This is the very first begining of the ${this.name} channel`
+      return `This is the very first beginning of the ${this.name} channel`
     },
   },
   description: {
