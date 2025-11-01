@@ -1,21 +1,32 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 const ProfileStep3 = () => {
   const [emails, setEmails] = useState('')
   const [step] = useState(3)
-  const workspaceName = 'New Workspace'
+  const location = useLocation()
+  const workspaceName = location.state?.workspaceName || 'New Workspace'
   const navigate = useNavigate()
 
-  // Check if at least one email is entered
+  // Validate emails using regex
+  const isValidEmail = (email: string) => {
+    // Simple RFC 5322-compliant regex for email validation
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
   const hasValidEmail = () => {
-    return emails.trim().length > 0 && emails.includes('@')
+    // Split emails by comma, trim, and check if at least one is valid
+    return emails
+      .split(',')
+      .map(e => e.trim())
+      .filter(e => e.length > 0)
+      .some(isValidEmail);
   }
 
   const handleNext = () => {
     if (hasValidEmail()) {
       console.log('Emails submitted:', emails)
-      navigate('/profile-step4')
+      navigate('/profile-step4', { state: { workspaceName } })
     }
   }
 
@@ -25,7 +36,7 @@ const ProfileStep3 = () => {
 
   const handleSkip = () => {
     console.log('Skip this step')
-    navigate('/profile-step4')
+    navigate('/profile-step4', { state: { workspaceName } })
   }
 
   const handleAddFromGoogle = () => {
