@@ -185,7 +185,7 @@ export const updateOrganisation = async (req, res) => {
 // @desc    Get organisations associated with the current user
 // @route   GET /api/organisation/workspaces
 // @access  Private
-export const getWorkspaces = async (req, res, next) => {
+export const getWorkspaces = async (req, res) => {
   try {
     const userId = req.user.id;
 
@@ -216,3 +216,81 @@ export const getWorkspaces = async (req, res, next) => {
     });
   }
 };
+
+// @desc    Add one or more coworkers to an organisation
+// @route   PATCH /api/organisation/:id/coworkers
+// @access  Private
+/*
+  body 
+  {
+    emails: [
+    
+    ] 
+  }
+*/
+export const addCoworkers = async (req, res) => {
+  try {
+    const { id: organisationId } = req.params;
+    const { emails } = req.body; // Expect an array of emails
+
+    // 1. Validation
+    if (!emails || !Array.isArray(emails) || emails.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'An array of "emails" is required in the body',
+      });
+    }
+
+    // 2. Find all users matching the provided emails
+    const usersToAdd = await User.find({ email: { $in: emails } });
+
+    if (usersToAdd.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No users found with the provided emails',
+      });
+    }
+
+    // Get the ObjectIds of the users we found
+    const userIdsToAdd = usersToAdd.map(user => user._id);
+
+    // 3. Find the organisation and add all new users in one atomic operation
+    // We use $addToSet with $each:
+    // - $addToSet: Prevents adding a user who is already a member.
+    // - $each: Allows us to add all users from the array at once.
+    const updatedOrganisation = await Organisation.findByIdAndUpdate(
+      organisationId,
+      { $addToSet: { coWorkers: { $each: userIdsToAdd } } },
+      { new: true } // Return the updated document
+    ).populate(['coWorkers', 'owner']);
+
+    if (!updatedOrganisation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Organisation not found',
+      });
+    }
+
+    // 4. (Optional but helpful) Report which emails were not found
+    const foundUserEmails = usersToAdd.map(u => u.email);
+    const notFoundEmails = emails.filter(e => !foundUserEmails.includes(e));
+
+    let message = `Coworkers added successfully.`;
+    if (notFoundEmails.length > 0) {
+      message += ` Could not find users for: ${notFoundEmails.join(', ')}.`;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: message,
+      data: updatedOrganisation,
+    });
+  } catch (error) {
+    console.log('Error in addCoworker:', error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error
+    });
+  }
+}
