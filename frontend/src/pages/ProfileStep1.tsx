@@ -126,4 +126,4 @@ const ProfileStep1 = () => {
   )
 }
 
-export default ProfileStep1;
+export default ProfileStep1
