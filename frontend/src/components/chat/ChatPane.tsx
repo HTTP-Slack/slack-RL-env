@@ -115,19 +115,15 @@ const ChatPane: React.FC<ChatPaneProps> = ({
                 </svg>
               </button>
             </div>
-            {messages.map((message, index) => {
-              // Safety check: skip messages with missing sender
-              if (!message.sender || !message.sender._id) {
-                console.warn('Message missing sender:', message);
-                return null;
-              }
-              
+            {messages
+              .filter(message => message.sender && message.sender._id) // Filter out messages with missing sender
+              .map((message, index, validMessages) => {
               const isCurrentUser = message.sender._id === currentUser._id;
               const messageUser = isCurrentUser ? currentUser : activeUser;
-              const showAvatar = index === 0 || !messages[index - 1].sender || messages[index - 1].sender._id !== message.sender._id;
+              const showAvatar = index === 0 || !validMessages[index - 1].sender || validMessages[index - 1].sender._id !== message.sender._id;
               const threadCount = getThreadCount(message._id);
               const shouldShowTimestamp = index === 0 || 
-                new Date(message.createdAt).getTime() - new Date(messages[index - 1].createdAt).getTime() > 600000; // 10 minutes
+                new Date(message.createdAt).getTime() - new Date(validMessages[index - 1].createdAt).getTime() > 600000; // 10 minutes
 
               return (
                 <div key={message._id}>
