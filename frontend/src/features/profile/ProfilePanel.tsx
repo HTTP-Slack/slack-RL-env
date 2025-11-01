@@ -39,6 +39,7 @@ export function ProfilePanel() {
           <button
             onClick={closePanel}
             className="text-gray-400 hover:text-white transition-colors p-1"
+            aria-label="Close profile panel"
           >
             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -50,7 +51,10 @@ export function ProfilePanel() {
         <div className="p-6">
           {/* Profile Picture Section */}
           <div className="flex flex-col items-center mb-6">
-            <div className="w-40 h-40 rounded bg-gradient-to-br from-orange-600 to-orange-800 flex items-center justify-center text-white text-6xl font-semibold mb-4">
+            <div
+              className="w-40 h-40 rounded bg-gradient-to-br from-orange-600 to-orange-800 flex items-center justify-center text-white text-6xl font-semibold mb-4"
+              aria-label="Profile picture placeholder for aban hasan"
+            >
               a
             </div>
             
@@ -103,6 +107,8 @@ export function ProfilePanel() {
               <button 
                 onClick={() => setShowMenu(!showMenu)}
                 className="px-3 py-2 bg-[#2d3139] hover:bg-gray-700 text-white rounded text-sm font-medium transition-colors"
+                aria-label="More options"
+                aria-expanded={showMenu}
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
@@ -111,14 +117,14 @@ export function ProfilePanel() {
 
               {/* Three-dot menu dropdown */}
               {showMenu && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-[#1a1d21] rounded-lg shadow-xl border border-gray-700 overflow-hidden z-20">
-                  <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm">
+                <div className="absolute right-0 top-full mt-2 w-56 bg-[#1a1d21] rounded-lg shadow-xl border border-gray-700 overflow-hidden z-20" role="menu">
+                  <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm" role="menuitem">
                     Copy display name: @aban hasan
                   </button>
-                  <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm">
+                  <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm" role="menuitem">
                     View preferences
                   </button>
-                  <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm flex items-center justify-between">
+                  <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm flex items-center justify-between" role="menuitem">
                     <span>Account settings</span>
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
@@ -126,17 +132,17 @@ export function ProfilePanel() {
                     </svg>
                   </button>
                   <div className="border-t border-gray-700"></div>
-                  <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm">
+                  <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm" role="menuitem">
                     View your files
                   </button>
-                  <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm">
+                  <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm" role="menuitem">
                     Set yourself away
                   </button>
                   <div className="border-t border-gray-700"></div>
-                  <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm">
+                  <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm" role="menuitem">
                     Copy member ID
                   </button>
-                  <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm">
+                  <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm" role="menuitem">
                     Copy link to profile
                   </button>
                 </div>
