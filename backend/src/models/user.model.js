@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import bcrypt from 'bcrypt'
 
 const userSchema = new mongoose.Schema(
   {
@@ -12,9 +13,14 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Please enter your email'],
       unique: true,
-      match: [/^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/, 'Please enter a valid email'],
+      match: [/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, 'Please enter a valid email'],
     },
-    isOnline: Boolean,
+    password: {
+      type: String,
+      required: [true, 'Please enter a password'],
+      select: false,
+      minlength: [8, 'Password must be at least 8 characters long']
+    },    isOnline: Boolean,
     role: String,
     phone: String,
     profilePicture: String,
@@ -24,5 +30,26 @@ const userSchema = new mongoose.Schema(
     versionKey: false,
   }
 );
+
+// Hash password before saving
+userSchema.pre('save', async function(next) {
+  // Only hash the password if it has been modified (or is new)
+  if (!this.isModified('password')) {
+    return next();
+  }
+  
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Method to compare password
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
+};
 
 export default mongoose.model('User', userSchema)
