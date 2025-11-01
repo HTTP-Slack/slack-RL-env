@@ -10,16 +10,16 @@ const ProfileStep4 = () => {
     setSelectedPlan('pro')
     // Reset the workspace creation state
     resetWorkspaceCreation()
-    // Navigate to home page (workspace selection)
-    navigate('/home')
+    // Navigate to dashboard
+    navigate('/dashboard')
   }
 
   const handleStartFree = () => {
     setSelectedPlan('free')
     // Reset the workspace creation state
     resetWorkspaceCreation()
-    // Navigate to home page (workspace selection)
-    navigate('/home')
+    // Navigate to dashboard
+    navigate('/dashboard')
   }
 
   // Generate initial from workspace name

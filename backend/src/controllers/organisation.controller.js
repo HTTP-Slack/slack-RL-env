@@ -459,3 +459,134 @@ export const joinByLink = async (req, res) => {
     });
   }
 };
+
+// @desc    Get or create a 1:1 conversation with another user
+// @route   POST /api/organisation/:id/conversation
+// @access  Private
+/*
+  body 
+  {
+    otherUserId: string
+  }
+*/
+export const getOrCreateConversation = async (req, res) => {
+  try {
+    const { id: organisationId } = req.params;
+    const { otherUserId } = req.body;
+    const currentUserId = req.user.id;
+
+    if (!otherUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'otherUserId is required',
+      });
+    }
+
+    if (otherUserId === currentUserId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot create conversation with yourself',
+      });
+    }
+
+    // 1. Check if conversation already exists
+    const existingConversation = await Conversation.findOne({
+      organisation: organisationId,
+      collaborators: { $all: [currentUserId, otherUserId], $size: 2 },
+      isConversation: true,
+    }).populate('collaborators');
+
+    if (existingConversation) {
+      // Update the name to show the other user's name
+      const otherUser = existingConversation.collaborators.find(
+        (user) => user._id.toString() !== currentUserId
+      );
+      
+      return res.status(200).json({
+        success: true,
+        data: {
+          ...existingConversation.toObject(),
+          name: otherUser?.username || existingConversation.name,
+        },
+      });
+    }
+
+    // 2. Create new conversation
+    const otherUser = await User.findById(otherUserId);
+    if (!otherUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Other user not found',
+      });
+    }
+
+    let newConversation = await Conversation.create({
+      name: otherUser.username,
+      collaborators: [currentUserId, otherUserId],
+      organisation: organisationId,
+      createdBy: currentUserId,
+      isConversation: true,
+      isSelf: false,
+    });
+
+    // Populate the conversation
+    newConversation = await Conversation.findById(newConversation._id).populate('collaborators');
+
+    res.status(201).json({
+      success: true,
+      data: newConversation,
+    });
+  } catch (error) {
+    console.log('Error in getOrCreateConversation:', error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Get all users in an organisation
+// @route   GET /api/organisation/:id/users
+// @access  Private
+export const getOrganisationUsers = async (req, res) => {
+  try {
+    const { id: organisationId } = req.params;
+    const currentUserId = req.user.id;
+
+    console.log('📋 Fetching users for organisation:', organisationId);
+    console.log('👤 Current user ID:', currentUserId);
+
+    const organisation = await Organisation.findById(organisationId).populate('coWorkers');
+
+    if (!organisation) {
+      console.log('❌ Organisation not found');
+      return res.status(404).json({
+        success: false,
+        message: 'Organisation not found',
+      });
+    }
+
+    console.log('✅ Organisation found:', organisation.name);
+    console.log('👥 Total coWorkers:', organisation.coWorkers.length);
+
+    // Filter out the current user from the list
+    const users = organisation.coWorkers.filter(
+      (user) => user._id.toString() !== currentUserId
+    );
+
+    console.log('✅ Filtered users (excluding current):', users.length);
+
+    res.status(200).json({
+      success: true,
+      data: users,
+    });
+  } catch (error) {
+    console.log('Error in getOrganisationUsers:', error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};

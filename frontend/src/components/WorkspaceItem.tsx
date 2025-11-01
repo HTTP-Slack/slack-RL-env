@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Workspace } from '../types/workspace';
 
 interface WorkspaceItemProps {
@@ -18,9 +19,14 @@ const getDefaultAvatars = (count: number) => {
 };
 
 export const WorkspaceItem: React.FC<WorkspaceItemProps> = ({ workspace }) => {
+  const navigate = useNavigate();
   const memberCount = workspace.coWorkers?.length || 0;
   const memberAvatars = getDefaultAvatars(Math.min(memberCount, 5));
-  const launchUrl = workspace.url || workspace.joinLink || '#';
+
+  const handleLaunchClick = () => {
+    // Navigate to dashboard
+    navigate('/dashboard');
+  };
 
   return (
     <div className="flex flex-row items-center">
@@ -78,14 +84,12 @@ export const WorkspaceItem: React.FC<WorkspaceItemProps> = ({ workspace }) => {
       </div>
 
       {/* Launch Button */}
-      <a
-        href={launchUrl}
-        target="_blank"
-        rel="noopener noreferrer"
+      <button
+        onClick={handleLaunchClick}
         className="ml-auto p-4 rounded-[4px] text-[14px] font-bold leading-[18px] text-center uppercase tracking-[0.798px] whitespace-nowrap text-white bg-[rgb(97,31,105)] cursor-pointer transition-[box-shadow_0.42s_cubic-bezier(0.165,0.84,0.44,1),color_0.42s_cubic-bezier(0.165,0.84,0.44,1),background_0.42s_cubic-bezier(0.165,0.84,0.44,1)] hover:bg-[rgb(77,25,85)]"
       >
         Launch Slack
-      </a>
+      </button>
     </div>
   );
 };

@@ -1,115 +1,115 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import LeftNav from '../components/chat/LeftNav';
 import Sidebar from '../components/chat/Sidebar';
 import ChatPane from '../components/chat/ChatPane';
-import ThreadPanel from '../components/chat/ThreadPanel';
-import {
-  MOCK_CURRENT_USER,
-  MOCK_USERS,
-  MOCK_MESSAGES,
-  MOCK_THREADS,
-} from '../constants/chat';
-import type { Message, Thread } from '../constants/chat';
+import { useAuth } from '../context/AuthContext';
+import { useWorkspace } from '../context/WorkspaceContext';
+import { getWorkspaces } from '../services/workspaceApi';
 
 const Dashboard: React.FC = () => {
-  const [activeUserId, setActiveUserId] = useState<string>(MOCK_USERS[0].id);
-  const [messages, setMessages] = useState<Record<string, Message[]>>(MOCK_MESSAGES);
-  const [threads, setThreads] = useState<Record<string, Thread[]>>(MOCK_THREADS);
-  const [openThreadId, setOpenThreadId] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  const {
+    currentWorkspaceId,
+    setCurrentWorkspaceId,
+    conversations,
+    users,
+    activeConversation,
+    setActiveConversation,
+    messages,
+    sendMessage,
+    startConversation,
+  } = useWorkspace();
+  
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
 
-  const activeUser = useMemo(() => {
-    return MOCK_USERS.find((u) => u.id === activeUserId) || MOCK_USERS[0];
-  }, [activeUserId]);
-
-  const activeMessages = useMemo(() => {
-    return messages[activeUserId] || [];
-  }, [messages, activeUserId]);
-
-  const handleSendMessage = (text: string) => {
-    const newMessage: Message = {
-      id: `msg-${Date.now()}`,
-      userId: MOCK_CURRENT_USER.id,
-      text,
-      timestamp: new Date(),
+  // Initialize workspace from URL or fetch workspaces
+  useEffect(() => {
+    const initWorkspace = async () => {
+      const workspaceIdFromUrl = searchParams.get('workspace');
+      
+      if (workspaceIdFromUrl) {
+        console.log('🏢 Setting workspace from URL:', workspaceIdFromUrl);
+        setCurrentWorkspaceId(workspaceIdFromUrl);
+      } else {
+        // Fetch workspaces and select the first one
+        console.log('🔍 No workspace in URL, fetching workspaces...');
+        const workspaces = await getWorkspaces();
+        console.log('📦 Found workspaces:', workspaces.length);
+        
+        if (workspaces.length > 0) {
+          setCurrentWorkspaceId(workspaces[0]._id);
+          navigate(`/dashboard?workspace=${workspaces[0]._id}`, { replace: true });
+        } else {
+          // No workspaces found, redirect to create one
+          console.log('⚠️ No workspaces found, redirecting to create...');
+          navigate('/create-workspace');
+        }
+      }
     };
 
-    setMessages((prev) => ({
-      ...prev,
-      [activeUserId]: [...(prev[activeUserId] || []), newMessage],
-    }));
+    if (user) {
+      initWorkspace();
+    }
+  }, [user, searchParams]);
+
+  const handleUserSelect = async (userId: string) => {
+    // Check if conversation already exists
+    const existingConversation = conversations.find(
+      (c) => c.collaborators.some((collab) => collab._id === userId)
+    );
+
+    if (existingConversation) {
+      setActiveConversation(existingConversation);
+    } else {
+      // Create new conversation
+      await startConversation(userId);
+    }
+  };
+
+  const handleSendMessage = async (text: string) => {
+    if (!activeConversation) return;
+    await sendMessage(text);
   };
 
   const handleEditMessage = (messageId: string, newText: string) => {
-    setMessages((prev) => ({
-      ...prev,
-      [activeUserId]: (prev[activeUserId] || []).map((msg) =>
-        msg.id === messageId
-          ? { ...msg, text: newText, edited: true }
-          : msg
-      ),
-    }));
+    // TODO: Implement edit message API
+    console.log('Edit message:', messageId, newText);
     setEditingMessageId(null);
   };
 
   const handleDeleteMessage = (messageId: string) => {
-    setMessages((prev) => ({
-      ...prev,
-      [activeUserId]: (prev[activeUserId] || []).filter((msg) => msg.id !== messageId),
-    }));
+    // TODO: Implement delete message API
+    console.log('Delete message:', messageId);
   };
 
   const handleOpenThread = (messageId: string) => {
-    // Check if thread already exists
-    const existingThreadId = Object.keys(threads).find(
-      (tid) => threads[tid]?.[0]?.messageId === messageId
+    // TODO: Implement thread functionality
+    console.log('Open thread for message:', messageId);
+  };
+
+  if (!user || !currentWorkspaceId) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#1a1d21] text-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Loading workspace...</p>
+        </div>
+      </div>
     );
+  }
 
-    // Create new thread if it doesn't exist
-    const threadId = existingThreadId || `thread-${messageId}`;
-    
-    if (!existingThreadId) {
-      const newThread: Thread = {
-        id: threadId,
-        messageId,
-        messages: [],
-      };
-      setThreads((prev) => ({
-        ...prev,
-        [threadId]: [newThread],
-      }));
-    }
-
-    setOpenThreadId(threadId);
-  };
-
-  const handleSendThreadMessage = (threadId: string, text: string) => {
-    const thread = threads[threadId]?.[0];
-    if (!thread) return;
-
-    const newThreadMessage: Message = {
-      id: `thread-msg-${Date.now()}`,
-      userId: MOCK_CURRENT_USER.id,
-      text,
-      timestamp: new Date(),
-      threadId,
-    };
-
-    setThreads((prev) => ({
-      ...prev,
-      [threadId]: [
-        {
-          ...thread,
-          messages: [...thread.messages, newThreadMessage],
-        },
-      ],
-    }));
-  };
+  // Get the other user from active conversation
+  const activeUser = activeConversation
+    ? activeConversation.collaborators.find((c) => c._id !== user._id)
+    : null;
 
   return (
     <div className="flex flex-col h-screen bg-[#1a1d21] text-white overflow-hidden">
       {/* Top Navigation Bar */}
-      <div className="h-[44px] bg-[#350d36] flex items-center px-2 shrink-0">
+      <div className="h-11 bg-[#350d36] flex items-center px-2 shrink-0">
         {/* Left spacer */}
         <div className="flex-1"></div>
         
@@ -137,7 +137,7 @@ const Dashboard: React.FC = () => {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search HTTP Test Environment"
+                placeholder="Search workspace"
                 className="w-full bg-[#6f4d72] text-white placeholder-[#d1d2d3] px-3 py-1.5 rounded border border-transparent focus:border-white focus:outline-none text-[13px]"
               />
               <svg className="w-4 h-4 text-white absolute right-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -161,30 +161,32 @@ const Dashboard: React.FC = () => {
       <div className="flex flex-1 overflow-hidden">
         <LeftNav />
         <Sidebar
-          currentUser={MOCK_CURRENT_USER}
-          users={MOCK_USERS}
-          activeUserId={activeUserId}
-          onUserSelect={setActiveUserId}
+          currentUser={user}
+          conversations={conversations}
+          users={users}
+          activeConversation={activeConversation}
+          onConversationSelect={setActiveConversation}
+          onUserSelect={handleUserSelect}
         />
-        <ChatPane
-          currentUser={MOCK_CURRENT_USER}
-          activeUser={activeUser}
-          messages={activeMessages}
-          threads={threads}
-          editingMessageId={editingMessageId}
-          onSendMessage={handleSendMessage}
-          onEditMessage={handleEditMessage}
-          onDeleteMessage={handleDeleteMessage}
-          onOpenThread={handleOpenThread}
-        />
-        {openThreadId && threads[openThreadId]?.[0] && (
-          <ThreadPanel
-            thread={threads[openThreadId][0]}
-            currentUser={MOCK_CURRENT_USER}
-            users={[...MOCK_USERS, MOCK_CURRENT_USER]}
-            onClose={() => setOpenThreadId(null)}
-            onSendMessage={(text) => handleSendThreadMessage(openThreadId, text)}
+        {activeConversation && activeUser ? (
+          <ChatPane
+            currentUser={user}
+            activeUser={activeUser}
+            messages={messages}
+            threads={{}}
+            editingMessageId={editingMessageId}
+            onSendMessage={handleSendMessage}
+            onEditMessage={handleEditMessage}
+            onDeleteMessage={handleDeleteMessage}
+            onOpenThread={handleOpenThread}
           />
+        ) : (
+          <div className="flex-1 flex items-center justify-center bg-[#1a1d21]">
+            <div className="text-center">
+              <p className="text-[#d1d2d3] text-lg mb-4">Select a conversation to start chatting</p>
+              <p className="text-[#616061] text-sm">or choose a user from the sidebar</p>
+            </div>
+          </div>
         )}
       </div>
     </div>
