@@ -53,4 +53,6 @@ const conversationSchema = new mongoose.Schema({
   versionKey: false,
 });
 
-export default mongoose.model('Conversation', conversationSchema);
+conversationSchema.index({ collaborators: 1 });
+
+export default mongoose.model('Conversations', conversationSchema);

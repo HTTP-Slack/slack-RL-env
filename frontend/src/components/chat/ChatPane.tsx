@@ -48,19 +48,39 @@ const ChatPane: React.FC<ChatPaneProps> = ({
   return (
     <div className="flex-1 flex flex-col bg-[rgb(26,29,33)]">
       {/* Chat Header */}
-      <div className="h-[60px] px-4 border-b border-[rgb(49,48,44)] flex items-center bg-[rgb(26,29,33)]">
+      <div className="h-[60px] px-5 border-b border-[rgb(49,48,44)] flex items-center justify-between bg-[rgb(26,29,33)]">
         <div className="flex items-center flex-1 min-w-0">
-          <div className="w-8 h-8 rounded bg-[rgb(97,31,105)] flex items-center justify-center text-white font-bold text-sm mr-3 flex-shrink-0">
-            {activeUser.displayName.charAt(0).toUpperCase()}
-          </div>
-          <div className="flex flex-col min-w-0 flex-1">
-            <span className="text-[15px] font-semibold text-white truncate">
-              {activeUser.displayName}
+          <button className="flex items-center gap-2 hover:bg-[rgb(49,48,44)] px-2 py-1 rounded transition-colors">
+            <span className="text-white text-xl">#</span>
+            <span className="text-[18px] font-bold text-white">
+              {activeUser.displayName.toLowerCase().replace(/\s/g, '-')}
             </span>
-            {activeUser.status === 'active' && (
-              <span className="text-[13px] text-[rgb(209,210,211)]">Active</span>
-            )}
-          </div>
+            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
+        <div className="flex items-center gap-3">
+          <button className="flex items-center gap-1.5 px-3 py-1 rounded border border-[rgb(134,134,134)] hover:bg-[rgb(49,48,44)] transition-colors">
+            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <span className="text-[13px] text-white">4</span>
+          </button>
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-transparent hover:bg-[rgb(49,48,44)] transition-colors border border-[rgb(134,134,134)]">
+            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+            </svg>
+            <span className="text-[13px] text-white font-medium">Huddle</span>
+            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <button className="p-1.5 hover:bg-[rgb(49,48,44)] rounded transition-colors">
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+            </svg>
+          </button>
         </div>
       </div>
 
