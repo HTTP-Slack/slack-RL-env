@@ -309,6 +309,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
             onKeyDown={handleKeyDown}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
+            // Placeholder is intentionally empty to avoid double placeholders (overlay shows placeholder)
             placeholder=""
             className="textarea-overlay w-full resize-none outline-none bg-transparent text-[15px] min-h-[22px] max-h-[150px] overflow-y-auto leading-[1.46668] relative z-10 caret-white"
             rows={1}
