@@ -121,6 +121,10 @@ const initializeSocket = (io) => {
               organisation,
             })
           } else if (conversationId) {
+            console.log('📨 Creating message for conversation:', conversationId);
+            console.log('👤 Sender:', message.sender);
+            console.log('💬 Content:', message.content);
+            
             socket.join(conversationId)
             // Check if there are any messages for today in the channel
             await createTodaysFirstMessage({ conversationId, organisation })
@@ -133,13 +137,17 @@ const initializeSocket = (io) => {
               isSelf,
               hasRead: false,
             })
+            console.log('✅ Message created with ID:', newMessage._id);
+            
             newMessage = await newMessage.populate('sender')
+            console.log('✅ Message sender populated:', newMessage.sender ? newMessage.sender.username : 'NO SENDER');
 
             io.to(conversationId).emit('message', {
               collaborators,
               organisation,
               newMessage,
             })
+            console.log('🚀 Message emitted to room:', conversationId)
             const updatedConversation = await Conversations.findByIdAndUpdate(
               conversationId,
               { hasNotOpen },

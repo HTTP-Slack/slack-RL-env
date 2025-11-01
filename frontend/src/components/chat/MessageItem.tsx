@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import type { Message, User } from '../../constants/chat';
+import type { Message as ApiMessage, User as ApiUser } from '../../services/messageApi';
 import { parseMarkdown } from '../../utils/markdown';
 
 interface MessageItemProps {
-  message: Message;
-  user: User;
+  message: ApiMessage;
+  user: ApiUser;
   isCurrentUser: boolean;
   showAvatar: boolean;
   threadCount: number;
@@ -28,23 +28,23 @@ const MessageItem: React.FC<MessageItemProps> = ({
   formatTime,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const [editText, setEditText] = useState(message.text);
+  const [editText, setEditText] = useState(message.content);
   const [showEditInput, setShowEditInput] = useState(false);
 
   const handleEdit = () => {
     setShowEditInput(true);
-    setEditText(message.text);
+    setEditText(message.content);
   };
 
   const handleSaveEdit = () => {
-    if (editText.trim() && editText !== message.text) {
+    if (editText.trim() && editText !== message.content) {
       onEdit(editText.trim());
     }
     setShowEditInput(false);
   };
 
   const handleCancelEdit = () => {
-    setEditText(message.text);
+    setEditText(message.content);
     setShowEditInput(false);
   };
 
@@ -68,7 +68,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
       <div className="flex-shrink-0 mr-3">
         {showAvatar ? (
           <div className="w-8 h-8 rounded bg-[rgb(97,31,105)] flex items-center justify-center text-white text-sm font-semibold">
-            {user.displayName.charAt(0).toUpperCase()}
+            {user.username?.charAt(0).toUpperCase() || 'U'}
           </div>
         ) : (
           <div className="w-8 h-8"></div>
@@ -80,10 +80,10 @@ const MessageItem: React.FC<MessageItemProps> = ({
         {showAvatar && (
           <div className="flex items-center mb-1">
             <span className="text-[15px] font-bold text-white mr-2">
-              {user.displayName}
+              {user.username || 'Unknown User'}
             </span>
             <span className="text-[12px] font-normal text-[rgb(209,210,211)]">
-              {formatTime(message.timestamp)}
+              {formatTime(new Date(message.createdAt))}
             </span>
           </div>
         )}
@@ -108,11 +108,11 @@ const MessageItem: React.FC<MessageItemProps> = ({
             <>
               <div className="text-[15px] text-white break-words leading-[1.46668]">
                 <div>
-                  {parseMarkdown(message.text).map((part, idx) => (
+                  {parseMarkdown(message.content).map((part, idx) => (
                     <React.Fragment key={idx}>{part}</React.Fragment>
                   ))}
                 </div>
-                {message.edited && (
+                {message.updatedAt && message.updatedAt !== message.createdAt && (
                   <span className="text-[12px] text-[rgb(209,210,211)] ml-1">(edited)</span>
                 )}
               </div>
