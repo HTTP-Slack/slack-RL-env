@@ -20,7 +20,13 @@ const userSchema = new mongoose.Schema(
       required: [true, 'Please enter a password'],
       select: false,
       minlength: [8, 'Password must be at least 8 characters long']
-    },    isOnline: Boolean,
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true, // Allows multiple null values
+    },
+    isOnline: Boolean,
     role: String,
     phone: String,
     profilePicture: String,
