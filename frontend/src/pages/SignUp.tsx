@@ -1,12 +1,14 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 const SignUp = () => {
   const [email, setEmail] = useState('')
+  const navigate = useNavigate()
 
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     console.log('Email submitted:', email)
+    navigate('/signup/pass', { state: { email } })
   }
 
   const handleGoogleSignUp = () => {
