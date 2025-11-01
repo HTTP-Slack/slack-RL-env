@@ -1,1 +1,20 @@
 @import "tailwindcss";
+
+/* Hide scrollbars for markdown editor overlay */
+.markdown-overlay::-webkit-scrollbar {
+  display: none;
+}
+
+.markdown-overlay {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.textarea-overlay::-webkit-scrollbar {
+  display: none;
+}
+
+.textarea-overlay {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

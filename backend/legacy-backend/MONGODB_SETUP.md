@@ -147,3 +147,4 @@ mongosh mongodb://localhost:27017 --eval "db.adminCommand('listDatabases')"
 mongosh mongodb://localhost:27017/slack-clone-dev
 ```
 
+

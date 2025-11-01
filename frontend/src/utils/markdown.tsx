@@ -1,210 +1,189 @@
 import React from 'react';
 
-// Markdown parser utility
+// Markdown parser utility for live rendering
 export const parseMarkdown = (text: string): React.ReactNode[] => {
   if (!text) return [];
 
   const parts: React.ReactNode[] = [];
   
-  // Check for code blocks first
-  const codeBlockRegex = /```([\s\S]*?)```/g;
-  const codeBlocks: Array<{ start: number; end: number; content: string }> = [];
-  let match;
-  
-  while ((match = codeBlockRegex.exec(text)) !== null) {
-    codeBlocks.push({
-      start: match.index,
-      end: match.index + match[0].length,
-      content: match[1],
-    });
-  }
-
-  if (codeBlocks.length > 0) {
-    let currentIndex = 0;
-    codeBlocks.forEach((block, idx) => {
-      // Add text before code block
-      if (block.start > currentIndex) {
-        parts.push(...processInlineMarkdown(text.slice(currentIndex, block.start)));
-      }
-      
-      // Add code block
-      parts.push(
-        <pre key={`codeblock-${idx}`} className="font-mono text-[13px] bg-[rgb(26,29,33)] text-white p-2 rounded border border-[rgb(49,48,44)] overflow-x-auto my-1">
-          <code>{block.content}</code>
-        </pre>
-      );
-      
-      currentIndex = block.end;
-    });
-    
-    // Add remaining text
-    if (currentIndex < text.length) {
-      parts.push(...processInlineMarkdown(text.slice(currentIndex)));
-    }
-    
-    return parts;
-  }
-
-  // Process lists
+  // Split by lines for processing
   const lines = text.split('\n');
-  const listItems: React.ReactNode[] = [];
-  let inList = false;
-  let listType: 'ordered' | 'bullet' | null = null;
+  
+  // Process line by line with better list handling
+  let listItems: Array<{ type: 'ordered' | 'bullet'; level: number; content: React.ReactNode[] }> = [];
+  let inCodeBlock = false;
+  let codeBlockContent: string[] = [];
+  let codeBlockKey = 0;
+
+  const flushList = () => {
+    if (listItems.length === 0) return;
+    
+    // Group consecutive items of the same type and level
+    const grouped: Array<{ type: 'ordered' | 'bullet'; level: number; items: React.ReactNode[][] }> = [];
+    
+    listItems.forEach((item) => {
+      const lastGroup = grouped[grouped.length - 1];
+      if (lastGroup && lastGroup.type === item.type && lastGroup.level === item.level) {
+        lastGroup.items.push(item.content);
+      } else {
+        grouped.push({
+          type: item.type,
+          level: item.level,
+          items: [item.content],
+        });
+      }
+    });
+    
+    grouped.forEach((group, groupIdx) => {
+      const paddingLeft = 20 + (group.level * 20);
+      
+      if (group.type === 'ordered') {
+        parts.push(
+          <ol key={`ordered-${groupIdx}`} className="list-decimal list-outside my-0.5" style={{ paddingLeft: `${paddingLeft}px` }}>
+            {group.items.map((itemContent, idx) => (
+              <li key={idx} className="leading-[1.46668]">
+                {itemContent.map((part, partIdx) => (
+                  <React.Fragment key={partIdx}>{part}</React.Fragment>
+                ))}
+              </li>
+            ))}
+          </ol>
+        );
+      } else {
+        parts.push(
+          <ul key={`bullet-${groupIdx}`} className="list-disc list-outside my-0.5" style={{ paddingLeft: `${paddingLeft}px` }}>
+            {group.items.map((itemContent, idx) => (
+              <li key={idx} className="leading-[1.46668]">
+                {itemContent.map((part, partIdx) => (
+                  <React.Fragment key={partIdx}>{part}</React.Fragment>
+                ))}
+              </li>
+            ))}
+          </ul>
+        );
+      }
+    });
+    
+    listItems = [];
+  };
 
   lines.forEach((line, lineIdx) => {
-    const orderedMatch = line.match(/^(\d+)\.\s+(.+)$/);
-    const bulletMatch = line.match(/^[-*]\s+(.+)$/);
-    const blockquoteMatch = line.match(/^>\s+(.+)$/);
-
-    if (blockquoteMatch) {
-      if (inList) {
-        if (listType === 'ordered') {
-          parts.push(
-            <ol key={`ordered-list-${lineIdx}`} className="list-decimal list-inside ml-4 my-1">
-              {listItems.map((item, idx) => (
-                <li key={idx}>{item}</li>
-              ))}
-            </ol>
-          );
-        } else {
-          parts.push(
-            <ul key={`bullet-list-${lineIdx}`} className="list-disc list-inside ml-4 my-1">
-              {listItems.map((item, idx) => (
-                <li key={idx}>{item}</li>
-              ))}
-            </ul>
-          );
-        }
-        listItems.length = 0;
-        inList = false;
-        listType = null;
+    // Handle code blocks
+    if (line.trim().startsWith('```')) {
+      if (inCodeBlock) {
+        // End code block
+        flushList();
+        parts.push(
+          <pre key={`codeblock-${codeBlockKey++}`} className="font-mono text-[13px] bg-[rgb(26,29,33)] text-white p-2 rounded border border-[rgb(49,48,44)] overflow-x-auto my-1 whitespace-pre-wrap">
+            <code>{codeBlockContent.join('\n')}</code>
+          </pre>
+        );
+        codeBlockContent = [];
+        inCodeBlock = false;
+      } else {
+        flushList();
+        inCodeBlock = true;
+        const lang = line.trim().slice(3).trim();
+        if (lang) codeBlockContent.push(lang);
       }
+      return;
+    }
+    
+    if (inCodeBlock) {
+      codeBlockContent.push(line);
+      return;
+    }
+    
+    // Handle blockquotes
+    const blockquoteMatch = line.match(/^>\s+(.+)$/);
+    if (blockquoteMatch) {
+      flushList();
       parts.push(
-        <div key={`blockquote-${lineIdx}`} className="border-l-4 border-[rgb(209,210,211)] pl-3 my-1 text-[rgb(209,210,211)]">
+        <div key={`blockquote-${lineIdx}`} className="border-l-4 border-[rgb(209,210,211)] pl-3 my-0.5 text-[rgb(209,210,211)] leading-[1.46668]">
           {processInlineMarkdown(blockquoteMatch[1]).map((part, idx) => (
             <React.Fragment key={idx}>{part}</React.Fragment>
           ))}
         </div>
       );
-    } else if (orderedMatch) {
-      if (!inList || listType !== 'ordered') {
-        if (inList && listType === 'bullet') {
-          parts.push(
-            <ul key={`bullet-list-${lineIdx}`} className="list-disc list-inside ml-4 my-1">
-              {listItems.map((item, idx) => (
-                <li key={idx}>{item}</li>
-              ))}
-            </ul>
-          );
-          listItems.length = 0;
-        }
-        inList = true;
-        listType = 'ordered';
-      }
-      const inlineParts = processInlineMarkdown(orderedMatch[2]);
-      listItems.push(
-        <React.Fragment key={`ordered-item-${lineIdx}`}>
-          {inlineParts.map((part, idx) => (
-            <React.Fragment key={idx}>{part}</React.Fragment>
-          ))}
-        </React.Fragment>
-      );
-    } else if (bulletMatch) {
-      if (!inList || listType !== 'bullet') {
-        if (inList && listType === 'ordered') {
-          parts.push(
-            <ol key={`ordered-list-${lineIdx}`} className="list-decimal list-inside ml-4 my-1">
-              {listItems.map((item, idx) => (
-                <li key={idx}>{item}</li>
-              ))}
-            </ol>
-          );
-          listItems.length = 0;
-        }
-        inList = true;
-        listType = 'bullet';
-      }
-      const inlineParts = processInlineMarkdown(bulletMatch[1]);
-      listItems.push(
-        <React.Fragment key={`bullet-item-${lineIdx}`}>
-          {inlineParts.map((part, idx) => (
-            <React.Fragment key={idx}>{part}</React.Fragment>
-          ))}
-        </React.Fragment>
-      );
+      return;
+    }
+    
+    // Handle ordered lists (including nested with letters)
+    const orderedMatch = line.match(/^(\s*)(\d+|[a-z])\.\s+(.+)$/i);
+    if (orderedMatch) {
+      const indent = orderedMatch[1].length;
+      const level = Math.floor(indent / 2);
+      const content = processInlineMarkdown(orderedMatch[3]);
+      
+      listItems.push({
+        type: 'ordered',
+        level,
+        content,
+      });
+      return;
+    }
+    
+    // Handle bullet lists
+    const bulletMatch = line.match(/^(\s*)[-*]\s+(.+)$/);
+    if (bulletMatch) {
+      const indent = bulletMatch[1].length;
+      const level = Math.floor(indent / 2);
+      const content = processInlineMarkdown(bulletMatch[2]);
+      
+      listItems.push({
+        type: 'bullet',
+        level,
+        content,
+      });
+      return;
+    }
+    
+    // Regular line - flush any pending list first
+    if (line.trim() === '') {
+      flushList();
+      parts.push(<br key={`br-${lineIdx}`} />);
     } else {
-      if (inList) {
-        if (listType === 'ordered') {
-          parts.push(
-            <ol key={`ordered-list-${lineIdx}`} className="list-decimal list-inside ml-4 my-1">
-              {listItems.map((item, idx) => (
-                <li key={idx}>{item}</li>
-              ))}
-            </ol>
-          );
-        } else {
-          parts.push(
-            <ul key={`bullet-list-${lineIdx}`} className="list-disc list-inside ml-4 my-1">
-              {listItems.map((item, idx) => (
-                <li key={idx}>{item}</li>
-              ))}
-            </ul>
-          );
-        }
-        listItems.length = 0;
-        inList = false;
-        listType = null;
-      }
-      if (line.trim()) {
-        parts.push(
-          <div key={`line-${lineIdx}`} className="my-1">
-            {processInlineMarkdown(line).map((part, idx) => (
-              <React.Fragment key={idx}>{part}</React.Fragment>
-            ))}
-          </div>
-        );
-      } else {
-        parts.push(<br key={`br-${lineIdx}`} />);
-      }
+      flushList();
+      parts.push(
+        <div key={`line-${lineIdx}`} className="leading-[1.46668]">
+          {processInlineMarkdown(line).map((part, idx) => (
+            <React.Fragment key={idx}>{part}</React.Fragment>
+          ))}
+        </div>
+      );
     }
   });
-
-  // Close any remaining list
-  if (inList) {
-    if (listType === 'ordered') {
-      parts.push(
-        <ol key="ordered-list-final" className="list-decimal list-inside ml-4 my-1">
-          {listItems.map((item, idx) => (
-            <li key={idx}>{item}</li>
-          ))}
-        </ol>
-      );
-    } else {
-      parts.push(
-        <ul key="bullet-list-final" className="list-disc list-inside ml-4 my-1">
-          {listItems.map((item, idx) => (
-            <li key={idx}>{item}</li>
-          ))}
-        </ul>
-      );
-    }
+  
+  // Flush any remaining code block
+  if (inCodeBlock && codeBlockContent.length > 0) {
+    flushList();
+    parts.push(
+      <pre key={`codeblock-${codeBlockKey++}`} className="font-mono text-[13px] bg-[rgb(26,29,33)] text-white p-2 rounded border border-[rgb(49,48,44)] overflow-x-auto my-1 whitespace-pre-wrap">
+        <code>{codeBlockContent.join('\n')}</code>
+      </pre>
+    );
   }
+  
+  // Flush any remaining list
+  flushList();
 
   return parts.length > 0 ? parts : processInlineMarkdown(text);
 };
 
 const processInlineMarkdown = (text: string): React.ReactNode[] => {
+  if (!text) return [];
+  
   const parts: React.ReactNode[] = [];
   let processedText = text;
   const replacements: Array<{ placeholder: string; element: React.ReactNode }> = [];
   
-  // Process code blocks (already handled above, but handle inline code)
-  processedText = processedText.replace(/`([^`]+)`/g, (match, content) => {
+  // Process inline code (backticks) - must be first to avoid conflicts
+  processedText = processedText.replace(/`([^`\n]+)`/g, (match, content) => {
     const placeholder = `__CODE_${replacements.length}__`;
     replacements.push({
       placeholder,
       element: (
-        <code key={placeholder} className="bg-[rgb(49,48,44)] px-1 rounded text-[rgb(209,210,211)] text-[13px]">
+        <code key={placeholder} className="bg-[rgb(49,48,44)] px-1.5 py-0.5 rounded text-[rgb(209,210,211)] text-[13px] font-mono">
           {content}
         </code>
       ),
@@ -223,7 +202,7 @@ const processInlineMarkdown = (text: string): React.ReactNode[] => {
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[rgb(54,197,240)] hover:underline"
+          className="text-[rgb(54,197,240)] hover:underline cursor-pointer"
         >
           {linkText}
         </a>
@@ -232,50 +211,62 @@ const processInlineMarkdown = (text: string): React.ReactNode[] => {
     return placeholder;
   });
 
-  // Process bold
-  processedText = processedText.replace(/\*\*(.*?)\*\*/g, (match, content) => {
+  // Process bold (**text**)
+  processedText = processedText.replace(/\*\*([^*\n]+)\*\*/g, (match, content) => {
     const placeholder = `__BOLD_${replacements.length}__`;
     replacements.push({
       placeholder,
-      element: <strong key={placeholder}>{content}</strong>,
+      element: <strong key={placeholder} className="font-bold">{content}</strong>,
     });
     return placeholder;
   });
 
-  // Process underline (must come before italic to avoid conflicts)
-  processedText = processedText.replace(/__(.*?)__/g, (match, content) => {
+  // Process underline (__text__) - must come before italic underscore
+  processedText = processedText.replace(/__([^_\n]+)__/g, (match, content) => {
     const placeholder = `__UNDERLINE_${replacements.length}__`;
     replacements.push({
       placeholder,
-      element: <u key={placeholder}>{content}</u>,
+      element: <u key={placeholder} className="underline">{content}</u>,
     });
     return placeholder;
   });
 
-  // Process strikethrough
-  processedText = processedText.replace(/~~(.*?)~~/g, (match, content) => {
+  // Process strikethrough (~~text~~)
+  processedText = processedText.replace(/~~([^~\n]+)~~/g, (match, content) => {
     const placeholder = `__STRIKE_${replacements.length}__`;
     replacements.push({
       placeholder,
-      element: <del key={placeholder}>{content}</del>,
+      element: <del key={placeholder} className="line-through">{content}</del>,
     });
     return placeholder;
   });
 
-  // Process italic (after underline to avoid conflicts)
-  processedText = processedText.replace(/_(.*?)_/g, (match, content) => {
-    // Skip if it's part of __ (underline) or already processed
-    if (content.includes('__') || content.includes('**')) return match;
+  // Process italic with asterisk (*text*) - handle carefully to avoid conflicts with bold
+  processedText = processedText.replace(/\*([^*\n]+)\*/g, (match, content) => {
+    // Skip if it's part of ** (bold) - already processed
+    if (match.includes('**')) return match;
     const placeholder = `__ITALIC_${replacements.length}__`;
     replacements.push({
       placeholder,
-      element: <em key={placeholder}>{content}</em>,
+      element: <em key={placeholder} className="italic">{content}</em>,
+    });
+    return placeholder;
+  });
+  
+  // Process italic with underscore (_text_) - underline is already processed, so this is safe
+  processedText = processedText.replace(/_([^_\n]+)_/g, (match, content) => {
+    // Skip if this looks like it might be a placeholder or already processed
+    if (match.includes('__') || content.includes('__')) return match;
+    const placeholder = `__ITALIC2_${replacements.length}__`;
+    replacements.push({
+      placeholder,
+      element: <em key={placeholder} className="italic">{content}</em>,
     });
     return placeholder;
   });
 
   // Split by placeholders and reconstruct
-  const placeholderRegex = /__(CODE|LINK|BOLD|UNDERLINE|ITALIC|STRIKE)_(\d+)__/g;
+  const placeholderRegex = /__(CODE|LINK|BOLD|UNDERLINE|ITALIC|ITALIC2|STRIKE)_(\d+)__/g;
   const finalParts: React.ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -331,6 +322,18 @@ export const insertMarkdown = (
   } else if (markdown === 'code') {
     newText = `${before}\`${selectedText || 'code'}\`${after}`;
     newCursorPosition = selectionStart + (selectedText ? 0 : 6);
+  } else if (markdown === 'codeBlock') {
+    const lines = text.split('\n');
+    const lineIndex = text.slice(0, selectionStart).split('\n').length - 1;
+    const currentLine = lines[lineIndex] || '';
+    if (!currentLine.trim().startsWith('```')) {
+      lines[lineIndex] = `\`\`\`\n${currentLine}\n\`\`\``;
+      newText = lines.join('\n');
+      newCursorPosition = selectionStart + 5;
+    } else {
+      newText = text;
+      newCursorPosition = selectionStart;
+    }
   } else if (markdown === 'link') {
     newText = `${before}[${selectedText || 'link text'}](url)${after}`;
     newCursorPosition = selectionStart + (selectedText ? selectedText.length + 3 : 10);
