@@ -43,7 +43,7 @@ export function PrivacyVisibilitySection() {
                 onChange={handleToggle}
                 className="w-4 h-4 text-purple-600"
               />
-              <span className="text-gray-200">Anyone with your email address (abanpersonal@gmail.com)</span>
+              <span className="text-gray-200">Anyone with your email address (your-email@example.com)</span>
             </label>
             <label className="flex items-center gap-3 cursor-pointer">
               <input
