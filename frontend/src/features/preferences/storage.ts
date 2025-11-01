@@ -1,5 +1,6 @@
 import type { UserPreferences } from './types';
 import { DEFAULT_PREFERENCES } from './defaults';
+import { deepMerge } from './utils';
 
 const STORAGE_KEY = 'app.preferences.v1';
 const STORAGE_VERSION = 1;
@@ -74,28 +75,3 @@ export const PreferencesStorage = {
     }
   },
 };
-
-function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
-  const result = { ...target };
-  
-  for (const key in source) {
-    const sourceValue = source[key];
-    const targetValue = result[key];
-    
-    if (
-      sourceValue &&
-      typeof sourceValue === 'object' &&
-      !Array.isArray(sourceValue) &&
-      targetValue &&
-      typeof targetValue === 'object' &&
-      !Array.isArray(targetValue)
-    ) {
-      result[key] = deepMerge(targetValue, sourceValue);
-    } else if (sourceValue !== undefined) {
-      result[key] = sourceValue as any;
-    }
-  }
-  
-  return result;
-}
-
