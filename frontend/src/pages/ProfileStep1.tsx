@@ -1,18 +1,63 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useWorkspaceCreation } from '../context/WorkspaceCreationContext'
 
 const ProfileStep1 = () => {
-  const [name, setName] = useState('Amogha Rao')
+  const { userName, setUserName, userPhoto, setUserPhoto } = useWorkspaceCreation()
+  const [name, setName] = useState(userName || 'Amogha Rao')
+  const [photo, setPhoto] = useState<string | null>(userPhoto || null)
   const [step] = useState(1)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
 
+  useEffect(() => {
+    if (userName) {
+      setName(userName)
+    }
+    if (userPhoto) {
+      setPhoto(userPhoto)
+    }
+  }, [userName, userPhoto])
+
   const handleNext = () => {
-    console.log('Name submitted:', name)
+    setUserName(name)
+    setUserPhoto(photo)
     navigate('/profile-step2')
   }
 
   const handleEditPhoto = () => {
-    console.log('Edit photo clicked')
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file')
+        return
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image size should be less than 5MB')
+        return
+      }
+
+      // Read file and convert to base64
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setPhoto(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleRemovePhoto = () => {
+    setPhoto(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }
 
   // Generate initials from name
@@ -98,18 +143,45 @@ const ProfileStep1 = () => {
 
             {/* Avatar Display */}
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-24 h-24 rounded bg-[#8b7894] flex items-center justify-center text-white text-4xl font-semibold">
-                {getInitials(name)}
-              </div>
+              {photo ? (
+                <img
+                  src={photo}
+                  alt="Profile"
+                  className="w-24 h-24 rounded object-cover"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded bg-[#8b7894] flex items-center justify-center text-white text-4xl font-semibold">
+                  {getInitials(name)}
+                </div>
+              )}
             </div>
 
-            {/* Edit Photo Button */}
-            <button
-              onClick={handleEditPhoto}
-              className="px-6 py-2.5 border border-white text-white rounded hover:bg-white hover:text-gray-900 transition-colors text-sm font-medium"
-            >
-              Edit photo
-            </button>
+            {/* Hidden File Input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+
+            {/* Photo Action Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={handleEditPhoto}
+                className="px-6 py-2.5 border border-white text-white rounded hover:bg-white hover:text-gray-900 transition-colors text-sm font-medium"
+              >
+                {photo ? 'Change photo' : 'Upload photo'}
+              </button>
+              {photo && (
+                <button
+                  onClick={handleRemovePhoto}
+                  className="px-6 py-2.5 border border-gray-500 text-gray-400 rounded hover:border-red-500 hover:text-red-400 transition-colors text-sm font-medium"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Next Button */}
@@ -126,4 +198,4 @@ const ProfileStep1 = () => {
   )
 }
 
-export default ProfileStep1;
+export default ProfileStep1

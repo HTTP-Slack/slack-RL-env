@@ -111,12 +111,12 @@ const Header: React.FC = () => {
             )}
 
             {/* CREATE A NEW WORKSPACE Button */}
-            <a
-              href="https://slack.com/intl/en-in/get-started"
+            <Link
+              to="/profile-step1"
               className="px-4 py-2 text-sm font-bold text-[rgb(74,21,75)] uppercase bg-white rounded hover:bg-white/90 transition-colors"
             >
               CREATE A NEW WORKSPACE
-            </a>
+            </Link>
           </div>
         </div>
       </div>
