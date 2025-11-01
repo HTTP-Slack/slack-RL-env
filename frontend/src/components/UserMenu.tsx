@@ -1,8 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { usePreferencesModal } from '../features/preferences/PreferencesContext';
 import { useProfile } from '../features/profile/ProfileContext';
+import { useAuth } from '../context/AuthContext';
 
 export function UserMenu() {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { openModal } = usePreferencesModal();
   const { openPanel } = useProfile();
@@ -34,19 +38,31 @@ export function UserMenu() {
     openPanel();
   };
 
+  const handleSignOut = async () => {
+    setIsMenuOpen(false);
+    await logout();
+    navigate('/signin');
+  };
+
+  // Get user initials for avatar
+  const getUserInitial = () => {
+    if (!user?.username) return 'U';
+    return user.username.charAt(0).toUpperCase();
+  };
+
   return (
-    <div ref={menuRef} className="fixed bottom-4 right-4 z-40">
+    <div ref={menuRef} className="relative">
       {/* Menu Dropdown */}
       {isMenuOpen && (
-        <div className="absolute bottom-full right-0 mb-2 w-64 bg-[#1a1d21] rounded-lg shadow-xl border border-gray-700 overflow-hidden">
+        <div className="absolute bottom-full left-full ml-2 mb-2 w-64 bg-[#1a1d21] rounded-lg shadow-xl border border-gray-700 overflow-hidden z-50">
           {/* User Info */}
           <div className="p-4 border-b border-gray-700">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded bg-orange-700 flex items-center justify-center text-white text-lg font-semibold">
-                a
+                {getUserInitial()}
               </div>
               <div>
-                <div className="text-white font-semibold">aban hasan</div>
+                <div className="text-white font-semibold">{user?.username || 'User'}</div>
                 <div className="flex items-center gap-1 text-sm text-gray-400">
                   <div className="w-2 h-2 rounded-full bg-green-500"></div>
                   <span>Active</span>
@@ -92,7 +108,10 @@ export function UserMenu() {
           </div>
 
           <div className="border-t border-gray-700 py-2">
-            <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm">
+            <button 
+              onClick={handleSignOut}
+              className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm"
+            >
               Sign out of HTTP Test Environment
             </button>
           </div>
@@ -102,10 +121,10 @@ export function UserMenu() {
       {/* Avatar Button */}
       <button
         onClick={() => setIsMenuOpen(!isMenuOpen)}
-        className="w-12 h-12 rounded bg-orange-700 flex items-center justify-center text-white text-lg font-semibold hover:opacity-90 transition-opacity shadow-lg relative"
+        className="w-9 h-9 rounded bg-orange-700 flex items-center justify-center text-white text-sm font-semibold hover:opacity-80 transition-opacity relative mb-2"
       >
-        a
-        <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 border-2 border-[#0d1117]"></div>
+        {getUserInitial()}
+        <div className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-green-500 border border-[#350d36]"></div>
       </button>
     </div>
   );
