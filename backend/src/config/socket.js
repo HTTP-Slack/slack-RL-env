@@ -40,7 +40,7 @@ const initializeSocket = (io) => {
           id,
           { $pull: { hasNotOpen: userId } },
           { new: true }
-        )
+        ).populate('collaborators')
         io.to(id).emit('convo-updated', updatedConversation)
       }
     })
@@ -152,7 +152,7 @@ const initializeSocket = (io) => {
               conversationId,
               { hasNotOpen },
               { new: true }
-            )
+            ).populate('collaborators')
             io.to(conversationId).emit('convo-updated', updatedConversation)
             socket.broadcast.emit('notification', {
               collaborators,

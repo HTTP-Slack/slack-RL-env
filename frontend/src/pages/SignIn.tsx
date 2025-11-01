@@ -33,7 +33,8 @@ const SignIn = () => {
   }
 
   const handleGoogleSignIn = () => {
-    console.log('Sign in with Google')
+    // Redirect to backend Google OAuth endpoint
+    window.location.href = 'http://localhost:5000/api/auth/google'
   }
 
   const handleAppleSignIn = () => {

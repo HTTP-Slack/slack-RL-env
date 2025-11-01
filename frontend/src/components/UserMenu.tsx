@@ -101,7 +101,7 @@ export function UserMenu() {
             </button>
             <button
               onClick={handlePreferencesClick}
-              className="w-full px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition-colors text-left text-sm font-medium"
+              className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm"
             >
               Preferences
             </button>
@@ -129,4 +129,3 @@ export function UserMenu() {
     </div>
   );
 }
-
