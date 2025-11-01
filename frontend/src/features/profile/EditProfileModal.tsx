@@ -46,6 +46,7 @@ export function EditProfileModal() {
           <button
             onClick={closeEditModal}
             className="text-gray-400 hover:text-white transition-colors p-1"
+            aria-label="Close edit profile modal"
           >
             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -172,7 +173,10 @@ export function EditProfileModal() {
               <label className="block text-sm font-semibold text-white mb-2">
                 Profile photo
               </label>
-              <div className="w-full aspect-square rounded bg-gradient-to-br from-orange-600 to-orange-800 flex items-center justify-center text-white text-8xl font-semibold mb-4">
+              <div
+                className="w-full aspect-square rounded bg-gradient-to-br from-orange-600 to-orange-800 flex items-center justify-center text-white text-8xl font-semibold mb-4"
+                aria-label="Profile photo placeholder"
+              >
                 a
               </div>
               <button className="w-full px-4 py-2 bg-white hover:bg-gray-100 text-gray-900 rounded font-medium mb-2 transition-colors">
