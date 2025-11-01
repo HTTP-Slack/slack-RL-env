@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import SignIn from './pages/SignIn';
+import SignUp from './pages/SignUp';
+import Pass from './pages/Pass';
 import WorkspaceSelection from './pages/WorkspaceSelection';
 import ProfileStep1 from './pages/ProfileStep1';
 import ProfileStep2 from './pages/ProfileStep2';
@@ -12,6 +14,9 @@ const App = () => {
       <Routes>
         <Route path="/" element={<Navigate to="/signin" replace />} />
         <Route path="/signin" element={<SignIn />} />
+        <Route path="/signin/pass" element={<Pass />} />
+        <Route path="/signup" element={<SignUp />} />
+        <Route path="/signup/pass" element={<Pass />} />
         <Route path="/home" element={<WorkspaceSelection />} />
         <Route path="/profile-step1" element={<ProfileStep1 />} />
         <Route path="/profile-step2" element={<ProfileStep2 />} />
