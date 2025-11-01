@@ -3,15 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import { WorkspaceItem } from '../components/WorkspaceItem';
 import { getWorkspaces, getUserEmail } from '../services/workspaceApi';
-
-interface Workspace {
-  id: string;
-  name: string;
-  iconUrl: string;
-  members: number;
-  memberAvatars: string[];
-  launchUrl: string;
-}
+import type { Workspace } from '../types/workspace';
 
 const WorkspaceSelection: React.FC = () => {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -77,7 +69,7 @@ const WorkspaceSelection: React.FC = () => {
           {/* Workspaces List */}
           <div className="flex flex-col rounded-b-xl bg-white">
             {visibleWorkspaces.map((workspace, index) => (
-              <div key={workspace.id} className="p-4 transition-[0.125s]">
+              <div key={workspace.id} className="p-4 transition-all duration-[125ms]">
                 <WorkspaceItem workspace={workspace} />
                 {index < visibleWorkspaces.length - 1 && (
                   <div className="h-0 my-4 border-t border-[rgb(235,234,235)]"></div>
@@ -89,7 +81,7 @@ const WorkspaceSelection: React.FC = () => {
             {!showMore && hasMoreWorkspaces && (
               <>
                 <div className="h-0 my-4 border-t border-[rgb(235,234,235)]"></div>
-                <div className="p-4 transition-[0.125s]">
+                <div className="p-4 transition-all duration-[125ms]">
                   <div className="flex items-center">
                     <div className="w-[75px] h-[75px] mr-4 rounded-[5px] bg-[rgb(235,234,235)]"></div>
                     <div className="flex flex-col my-3 flex-1">
@@ -237,7 +229,7 @@ const WorkspaceSelection: React.FC = () => {
                 <img
                   className="w-[13px] h-[17px] ml-1"
                   src="https://a.slack-edge.com/8a4d54e/marketing/img/icons/icon_workspace_arrow_blue_nav.svg"
-                  alt="Hide announcement"
+                  alt="Arrow icon for download banner"
                 />
               </a>
             </div>
