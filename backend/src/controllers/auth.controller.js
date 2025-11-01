@@ -2,14 +2,14 @@ import User from "../models/user.model.js";
 import jwt from 'jsonwebtoken';
 
 // @desc signup user
-// @route /api/auth/register
+// @route POST /api/auth/register
 // @access public
 export const register = async (req, res) => {
   const {username, email, password } = req.body;
 
   try {
     // 1. Basic Validation
-    if (!username || !email || !password) {
+    if ( !username || !email || !password) {
       return res.status(400).json({
         success: false,
         message: 'Please provide a username, email, and password',
@@ -72,7 +72,7 @@ export const register = async (req, res) => {
 }
 
 // @desc sign in user
-// @route /api/auth/signin
+// @route POST /api/auth/signin
 // @access public
 export const signin = async (req, res) => {
   const {email, password} = req.body;

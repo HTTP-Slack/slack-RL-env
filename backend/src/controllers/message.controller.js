@@ -86,3 +86,80 @@ export const getMessage = async (req, res) => {
     console.log("Error in message controller", error);
   }
 }
+
+// @desc    Create a new message
+// @route   POST /api/message
+// @access  Private
+export const createMessage = async (req, res) => {
+  try {
+    const {
+      content,
+      organisation,
+      channelId,
+      conversationId,
+      isSelf = false,
+    } = req.body;
+
+    // 1. Get sender ID from our protectRoute middleware
+    const senderId = req.user.id;
+    if (!senderId) {
+      return res.status(401).json({
+        success: false,
+        message: "User not authenticated.",
+      });
+    }
+
+    // 2. Basic Validation
+    if (!content || !organisation) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields: content and organisation",
+      });
+    }
+
+    if (!channelId && !conversationId) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Message must belong to a channel (channelId) or conversation (conversationId)",
+      });
+    }
+
+    // 3. Prepare message data
+    const messageData = {
+      content,
+      sender: senderId,
+      organisation,
+      isSelf: !!isSelf, // Coerce to boolean
+      reactions: [],
+      threadReplies: [],
+    };
+
+    if (channelId) {
+      messageData.channel = channelId;
+    } else if (conversationId) {
+      messageData.conversation = conversationId;
+    }
+
+    // 4. Create and populate message
+    let newMessage = await Message.create(messageData);
+
+    // Populate the sender field, just like in your socket handler
+    newMessage = await newMessage.populate({
+      path: "sender",
+      select: "username email profilePicture", // Select fields you want to return
+    });
+
+    res.status(201).json({
+      success: true,
+      data: newMessage,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+    console.log("Error in createMessage controller", error);
+  }
+};
