@@ -5,7 +5,7 @@ import { createWorkspace } from '../services/workspaceApi'
 
 const ProfileStep2 = () => {
   const { workspaceName: savedWorkspaceName, setWorkspaceName: saveWorkspaceName, setWorkspaceId } = useWorkspaceCreation()
-  const [workspaceName, setWorkspaceName] = useState(savedWorkspaceName || 'New Workspace')
+  const [workspaceName, setWorkspaceName] = useState(savedWorkspaceName)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [step] = useState(2)
