@@ -53,7 +53,7 @@ const SignUp = () => {
           </p>
 
           {/* Email Form */}
-          <form onSubmit={handleEmailSubmit} className="mb-4 mx-auto w-3/5">
+          <form onSubmit={handleEmailSubmit} className="mb-4 mx-auto w-3/4">
             <input
               type="email"
               value={email}
