@@ -1,14 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-
-interface Workspace {
-  id: string;
-  name: string;
-  iconUrl: string;
-  members: number;
-  memberAvatars: string[];
-  launchUrl: string;
-}
+import type { Workspace } from '../types/workspace';
 
 interface WorkspaceItemProps {
   workspace: Workspace;

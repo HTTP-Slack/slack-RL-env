@@ -1,27 +1,27 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
-const SignIn = () => {
+const SignUp = () => {
   const [email, setEmail] = useState('')
   const navigate = useNavigate()
 
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     console.log('Email submitted:', email)
-    navigate('/signin/pass', { state: { email } })
+    navigate('/signup/pass', { state: { email } })
   }
 
-  const handleGoogleSignIn = () => {
-    console.log('Sign in with Google')
+  const handleGoogleSignUp = () => {
+    console.log('Sign up with Google')
   }
 
-  const handleAppleSignIn = () => {
-    console.log('Sign in with Apple')
+  const handleAppleSignUp = () => {
+    console.log('Sign up with Apple')
   }
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      {/* Header - Centered Logo with Right-aligned Create Account */}
+      {/* Header - Centered Logo */}
       <header className="w-full px-8 pt-12 pb-10 flex justify-center items-center">
         <div className="flex items-center gap-2">
           <svg className="w-7 h-7" viewBox="0 0 124 124" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -40,22 +40,16 @@ const SignIn = () => {
           </svg>
           <span className="text-3xl font-bold text-gray-900">slack</span>
         </div>
-        <div className="absolute right-8 text-sm text-gray-600 flex flex-col items-end">
-          <span>New to Slack?</span>
-          <Link to="/signup" className="text-blue-600 hover:underline">
-            Create an account
-          </Link>
-        </div>
       </header>
 
       {/* Main Content */}
       <main className="flex-1 flex items-start justify-center px-8 pt-0 pb-20">
         <div className="w-full max-w-xl">
           <h1 className="text-[2.75rem] leading-tight font-bold text-black text-center mb-2">
-            Enter your email to sign in
+            First, enter your email
           </h1>
           <p className="text-center text-gray-600 text-base mb-6">
-            Or choose another way to sign in.
+            We suggest using the <strong>email address you use at work</strong>.
           </p>
 
           {/* Email Form */}
@@ -65,14 +59,14 @@ const SignIn = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="name@work-email.com"
-              className="w-full px-4 py-3 border border-gray-300 rounded-md mb-3 text-base focus:outline-none focus:border-gray-400 focus:ring-0"
+              className="w-full px-4 py-3 border-2 border-blue-500 rounded-md mb-3 text-base focus:outline-none focus:border-blue-600 focus:ring-0"
               required
             />
             <button
               type="submit"
               className="w-full bg-[#611f69] hover:bg-[#4a154b] text-white font-semibold py-3 rounded-md text-base transition-colors"
             >
-              Sign In With Email
+              Continue
             </button>
           </form>
 
@@ -83,15 +77,15 @@ const SignIn = () => {
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="px-4 bg-white text-gray-700 uppercase text-xs tracking-wide font-semibold">
-                Or sign in with
+                Other options
               </span>
             </div>
           </div>
 
-          {/* Social Sign In Buttons */}
-          <div className="flex gap-3 mb-4 mx-auto w-3/4">
+          {/* Social Sign Up Buttons */}
+          <div className="flex gap-3 mb-6 mx-auto w-3/4">
             <button
-              onClick={handleGoogleSignIn}
+              onClick={handleGoogleSignUp}
               type="button"
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
             >
@@ -116,7 +110,7 @@ const SignIn = () => {
               <span className="text-gray-900 font-normal">Google</span>
             </button>
             <button
-              onClick={handleAppleSignIn}
+              onClick={handleAppleSignUp}
               type="button"
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
             >
@@ -127,12 +121,22 @@ const SignIn = () => {
             </button>
           </div>
 
+          {/* Terms and Privacy */}
+          <div className="text-center text-xs text-gray-600 leading-relaxed mb-6">
+            <p className="mb-2">
+              By entering your email and continuing, you will either create a new workspace or be directed to any existing workspaces or invitations associated with your email.
+            </p>
+            <p>
+              By creating a workspace, you're agreeing to our Main Services Agreement, User Terms of Service, and Slack Supplemental Terms. Additional disclosures are available in our Privacy Policy and Cookie Policy.
+            </p>
+          </div>
+
           {/* Footer Link */}
           <p className="text-center text-gray-700 text-sm">
-            Having trouble?{' '}
-            <a href="#" className="text-blue-600 hover:underline">
-              Try entering a workspace URL
-            </a>
+            Already using Slack?{' '}
+            <Link to="/signin" className="text-blue-600 hover:underline">
+              Sign in to an existing workspace
+            </Link>
           </p>
         </div>
       </main>
@@ -156,4 +160,4 @@ const SignIn = () => {
   )
 }
 
-export default SignIn
+export default SignUp
