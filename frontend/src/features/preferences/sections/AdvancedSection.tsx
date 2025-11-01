@@ -2,12 +2,14 @@ import { usePreferences, useUpdatePreferences, useResetPreferences } from '../Pr
 import { PreferencesStorage } from '../storage';
 import { SearchSortDefault } from '../types';
 import { useState } from 'react';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 export function AdvancedSection() {
   const preferences = usePreferences();
   const updatePreferences = useUpdatePreferences();
   const resetPreferences = useResetPreferences();
   const [importError, setImportError] = useState<string | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const handleToggle = (field: keyof typeof preferences.advanced) => {
     updatePreferences({
@@ -84,9 +86,12 @@ export function AdvancedSection() {
   };
 
   const handleReset = () => {
-    if (confirm('Are you sure you want to reset all preferences to defaults?')) {
-      resetPreferences();
-    }
+    setShowResetConfirm(true);
+  };
+
+  const confirmReset = () => {
+    resetPreferences();
+    setShowResetConfirm(false);
   };
 
   return (
@@ -165,38 +170,40 @@ export function AdvancedSection() {
         <div className="border-t border-gray-700 pt-4">
           <h3 className="text-white font-medium mb-3">Search options</h3>
           <div className="space-y-3">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <input
-                  type="checkbox"
-                  checked={preferences.advanced.searchShortcut === 'cmd_f'}
-                  onChange={() => handleSearchShortcutChange(preferences.advanced.searchShortcut === 'cmd_f' ? 'cmd_k' : 'cmd_f')}
-                  className="w-4 h-4 rounded text-purple-600"
-                />
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="radio"
+                name="search-shortcut"
+                checked={preferences.advanced.searchShortcut === 'cmd_f'}
+                onChange={() => handleSearchShortcutChange('cmd_f')}
+                className="w-4 h-4 text-purple-600"
+              />
+              <div>
                 <div>
                   <span className="px-1 py-0.5 bg-gray-700 rounded text-gray-300 mr-1">Cmd</span>
                   <span className="px-1 py-0.5 bg-gray-700 rounded text-gray-300">F</span>
                   <span className="text-gray-200 ml-2">starts a Slack search</span>
                 </div>
+                <p className="text-gray-400 text-xs mt-1">Overrides normal browser search behavior</p>
               </div>
-              <p className="text-gray-400 text-xs ml-7">Overrides normal browser search behavior</p>
-            </div>
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <input
-                  type="checkbox"
-                  checked={preferences.advanced.searchShortcut === 'cmd_k'}
-                  onChange={() => handleSearchShortcutChange(preferences.advanced.searchShortcut === 'cmd_k' ? 'cmd_f' : 'cmd_k')}
-                  className="w-4 h-4 rounded text-purple-600"
-                />
+            </label>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="radio"
+                name="search-shortcut"
+                checked={preferences.advanced.searchShortcut === 'cmd_k'}
+                onChange={() => handleSearchShortcutChange('cmd_k')}
+                className="w-4 h-4 text-purple-600"
+              />
+              <div>
                 <div>
                   <span className="px-1 py-0.5 bg-gray-700 rounded text-gray-300 mr-1">Cmd</span>
                   <span className="px-1 py-0.5 bg-gray-700 rounded text-gray-300">K</span>
                   <span className="text-gray-200 ml-2">starts the Quick Switcher</span>
                 </div>
+                <p className="text-gray-400 text-xs mt-1">Overrides normal behavior in some browsers</p>
               </div>
-              <p className="text-gray-400 text-xs ml-7">Overrides normal behavior in some browsers</p>
-            </div>
+            </label>
           </div>
         </div>
 
@@ -353,6 +360,16 @@ export function AdvancedSection() {
           </p>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showResetConfirm}
+        title="Reset all preferences?"
+        message="Are you sure you want to reset all preferences to defaults? This action cannot be undone."
+        confirmLabel="Reset to Defaults"
+        cancelLabel="Cancel"
+        onConfirm={confirmReset}
+        onCancel={() => setShowResetConfirm(false)}
+      />
     </div>
   );
 }
