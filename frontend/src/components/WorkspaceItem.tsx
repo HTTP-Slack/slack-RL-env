@@ -1,13 +1,5 @@
 import React from 'react';
-
-interface Workspace {
-  id: string;
-  name: string;
-  iconUrl: string;
-  members: number;
-  memberAvatars: string[];
-  launchUrl: string;
-}
+import type { Workspace } from '../types/workspace';
 
 interface WorkspaceItemProps {
   workspace: Workspace;
