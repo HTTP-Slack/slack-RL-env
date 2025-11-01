@@ -245,7 +245,7 @@ const WorkspaceSelection: React.FC = () => {
               aria-label="Hide banner"
               className="absolute top-0 right-0 w-4 h-[23px] rounded-[4px] text-center text-white cursor-pointer"
             >
-              <svg aria-hidden="" width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="-255 347 100 100">
+              <svg aria-hidden="true" width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="-255 347 100 100">
                 <title>Hide banner</title>
                 <path d="M-160.4 434.2l-37.2-37.2 37.1-37.1-7-7-37.1 37.1-37.1-37.1-7 7 37.1 37.1-37.2 37.2 7.1 7 37.1-37.2 37.2 37.2" fill="white" />
               </svg>

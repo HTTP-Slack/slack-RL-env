@@ -1,4 +1,4 @@
-import React from 'react';
+import { Link } from 'react-router-dom';
 
 const Header: React.FC = () => {
   return (
@@ -8,7 +8,7 @@ const Header: React.FC = () => {
           {/* Left side - Logo and Navigation */}
           <div className="flex items-center">
             {/* Slack Logo */}
-            <a href="/" className="flex items-center mr-8">
+            <Link to="/home" className="flex items-center mr-8">
               <svg
                 width="134"
                 className="c-slacklogo--color"
@@ -41,7 +41,7 @@ const Header: React.FC = () => {
                 </g>
               </svg>
               
-            </a>
+            </Link>
 
             {/* Navigation Links */}
             <nav className="hidden md:flex items-center space-x-6">
