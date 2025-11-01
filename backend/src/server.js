@@ -11,6 +11,8 @@ import connectDB from './config/db.js';
 import authRoute from './routes/auth.route.js';
 import messageRoute from './routes/message.route.js';
 import organisationRoute from './routes/organisation.route.js';
+import channelRoute from './routes/channel.route.js';
+import conversationRoute from './routes/conversation.route.js';
 
 dotenv.config();
 const app = express();
@@ -39,6 +41,8 @@ initializeSocket(io);
 app.use('/api/auth', authRoute);
 app.use('/api/message', messageRoute);
 app.use('/api/organisation', organisationRoute);
+app.use('/api/channel', channelRoute);
+app.use('/api/conversation', conversationRoute);
 
 server.listen(PORT, ()=> {
   console.log(`Server is running on port ${PORT}`);
