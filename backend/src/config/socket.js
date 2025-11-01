@@ -95,13 +95,21 @@ const initializeSocket = (io) => {
             // Check if there are any messages for today in the channel
             await createTodaysFirstMessage({ channelId, organisation })
 
-            let newMessage = await Message.create({
+            const messageData = {
               organisation,
               sender: message.sender,
               content: message.content,
               channel: channelId,
               hasRead: false,
-            })
+            }
+
+            // Handle file attachments
+            if (message.attachments && message.attachments.length > 0) {
+              messageData.attachments = message.attachments
+              messageData.type = 'file'
+            }
+
+            let newMessage = await Message.create(messageData)
 
             newMessage = await newMessage.populate('sender')
             io.to(channelId).emit('message', { newMessage, organisation })
@@ -128,7 +136,8 @@ const initializeSocket = (io) => {
             socket.join(conversationId)
             // Check if there are any messages for today in the channel
             await createTodaysFirstMessage({ conversationId, organisation })
-            let newMessage = await Message.create({
+            
+            const messageData = {
               organisation,
               sender: message.sender,
               content: message.content,
@@ -136,7 +145,15 @@ const initializeSocket = (io) => {
               collaborators,
               isSelf,
               hasRead: false,
-            })
+            }
+
+            // Handle file attachments
+            if (message.attachments && message.attachments.length > 0) {
+              messageData.attachments = message.attachments
+              messageData.type = 'file'
+            }
+
+            let newMessage = await Message.create(messageData)
             console.log('✅ Message created with ID:', newMessage._id);
             
             newMessage = await newMessage.populate('sender')
