@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { usePreferencesModal } from '../features/preferences/PreferencesContext';
+import { useProfile } from '../features/profile/ProfileContext';
 
 export function UserMenu() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { openModal } = usePreferencesModal();
+  const { openPanel } = useProfile();
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -25,6 +27,11 @@ export function UserMenu() {
   const handlePreferencesClick = () => {
     setIsMenuOpen(false);
     openModal();
+  };
+
+  const handleProfileClick = () => {
+    setIsMenuOpen(false);
+    openPanel();
   };
 
   return (
@@ -70,7 +77,10 @@ export function UserMenu() {
           </div>
 
           <div className="border-t border-gray-700 py-2">
-            <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm">
+            <button 
+              onClick={handleProfileClick}
+              className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm"
+            >
               Profile
             </button>
             <button
