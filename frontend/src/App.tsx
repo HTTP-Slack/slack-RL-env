@@ -1,9 +1,8 @@
 import React from 'react'
+import WorkspaceSelection from './pages/WorkspaceSelection'
 
 const App = () => {
-  return (
-    <div>App</div>
-  )
+  return <WorkspaceSelection />
 }
 
 export default App
