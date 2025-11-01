@@ -1,17 +1,9 @@
 import api from '../config/axios';
+import { addRecentFiles } from './recentFilesService';
+import type { FileMetadata } from '../types/file';
 
-export interface FileMetadata {
-  id: string;
-  filename: string;
-  contentType: string;
-  length: number;
-  metadata: {
-    organisation: string;
-    uploader: string;
-    channel?: string;
-    conversation?: string;
-  };
-}
+// Re-export for convenience
+export type { FileMetadata };
 
 interface ApiResponse<T> {
   success: boolean;
@@ -52,6 +44,8 @@ export const uploadFiles = async (
     });
 
     if (response.data.success && response.data.data) {
+      // Add uploaded files to recent files cache
+      addRecentFiles(response.data.data);
       return response.data.data;
     }
 
