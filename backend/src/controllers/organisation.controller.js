@@ -2,6 +2,7 @@ import Organisation from '../models/organisation.model.js';
 import Channel from '../models/channel.model.js';
 import Conversation from '../models/conversation.model.js';
 import User from '../models/user.model.js';
+import { sendBulkInvitations } from '../services/email.service.js';
 
 // @desc    get organisation
 // @route   GET /api/organisation/:id
@@ -294,3 +295,167 @@ export const addCoworkers = async (req, res) => {
     });
   }
 }
+
+// @desc    Send invitation emails to colleagues
+// @route   POST /api/organisation/:id/invite
+// @access  Private
+/*
+  body 
+  {
+    emails: ["email1@example.com", "email2@example.com"]
+  }
+*/
+export const inviteColleagues = async (req, res) => {
+  try {
+    const { id: organisationId } = req.params;
+    const { emails } = req.body;
+
+    // 1. Validation
+    if (!emails || !Array.isArray(emails) || emails.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'An array of "emails" is required in the body',
+      });
+    }
+
+    // 2. Find the organisation
+    const organisation = await Organisation.findById(organisationId).populate('owner');
+    
+    if (!organisation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Organisation not found',
+      });
+    }
+
+    // 3. Check if the current user is authorized (owner or coworker)
+    const isAuthorized = 
+      organisation.owner._id.toString() === req.user.id ||
+      organisation.coWorkers.some(coworkerId => coworkerId.toString() === req.user.id);
+
+    if (!isAuthorized) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to send invitations for this workspace',
+      });
+    }
+
+    // 4. Get the inviter's name
+    const inviter = await User.findById(req.user.id);
+    const inviterName = inviter?.username || 'A colleague';
+
+    // 5. Ensure join link exists
+    if (!organisation.joinLink) {
+      organisation.generateJoinLink();
+      await organisation.save();
+    }
+
+    // 6. Prepare invitation data
+    const invitations = emails.map(email => ({
+      to: email,
+      workspaceName: organisation.name,
+      inviterName,
+      joinLink: `${process.env.CLIENT_URL || 'http://localhost:5173'}/join/${organisation.joinLink}`,
+    }));
+
+    // 7. Send invitation emails
+    const emailResults = await sendBulkInvitations(invitations);
+
+    // 8. Try to add users who already have accounts
+    const existingUsers = await User.find({ email: { $in: emails } });
+    
+    if (existingUsers.length > 0) {
+      const existingUserIds = existingUsers.map(user => user._id);
+      await Organisation.findByIdAndUpdate(
+        organisationId,
+        { $addToSet: { coWorkers: { $each: existingUserIds } } }
+      );
+    }
+
+    // 9. Build response message
+    let message = `Sent ${emailResults.successful} invitation(s) successfully.`;
+    if (emailResults.failed > 0) {
+      message += ` ${emailResults.failed} invitation(s) failed to send.`;
+    }
+    if (existingUsers.length > 0) {
+      message += ` ${existingUsers.length} user(s) with existing accounts were added to the workspace.`;
+    }
+
+    res.status(200).json({
+      success: true,
+      message,
+      data: {
+        totalSent: emailResults.successful,
+        totalFailed: emailResults.failed,
+        usersAdded: existingUsers.length,
+      },
+    });
+  } catch (error) {
+    console.log('Error in inviteColleagues:', error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Join workspace using invitation link
+// @route   POST /api/organisation/join/:joinLink
+// @access  Private
+export const joinByLink = async (req, res) => {
+  try {
+    const { joinLink } = req.params;
+    const userId = req.user.id;
+
+    if (!joinLink) {
+      return res.status(400).json({
+        success: false,
+        message: 'Join link is required',
+      });
+    }
+
+    // 1. Find the organisation with this join link
+    const organisation = await Organisation.findOne({ joinLink }).populate(['coWorkers', 'owner']);
+    
+    if (!organisation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Invalid or expired invitation link',
+      });
+    }
+
+    // 2. Check if user is already a member
+    const isAlreadyMember = organisation.coWorkers.some(
+      coworker => coworker._id.toString() === userId
+    );
+
+    if (isAlreadyMember) {
+      return res.status(200).json({
+        success: true,
+        message: 'You are already a member of this workspace',
+        data: organisation,
+      });
+    }
+
+    // 3. Add user to the workspace
+    organisation.coWorkers.push(userId);
+    await organisation.save();
+
+    // 4. Populate the updated organisation
+    const updatedOrganisation = await Organisation.findById(organisation._id).populate(['coWorkers', 'owner']);
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully joined ${organisation.name}`,
+      data: updatedOrganisation,
+    });
+  } catch (error) {
+    console.log('Error in joinByLink:', error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};

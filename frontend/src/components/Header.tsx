@@ -1,6 +1,15 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const Header: React.FC = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/signin');
+  };
+
   return (
     <header className="w-full bg-[rgb(74,21,75)]">
       <div className="max-w-[1230px] mx-auto px-4">
@@ -86,18 +95,28 @@ const Header: React.FC = () => {
               </svg>
             </button>
 
-            {/* TALK TO SALES Button */}
-            <button className="px-4 py-2 text-sm font-bold text-white uppercase bg-[rgb(74,21,75)] border border-white rounded hover:bg-white/10 transition-colors">
-              TALK TO SALES
-            </button>
+            {/* User Info */}
+            {user && (
+              <div className="flex items-center space-x-3">
+                <span className="text-white text-sm font-medium">
+                  {user.username}
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 text-sm font-bold text-white uppercase bg-[rgb(74,21,75)] border border-white rounded hover:bg-white/10 transition-colors"
+                >
+                  LOGOUT
+                </button>
+              </div>
+            )}
 
             {/* CREATE A NEW WORKSPACE Button */}
-            <a
-              href="https://slack.com/intl/en-in/get-started"
+            <Link
+              to="/profile-step1"
               className="px-4 py-2 text-sm font-bold text-[rgb(74,21,75)] uppercase bg-white rounded hover:bg-white/90 transition-colors"
             >
               CREATE A NEW WORKSPACE
-            </a>
+            </Link>
           </div>
         </div>
       </div>

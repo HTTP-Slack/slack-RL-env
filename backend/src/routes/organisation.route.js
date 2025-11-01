@@ -6,7 +6,9 @@ import {
   createOrganisation,
   updateOrganisation,
   getWorkspaces,
-  addCoworkers
+  addCoworkers,
+  inviteColleagues,
+  joinByLink
 } from '../controllers/organisation.controller.js';
 
 const router = express.Router();
@@ -16,5 +18,7 @@ router.get('/workspaces', protectRoute, getWorkspaces);
 router.get('/:id', protectRoute, getOrganisation);
 router.patch('/:id', protectRoute, updateOrganisation);
 router.patch('/:id/coworkers', protectRoute, addCoworkers);
+router.post('/:id/invite', protectRoute, inviteColleagues);
+router.post('/join/:joinLink', protectRoute, joinByLink);
 
 export default router;
