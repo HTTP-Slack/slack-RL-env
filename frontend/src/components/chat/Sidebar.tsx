@@ -1,24 +1,36 @@
 import React from 'react';
-import type { User } from '../../constants/chat';
+import type { User, Conversation } from '../../services/messageApi';
 
 interface SidebarProps {
   currentUser: User;
+  conversations: Conversation[];
   users: User[];
-  activeUserId: string;
+  activeConversation: Conversation | null;
+  onConversationSelect: (conversation: Conversation) => void;
   onUserSelect: (userId: string) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentUser, users, activeUserId, onUserSelect }) => {
+const Sidebar: React.FC<SidebarProps> = ({ 
+  currentUser, 
+  conversations, 
+  users, 
+  activeConversation, 
+  onConversationSelect, 
+  onUserSelect 
+}) => {
+  console.log('🔍 Sidebar render - Users:', users.length, users);
+  console.log('🔍 Sidebar render - Conversations:', conversations.length, conversations);
+  
   return (
     <div className="w-[260px] bg-[#3c3836] flex flex-col border-r border-[#313030]">
       {/* Sidebar Header */}
       <div className="h-[60px] px-4 flex items-center border-b border-[#313030] shrink-0">
         <div className="flex items-center flex-1 min-w-0">
           <div className="w-8 h-8 rounded bg-[#522653] flex items-center justify-center text-white font-bold text-sm mr-3 shrink-0">
-            {currentUser.displayName.charAt(0).toUpperCase()}
+            {currentUser.username?.charAt(0).toUpperCase() || 'U'}
           </div>
           <span className="text-[15px] font-semibold text-white truncate">
-            {currentUser.displayName}
+            {currentUser.username || 'User'}
           </span>
         </div>
       </div>
@@ -38,29 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, users, activeUserId, onU
           <div role="tree" aria-label="Channels" className="mt-1">
             <button className="w-full px-2 py-1 rounded flex items-center group hover:bg-[#40403b] transition-colors">
               <span className="text-[#d1d2d3] mr-2">#</span>
-              <span className="text-[15px] text-[#d1d2d3] truncate flex-1 text-left">all-http-test-environment</span>
-            </button>
-            {users.map((user) => (
-              <button
-                key={user.id}
-                onClick={() => onUserSelect(user.id)}
-                className={`w-full px-2 py-1 rounded flex items-center group hover:bg-[#40403b] transition-colors ${
-                  activeUserId === user.id ? 'bg-[#40403b]' : ''
-                }`}
-              >
-                <span className="text-[#d1d2d3] mr-2">#</span>
-                <span className="text-[15px] text-white truncate flex-1 text-left font-normal">
-                  {user.displayName.toLowerCase().replace(/\s/g, '-')}
-                </span>
-              </button>
-            ))}
-            <button className="w-full px-2 py-1 rounded flex items-center group hover:bg-[#40403b] transition-colors">
-              <span className="text-[#d1d2d3] mr-2">#</span>
-              <span className="text-[15px] text-[#d1d2d3] truncate flex-1 text-left">new-channel</span>
-            </button>
-            <button className="w-full px-2 py-1 rounded flex items-center group hover:bg-[#40403b] transition-colors">
-              <span className="text-[#d1d2d3] mr-2">#</span>
-              <span className="text-[#d1d2d3] truncate flex-1 text-left">social</span>
+              <span className="text-[15px] text-[#d1d2d3] truncate flex-1 text-left">general</span>
             </button>
             <button className="w-full px-2 py-1.5 rounded flex items-center group hover:bg-[#40403b] transition-colors mt-1">
               <svg className="w-4 h-4 text-[#d1d2d3] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -82,37 +72,80 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, users, activeUserId, onU
             </div>
           </button>
           <div role="tree" aria-label="Direct messages" className="mt-1">
-            <button className="w-full px-2 py-1.5 rounded flex items-center group hover:bg-[#40403b] transition-colors">
-              <div className="relative mr-2 shrink-0">
-                <div className="w-5 h-5 rounded bg-[#522653] flex items-center justify-center text-white text-[10px] font-semibold">
-                  A
-                </div>
-                <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-[#2ecc71] rounded-full border border-[#3c3836]"></div>
-              </div>
-              <span className="text-[15px] text-[#d1d2d3] truncate flex-1 text-left">aban hasan <span className="text-[#616061]">invited you</span></span>
-            </button>
-            {users.map((user) => (
-              <button
-                key={user.id}
-                onClick={() => onUserSelect(user.id)}
-                className={`w-full px-2 py-1.5 rounded flex items-center group hover:bg-[#40403b] transition-colors ${
-                  activeUserId === user.id ? 'bg-[#40403b]' : ''
-                }`}
-              >
-                <div className="relative mr-2 shrink-0">
-                  <div className="w-5 h-5 rounded bg-[#522653] flex items-center justify-center text-white text-[10px] font-semibold">
-                    {user.displayName.charAt(0).toUpperCase()}
+            {/* Existing conversations */}
+            {conversations.map((conversation) => {
+              // Safety check: ensure collaborators is an array of User objects
+              if (!conversation.collaborators || !Array.isArray(conversation.collaborators)) {
+                console.warn('⚠️ Conversation missing collaborators array:', conversation._id);
+                return null;
+              }
+              
+              const otherUser = conversation.collaborators.find((c) => {
+                // Handle both populated and unpopulated collaborators
+                const collabId = typeof c === 'string' ? c : c?._id;
+                return collabId !== currentUser._id;
+              });
+              
+              if (!otherUser) {
+                console.warn('⚠️ Could not find other user in conversation:', conversation._id);
+                return null;
+              }
+              
+              // If otherUser is just a string (ID), skip rendering or show placeholder
+              if (typeof otherUser === 'string') {
+                console.warn('⚠️ Collaborator not populated in conversation:', conversation._id, 'collabId:', otherUser);
+                return null; // Don't show unpopulated conversations
+              }
+              
+              const isActive = activeConversation?._id === conversation._id;
+              
+              return (
+                <button
+                  key={conversation._id}
+                  onClick={() => onConversationSelect(conversation)}
+                  className={`w-full px-2 py-1.5 rounded flex items-center group hover:bg-[#40403b] transition-colors ${
+                    isActive ? 'bg-[#40403b]' : ''
+                  }`}
+                >
+                  <div className="relative mr-2 shrink-0">
+                    <div className="w-5 h-5 rounded bg-[#522653] flex items-center justify-center text-white text-[10px] font-semibold">
+                      {otherUser.username?.charAt(0).toUpperCase() || 'U'}
+                    </div>
                   </div>
-                  {user.status === 'active' && (
-                    <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-[#2ecc71] rounded-full border border-[#3c3836]"></div>
-                  )}
-                </div>
-                <span className="text-[15px] text-[#d1d2d3] truncate flex-1 text-left">
-                  {user.displayName}
-                  {user.displayName === 'Shaurya Verma' && <span className="text-[#616061]"> you</span>}
-                </span>
-              </button>
-            ))}
+                  <span className="text-[15px] text-[#d1d2d3] truncate flex-1 text-left">
+                    {otherUser.username || 'Unknown User'}
+                  </span>
+                </button>
+              );
+            })}
+            
+            {/* Available users to start conversations with */}
+            {(() => {
+              // Create a Set of user IDs that are already in conversations for O(n) lookup
+              const usersInConversations = new Set(
+                conversations.flatMap(c => 
+                  c.collaborators.map(collab => collab._id)
+                )
+              );
+              
+              return users.filter(user => !usersInConversations.has(user._id)).map((user) => (
+                <button
+                  key={user._id}
+                  onClick={() => onUserSelect(user._id)}
+                  className="w-full px-2 py-1.5 rounded flex items-center group hover:bg-[#40403b] transition-colors"
+                >
+                  <div className="relative mr-2 shrink-0">
+                    <div className="w-5 h-5 rounded bg-[#522653] flex items-center justify-center text-white text-[10px] font-semibold">
+                      {user.username?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                  </div>
+                  <span className="text-[15px] text-[#d1d2d3] truncate flex-1 text-left">
+                    {user.username || 'Unknown User'}
+                  </span>
+                </button>
+              ));
+            })()}
+            
             <button className="w-full px-2 py-1.5 rounded flex items-center group hover:bg-[#40403b] transition-colors mt-1">
               <svg className="w-4 h-4 text-[#d1d2d3] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

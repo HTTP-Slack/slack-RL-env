@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { WorkspaceCreationProvider } from './context/WorkspaceCreationContext';
+import { WorkspaceProvider } from './context/WorkspaceContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import SignIn from './pages/SignIn';
 import SignUp from './pages/SignUp';
@@ -13,13 +14,15 @@ import ProfileStep2 from './pages/ProfileStep2';
 import ProfileStep3 from './pages/ProfileStep3';
 import ProfileStep4 from './pages/ProfileStep4';
 import JoinWorkspace from './pages/JoinWorkspace';
+import Dashboard from './pages/Dashboard';
 
 const App = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <WorkspaceCreationProvider>
-          <Routes>
+        <WorkspaceProvider>
+          <WorkspaceCreationProvider>
+            <Routes>
           <Route path="/" element={<Navigate to="/signin" replace />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signin/pass" element={<Pass />} />
@@ -74,9 +77,18 @@ const App = () => {
               </ProtectedRoute>
             } 
           />
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
           <Route path="/join/:joinLink" element={<JoinWorkspace />} />
         </Routes>
-        </WorkspaceCreationProvider>
+          </WorkspaceCreationProvider>
+        </WorkspaceProvider>
       </AuthProvider>
     </BrowserRouter>
   );
