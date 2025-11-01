@@ -86,8 +86,8 @@ export const signin = async (req, res) => {
       });
     }
 
-    // 2. Find user
-    const user = await User.findOne({ email });
+    // 2. Find user and explicitly select password field
+    const user = await User.findOne({ email }).select('+password');
 
     // 3. Check user and password using bcrypt
     if (!user || !(await user.comparePassword(password))) {
