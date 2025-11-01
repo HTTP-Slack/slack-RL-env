@@ -49,14 +49,6 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [socket, setSocket] = useState<Socket | null>(null);
-  
-  // Use ref to track current workspace ID in socket handlers
-  const currentWorkspaceIdRef = React.useRef<string | null>(null);
-  
-  // Update ref whenever currentWorkspaceId changes
-  React.useEffect(() => {
-    currentWorkspaceIdRef.current = currentWorkspaceId;
-  }, [currentWorkspaceId]);
 
   // Initialize socket connection
   useEffect(() => {
@@ -89,18 +81,10 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
       console.log('Socket disconnected:', reason);
     });
 
-    newSocket.on('message', ({ newMessage, organisation }: { newMessage: Message; organisation: string }) => {
+    newSocket.on('message', ({ newMessage }: { newMessage: Message; organisation: string }) => {
       console.log('📨 Received message via socket:', newMessage);
       console.log('📍 Message conversation:', newMessage.conversation);
-      console.log('🏢 Message organisation:', organisation);
-      console.log('🏢 Current workspace:', currentWorkspaceIdRef.current);
       console.log('👤 Message sender:', newMessage.sender);
-      
-      // Only process messages for current workspace
-      if (organisation !== currentWorkspaceIdRef.current) {
-        console.log('⚠️ Message is for different workspace, ignoring');
-        return;
-      }
       
       // Validate message has required fields
       if (!newMessage.sender || !newMessage.sender._id) {
@@ -151,17 +135,6 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
 
     newSocket.on('convo-updated', (updatedConversation: Conversation) => {
       console.log('🔄 Conversation updated:', updatedConversation._id);
-      console.log('👥 Updated conversation collaborators:', updatedConversation.collaborators);
-      
-      // Check if collaborators are populated (objects vs string IDs)
-      const hasPopulatedCollaborators = updatedConversation.collaborators?.length > 0 && 
-        typeof updatedConversation.collaborators[0] === 'object';
-      
-      if (!hasPopulatedCollaborators) {
-        console.warn('⚠️ Received conversation update without populated collaborators, skipping update');
-        return;
-      }
-      
       setConversations((prev) =>
         prev.map((c) => (c._id === updatedConversation._id ? updatedConversation : c))
       );
@@ -169,27 +142,17 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
 
     newSocket.on('notification', async ({ conversationId, organisation }: any) => {
       console.log('🔔 Received notification for conversation:', conversationId);
-      console.log('🏢 Notification organisation:', organisation);
-      console.log('🏢 Current workspace:', currentWorkspaceIdRef.current);
+      console.log('🏢 Organisation:', organisation);
       
-      // Only refresh if notification is for current workspace
-      if (organisation === currentWorkspaceIdRef.current) {
-        console.log('✅ Notification matches current workspace, refreshing conversations');
-        // Refresh conversations to pick up any new ones
-        try {
-          const response = await api.get(`/organisation/${organisation}`);
-          if (response.data.success && response.data.data) {
-            const convos = response.data.data.conversations || [];
-            
-            // Double-check conversations belong to this workspace
-            const validConvos = convos.filter((c: Conversation) => c.organisation === organisation);
-            setConversations(validConvos);
-          }
-        } catch (error) {
-          console.error('❌ Error fetching conversations from notification:', error);
+      // Refresh conversations to pick up any new ones
+      try {
+        const response = await api.get(`/organisation/${organisation}`);
+        if (response.data.success && response.data.data) {
+          const convos = response.data.data.conversations || [];
+          setConversations(convos);
         }
-      } else {
-        console.log('⚠️ Notification is for different workspace, ignoring');
+      } catch (error) {
+        console.error('❌ Error fetching conversations from notification:', error);
       }
     });
 
@@ -212,61 +175,6 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
     };
   }, [user]);
 
-  // Fetch conversations when workspace changes
-  useEffect(() => {
-    if (currentWorkspaceId) {
-      console.log('🔄 Workspace changed to:', currentWorkspaceId);
-      
-      // If there's an active conversation, check if it belongs to this workspace
-      if (activeConversation && activeConversation.organisation !== currentWorkspaceId) {
-        console.log('⚠️ Active conversation belongs to different workspace, clearing it');
-        setActiveConversation(null);
-      }
-      
-      // Clear state when switching workspaces
-      setConversations([]);
-      setUsers([]);
-      setMessages([]);
-      
-      // Fetch new data
-      fetchConversations();
-      fetchUsers();
-    } else {
-      // Clear everything if no workspace selected
-      setConversations([]);
-      setUsers([]);
-      setMessages([]);
-      setActiveConversation(null);
-    }
-    // fetchConversations and fetchUsers are stable callbacks that depend on currentWorkspaceId
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentWorkspaceId]);
-
-  // Fetch messages when active conversation changes
-  useEffect(() => {
-    if (activeConversation && currentWorkspaceId) {
-      console.log('💬 Active conversation changed:', activeConversation._id);
-      // Clear messages when switching conversations
-      setMessages([]);
-      
-      fetchMessages();
-      
-      // Join the conversation room
-      if (socket && user) {
-        console.log('🚪 Joining conversation room:', activeConversation._id);
-        socket.emit('convo-open', {
-          id: activeConversation._id,
-          userId: user._id,
-        });
-      }
-    } else {
-      // Clear messages if no active conversation
-      setMessages([]);
-    }
-    // fetchMessages is a stable callback that depends on activeConversation and currentWorkspaceId
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeConversation?._id, currentWorkspaceId]);
-
   const fetchConversations = useCallback(async () => {
     if (!currentWorkspaceId) return;
     
@@ -278,18 +186,7 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
       if (response.data.success && response.data.data) {
         const convos = response.data.data.conversations || [];
         console.log('✅ Conversations fetched:', convos.length, 'conversations');
-        
-        // Double-check that all conversations belong to this workspace
-        const validConvos = convos.filter((c: Conversation) => {
-          const belongsToWorkspace = c.organisation === currentWorkspaceId;
-          if (!belongsToWorkspace) {
-            console.warn('⚠️ Filtering out conversation from different workspace:', c._id, 'workspace:', c.organisation);
-          }
-          return belongsToWorkspace;
-        });
-        
-        console.log('✅ Valid conversations for this workspace:', validConvos.length);
-        setConversations(validConvos);
+        setConversations(convos);
       }
     } catch (error) {
       console.error('❌ Error fetching conversations:', error);
@@ -341,6 +238,53 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
       setLoading(false);
     }
   }, [activeConversation, currentWorkspaceId]);
+
+  // Fetch conversations when workspace changes
+  useEffect(() => {
+    if (currentWorkspaceId) {
+      console.log('🔄 Workspace changed to:', currentWorkspaceId);
+      // Clear state when switching workspaces
+      setConversations([]);
+      setUsers([]);
+      setMessages([]);
+      setActiveConversation(null);
+      
+      // Fetch new data
+      fetchConversations();
+      fetchUsers();
+    } else {
+      // Clear everything if no workspace selected
+      setConversations([]);
+      setUsers([]);
+      setMessages([]);
+      setActiveConversation(null);
+    }
+  }, [currentWorkspaceId, fetchConversations, fetchUsers]);
+
+  // Fetch messages when active conversation changes
+  useEffect(() => {
+    if (activeConversation && currentWorkspaceId) {
+      console.log('💬 Active conversation changed:', activeConversation._id);
+      // Clear messages when switching conversations
+      setMessages([]);
+      
+      fetchMessages();
+      
+      // Join the conversation room
+      if (socket && user) {
+        console.log('🚪 Joining conversation room:', activeConversation._id);
+        socket.emit('convo-open', {
+          id: activeConversation._id,
+          userId: user._id,
+        });
+      }
+    } else {
+      // Clear messages if no active conversation
+      setMessages([]);
+    }
+    // activeConversation is tracked through fetchMessages which depends on it
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeConversation?._id, currentWorkspaceId, fetchMessages, socket, user]);
 
   const refreshMessages = async () => {
     await fetchMessages();

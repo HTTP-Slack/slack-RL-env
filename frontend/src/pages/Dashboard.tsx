@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import LeftNav from '../components/chat/LeftNav';
 import Sidebar from '../components/chat/Sidebar';
 import ChatPane from '../components/chat/ChatPane';
+import { PreferencesModal } from '../features/preferences/PreferencesModal';
 import { ProfilePanel } from '../features/profile/ProfilePanel';
 import { useAuth } from '../context/AuthContext';
 import { useWorkspace } from '../context/WorkspaceContext';
@@ -206,7 +207,8 @@ const Dashboard: React.FC = () => {
         )}
       </div>
       
-      {/* Profile Panel */}
+      {/* Preferences and Profile Modals */}
+      <PreferencesModal />
       <ProfilePanel />
     </div>
   );

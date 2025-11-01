@@ -121,29 +121,14 @@ const Sidebar: React.FC<SidebarProps> = ({
             
             {/* Available users to start conversations with */}
             {(() => {
-              // Create a Set of user IDs that are already in conversations
-              // Only check conversations that have properly populated collaborators
-              const usersInConversations = new Set<string>();
+              // Create a Set of user IDs that are already in conversations for O(n) lookup
+              const usersInConversations = new Set(
+                conversations.flatMap(c => 
+                  c.collaborators.map(collab => collab._id)
+                )
+              );
               
-              conversations.forEach(conversation => {
-                if (Array.isArray(conversation.collaborators)) {
-                  conversation.collaborators.forEach(collaborator => {
-                    // Skip if collaborator is not populated (just a string ID)
-                    if (typeof collaborator === 'object' && collaborator._id) {
-                      usersInConversations.add(collaborator._id);
-                    }
-                  });
-                }
-              });
-              
-              console.log('👥 Total users:', users.length);
-              console.log('💬 Users already in conversations:', usersInConversations.size, Array.from(usersInConversations));
-              
-              // Filter users who aren't in any conversation yet
-              const availableUsers = users.filter(user => !usersInConversations.has(user._id));
-              console.log('✨ Available users to start conversations:', availableUsers.length, availableUsers.map(u => u.username));
-              
-              return availableUsers.map((user) => (
+              return users.filter(user => !usersInConversations.has(user._id)).map((user) => (
                 <button
                   key={user._id}
                   onClick={() => onUserSelect(user._id)}

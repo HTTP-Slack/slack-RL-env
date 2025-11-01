@@ -11,3 +11,37 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 .idea/
+
+# MongoDB binaries and archives
+backend/mongodb-macos-*
+backend/mongodb-data/
+backend/*.tgz
+backend/mongod.log
+mongodb-macos-*
+mongodb-data/
+*.tgz
+
+# MongoDB database files (WiredTiger)
+*.wt
+*.wt.*
+WiredTiger*
+mongod.lock
+storage.bson
+diagnostic.data/
+
+# Generated logs
+mongod.log
+
+# Next.js build cache
+.next/
+frontend/.next/
+*.pack.gz
+*.pack.gz.*
+*.pack.gz_
+*.pack.gz.old
+
+# OS junk
+**/.DS_Store
+*/.DS_Store
+backend/.DS_Store
+frontend/.DS_Store

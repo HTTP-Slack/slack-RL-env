@@ -4,7 +4,7 @@ import { useWorkspaceCreation } from '../context/WorkspaceCreationContext'
 
 const ProfileStep1 = () => {
   const { userName, setUserName, userPhoto, setUserPhoto } = useWorkspaceCreation()
-  const [name, setName] = useState(userName)
+  const [name, setName] = useState(userName || '')
   const [photo, setPhoto] = useState<string | null>(userPhoto || null)
   const [step] = useState(1)
   const fileInputRef = useRef<HTMLInputElement>(null)
