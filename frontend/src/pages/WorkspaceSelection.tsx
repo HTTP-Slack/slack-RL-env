@@ -160,7 +160,7 @@ const WorkspaceSelection: React.FC = () => {
               <strong>Want to use Slack with a different team?</strong>
             </p>
             <a
-              href="https://slack.com/intl/en-in/get-started?entry_point=workspaces"
+              href="/profile-step1"
               className="p-4 rounded-[4px] text-[14px] font-bold leading-[18px] text-center uppercase tracking-[0.798px] whitespace-nowrap text-[rgb(97,31,105)] bg-white border border-[rgb(97,31,105)] cursor-pointer transition-[box-shadow_0.42s_cubic-bezier(0.165,0.84,0.44,1),color_0.42s_cubic-bezier(0.165,0.84,0.44,1),background_0.42s_cubic-bezier(0.165,0.84,0.44,1)]"
             >
               Create a new workspace
@@ -174,7 +174,7 @@ const WorkspaceSelection: React.FC = () => {
             Not seeing your workspace?
           </p>
           <a
-            href="https://slack.com/intl/en-in/signin"
+            href="/signin"
             className="text-[18px] leading-[27.99px] tracking-[0.216px] text-[rgb(54,197,240)] cursor-pointer"
           >
             Try using a different email address
