@@ -49,7 +49,8 @@ export const register = async (req, res) => {
     res.cookie('token', token, {
       httpOnly: true, // Makes it inaccessible to client-side JS
       secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
+      sameSite: 'lax', // CSRF protection
+      maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
     })
 
     // 6. Send success response
@@ -86,8 +87,8 @@ export const signin = async (req, res) => {
       });
     }
 
-    // 2. Find user
-    const user = await User.findOne({ email });
+    // 2. Find user and explicitly select password field
+    const user = await User.findOne({ email }).select('+password');
 
     // 3. Check user and password using bcrypt
     if (!user || !(await user.comparePassword(password))) {
@@ -97,7 +98,20 @@ export const signin = async (req, res) => {
       });
     }
 
-    // 4. Send success response
+    // 4. Create Token
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: '10d', // Token expires in 10 days
+    })
+
+    // 5. Send token in an httpOnly cookie
+    res.cookie('token', token, {
+      httpOnly: true, // Makes it inaccessible to client-side JS
+      secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
+      sameSite: 'lax', // CSRF protection
+      maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
+    })
+
+    // 6. Send success response
     res.status(200).json({
       success: true,
       data: {

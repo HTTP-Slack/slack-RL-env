@@ -17,9 +17,10 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, 'Please enter a password']
-    },
-    isOnline: Boolean,
+      required: [true, 'Please enter a password'],
+      select: false,
+      minlength: [8, 'Password must be at least 8 characters long']
+    },    isOnline: Boolean,
     role: String,
     phone: String,
     profilePicture: String,

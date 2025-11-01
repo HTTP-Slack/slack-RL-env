@@ -1,14 +1,25 @@
+import { useNavigate } from 'react-router-dom'
+import { useWorkspaceCreation } from '../context/WorkspaceCreationContext'
+
 const ProfileStep4 = () => {
-  const workspaceName = 'New Workspace'
+  const { workspaceName: savedWorkspaceName, setSelectedPlan, resetWorkspaceCreation } = useWorkspaceCreation()
+  const workspaceName = savedWorkspaceName || 'New Workspace'
+  const navigate = useNavigate()
 
   const handleStartWithPro = () => {
-    console.log('Start with Pro clicked')
-    // Navigate to main workspace or handle subscription
+    setSelectedPlan('pro')
+    // Reset the workspace creation state
+    resetWorkspaceCreation()
+    // Navigate to home page (workspace selection)
+    navigate('/home')
   }
 
   const handleStartFree = () => {
-    console.log('Start with free version clicked')
-    // Navigate to main workspace
+    setSelectedPlan('free')
+    // Reset the workspace creation state
+    resetWorkspaceCreation()
+    // Navigate to home page (workspace selection)
+    navigate('/home')
   }
 
   // Generate initial from workspace name

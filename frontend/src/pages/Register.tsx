@@ -1,32 +1,47 @@
 import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { signin } from '../services/authApi'
+import { useNavigate } from 'react-router-dom'
+import { register } from '../services/authApi'
 import { useAuth } from '../context/AuthContext'
 
-const SignIn = () => {
+const Register = () => {
+  const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
   const { setUser } = useAuth()
 
-  const handleEmailSubmit = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+
+    // Validate passwords match
+    if (password !== confirmPassword) {
+      setError('Passwords do not match')
+      return
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long')
+      return
+    }
+
     setLoading(true)
 
     try {
-      const response = await signin({ email, password })
+      const response = await register({ username, email, password })
       
       if (response.success && response.data) {
         setUser(response.data)
         navigate('/home')
       } else {
-        setError(response.message || 'Sign in failed')
+        setError(response.message || 'Registration failed')
       }
     } catch (err: any) {
-      setError(err.message || 'An error occurred during sign in')
+      setError(err.message || 'An error occurred during registration')
     } finally {
       setLoading(false)
     }
@@ -42,10 +57,10 @@ const SignIn = () => {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      {/* Header - Centered Logo with Right-aligned Create Account */}
-      <header className="w-full px-8 pt-12 pb-10 flex justify-center items-center">
+      {/* Header - Centered Logo with Right-aligned Sign In */}
+      <header className="w-full px-8 py-6 relative flex justify-center items-center">
         <div className="flex items-center gap-2">
-          <svg className="w-7 h-7" viewBox="0 0 124 124" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg className="w-8 h-8" viewBox="0 0 124 124" fill="none" xmlns="http://www.w3.org/2000/svg">
             {/* Cyan shapes */}
             <path d="M26.3996 78.2003C26.3996 84.8003 20.9996 90.2003 14.3996 90.2003C7.79961 90.2003 2.39961 84.8003 2.39961 78.2003C2.39961 71.6003 7.79961 66.2003 14.3996 66.2003H26.3996V78.2003Z" fill="#36C5F0"/>
             <path d="M32.3996 78.2003C32.3996 71.6003 37.7996 66.2003 44.3996 66.2003C50.9996 66.2003 56.3996 71.6003 56.3996 78.2003V109.6C56.3996 116.2 50.9996 121.6 44.3996 121.6C37.7996 121.6 32.3996 116.2 32.3996 109.6V78.2003Z" fill="#36C5F0"/>
@@ -59,24 +74,24 @@ const SignIn = () => {
             <path d="M79.5996 97.5996C86.1996 97.5996 91.5996 102.9996 91.5996 109.5996C91.5996 116.1996 86.1996 121.5996 79.5996 121.5996C72.9996 121.5996 67.5996 116.1996 67.5996 109.5996V97.5996H79.5996Z" fill="#E01E5A"/>
             <path d="M79.5996 91.5996C72.9996 91.5996 67.5996 86.1996 67.5996 79.5996C67.5996 72.9996 72.9996 67.5996 79.5996 67.5996H110.9996C117.5996 67.5996 122.9996 72.9996 122.9996 79.5996C122.9996 86.1996 117.5996 91.5996 110.9996 91.5996H79.5996Z" fill="#E01E5A"/>
           </svg>
-          <span className="text-3xl font-bold text-gray-900">slack</span>
+          <span className="text-2xl font-bold text-gray-900">slack</span>
         </div>
-        <div className="absolute right-8 text-sm text-gray-600 flex flex-col items-end">
-          <span>New to Slack?</span>
-          <Link to="/signup" className="text-blue-600 hover:underline">
-            Create an account
-          </Link>
+        <div className="absolute right-8 text-sm text-gray-600">
+          Already have an account?{' '}
+          <a href="/signin" className="text-blue-600 hover:underline">
+            Sign in
+          </a>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex items-start justify-center px-8 pt-0 pb-20">
-        <div className="w-full max-w-xl">
+      <main className="flex-1 flex items-center justify-center px-8 pt-12 pb-20">
+        <div className="w-full max-w-md">
           <h1 className="text-[2.75rem] leading-tight font-bold text-black text-center mb-2">
-            Sign in to your account
+            Create your account
           </h1>
           <p className="text-center text-gray-600 text-base mb-6">
-            Enter your email and password to sign in.
+            We suggest using your work email address.
           </p>
 
           {/* Error Message */}
@@ -86,8 +101,17 @@ const SignIn = () => {
             </div>
           )}
 
-          {/* Email & Password Form */}
-          <form onSubmit={handleEmailSubmit} className="mb-4 mx-auto w-3/4">
+          {/* Registration Form */}
+          <form onSubmit={handleRegister} className="mb-4">
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Username"
+              className="w-full px-4 py-3 border border-gray-300 rounded-md mb-3 text-base focus:outline-none focus:border-gray-400 focus:ring-0"
+              required
+              disabled={loading}
+            />
             <input
               type="email"
               value={email}
@@ -101,7 +125,17 @@ const SignIn = () => {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
+              placeholder="Password (min. 6 characters)"
+              className="w-full px-4 py-3 border border-gray-300 rounded-md mb-3 text-base focus:outline-none focus:border-gray-400 focus:ring-0"
+              required
+              disabled={loading}
+              minLength={6}
+            />
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm Password"
               className="w-full px-4 py-3 border border-gray-300 rounded-md mb-3 text-base focus:outline-none focus:border-gray-400 focus:ring-0"
               required
               disabled={loading}
@@ -111,24 +145,24 @@ const SignIn = () => {
               disabled={loading}
               className="w-full bg-[#611f69] hover:bg-[#4a154b] text-white font-semibold py-3 rounded-md text-base transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Signing in...' : 'Sign In With Email'}
+              {loading ? 'Creating account...' : 'Create Account'}
             </button>
           </form>
 
           {/* Divider */}
-          <div className="relative mb-4 mx-auto w-3/4">
+          <div className="relative mb-4">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300"></div>
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="px-4 bg-white text-gray-700 uppercase text-xs tracking-wide font-semibold">
-                Or sign in with
+                Or sign up with
               </span>
             </div>
           </div>
 
-          {/* Social Sign In Buttons */}
-          <div className="flex gap-3 mb-4 mx-auto w-3/4">
+          {/* Social Sign Up Buttons */}
+          <div className="flex gap-3 mb-4">
             <button
               onClick={handleGoogleSignIn}
               type="button"
@@ -166,11 +200,15 @@ const SignIn = () => {
             </button>
           </div>
 
-          {/* Footer Link */}
-          <p className="text-center text-gray-700 text-sm">
-            Having trouble?{' '}
+          {/* Terms */}
+          <p className="text-center text-gray-600 text-xs">
+            By continuing, you agree to Slack's{' '}
             <a href="#" className="text-blue-600 hover:underline">
-              Try entering a workspace URL
+              Terms of Service
+            </a>{' '}
+            and{' '}
+            <a href="#" className="text-blue-600 hover:underline">
+              Privacy Policy
             </a>
           </p>
         </div>
@@ -195,4 +233,4 @@ const SignIn = () => {
   )
 }
 
-export default SignIn
+export default Register
