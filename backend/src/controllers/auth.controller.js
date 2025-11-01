@@ -1,6 +1,6 @@
 import User from "../models/user.model.js";
 
-// @desc sighnup user
+// @desc signup user
 // @route /api/auth/register
 // @access public
 export const register = async (req, res) => {
