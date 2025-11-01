@@ -3,8 +3,9 @@ import dotenv from 'dotenv';
 import xss from 'xss-clean';
 import http from 'http';
 import cors from 'cors';
+import { Server } from 'socket.io';
 
-import initializeSocket, {Server} from './config/socket.js';
+import initializeSocket from './config/socket.js';
 import connectDB from './config/db.js';
 
 dotenv.config();
@@ -25,6 +26,6 @@ app.use(cors());
 initializeSocket(io);
 
 server.listen(PORT, ()=> {
-  console.log(`Server is running on port {PORT}`);
+  console.log(`Server is running on port ${PORT}`);
   connectDB();
 });

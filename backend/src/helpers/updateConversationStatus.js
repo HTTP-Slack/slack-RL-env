@@ -30,8 +30,7 @@ export default async function updateConversationStatus(id, isOnline) {
       let allCollaboratorsOnline = true
 
       for (const collaborator of conversation.collaborators) {
-        const user = await User.findById(collaborator._id)
-        if (!(user && user.isOnline)) {
+        if (!collaborator.isOnline) {
           allCollaboratorsOnline = false
           break // No need to check further if one is offline
         }
