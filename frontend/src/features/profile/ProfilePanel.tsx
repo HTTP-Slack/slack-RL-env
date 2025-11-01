@@ -6,6 +6,12 @@ export function ProfilePanel() {
   const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
+    if (!isPanelOpen) {
+      setShowMenu(false);
+    }
+  }, [isPanelOpen]);
+
+  useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isPanelOpen) {
         closePanel();
