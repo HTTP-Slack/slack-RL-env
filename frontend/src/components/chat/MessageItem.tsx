@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Message as ApiMessage, User as ApiUser } from '../../services/messageApi';
 import { parseMarkdown } from '../../utils/markdown';
+import EmojiPicker from './EmojiPicker';
 
 interface MessageItemProps {
   message: ApiMessage;
@@ -12,6 +13,7 @@ interface MessageItemProps {
   onEdit: (newText: string) => void;
   onDelete: () => void;
   onOpenThread: () => void;
+  onReaction: (emoji: string) => void;
   formatTime: (date: Date) => string;
 }
 
@@ -25,11 +27,13 @@ const MessageItem: React.FC<MessageItemProps> = ({
   onEdit,
   onDelete,
   onOpenThread,
+  onReaction,
   formatTime,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [editText, setEditText] = useState(message.content);
   const [showEditInput, setShowEditInput] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const handleEdit = () => {
     setShowEditInput(true);
@@ -139,6 +143,33 @@ const MessageItem: React.FC<MessageItemProps> = ({
                   {threadCount} {threadCount === 1 ? 'reply' : 'replies'}
                 </button>
               )}
+
+              {/* Reactions */}
+              {message.reactions && message.reactions.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {message.reactions.map((reaction, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => onReaction(reaction.emoji)}
+                      className="flex items-center gap-1 px-2 py-1 bg-[rgb(29,155,209,0.1)] border border-[rgb(29,155,209)] rounded-full hover:bg-[rgb(29,155,209,0.2)] transition-colors"
+                    >
+                      <span className="text-sm">{reaction.emoji}</span>
+                      <span className="text-xs text-[rgb(29,155,209)] font-medium">
+                        {reaction.reactedToBy?.length || 0}
+                      </span>
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setShowEmojiPicker(true)}
+                    className="flex items-center justify-center w-7 h-7 border border-gray-600 rounded-full hover:bg-[rgb(49,48,44)] transition-colors"
+                    title="Add reaction"
+                  >
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -148,16 +179,32 @@ const MessageItem: React.FC<MessageItemProps> = ({
       {isHovered && !showEditInput && (
         <div className="absolute right-0 top-0 flex items-center gap-1 bg-[rgb(49,48,44)] rounded px-2 py-1 shadow-lg">
           {/* Quick reactions */}
-          <button className="w-6 h-6 flex items-center justify-center rounded hover:bg-[rgb(60,56,54)]" title="Checkmark">
+          <button 
+            onClick={() => onReaction('✅')}
+            className="w-6 h-6 flex items-center justify-center rounded hover:bg-[rgb(60,56,54)]" 
+            title="Checkmark"
+          >
             <span className="text-sm">✅</span>
           </button>
-          <button className="w-6 h-6 flex items-center justify-center rounded hover:bg-[rgb(60,56,54)]" title="Eyes">
+          <button 
+            onClick={() => onReaction('👀')}
+            className="w-6 h-6 flex items-center justify-center rounded hover:bg-[rgb(60,56,54)]" 
+            title="Eyes"
+          >
             <span className="text-sm">👀</span>
           </button>
-          <button className="w-6 h-6 flex items-center justify-center rounded hover:bg-[rgb(60,56,54)]" title="Trophy">
+          <button 
+            onClick={() => onReaction('🏆')}
+            className="w-6 h-6 flex items-center justify-center rounded hover:bg-[rgb(60,56,54)]" 
+            title="Trophy"
+          >
             <span className="text-sm">🏆</span>
           </button>
-          <button className="w-6 h-6 flex items-center justify-center rounded hover:bg-[rgb(60,56,54)]" title="Clapping">
+          <button 
+            onClick={() => onReaction('👏')}
+            className="w-6 h-6 flex items-center justify-center rounded hover:bg-[rgb(60,56,54)]" 
+            title="Clapping"
+          >
             <span className="text-sm">👏</span>
           </button>
           
@@ -165,9 +212,9 @@ const MessageItem: React.FC<MessageItemProps> = ({
           
           {/* Action buttons */}
           <button
-            onClick={onOpenThread}
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
             className="px-2 py-1 text-[13px] text-[rgb(209,210,211)] hover:text-white hover:bg-[rgb(60,56,54)] rounded flex items-center gap-1"
-            title="React"
+            title="Add reaction"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -208,6 +255,17 @@ const MessageItem: React.FC<MessageItemProps> = ({
             </svg>
           </button>
         </div>
+      )}
+      
+      {/* Emoji Picker Modal - Rendered at root level for proper z-index */}
+      {showEmojiPicker && (
+        <EmojiPicker
+          onSelectEmoji={(emoji) => {
+            onReaction(emoji);
+            setShowEmojiPicker(false);
+          }}
+          onClose={() => setShowEmojiPicker(false)}
+        />
       )}
     </div>
   );

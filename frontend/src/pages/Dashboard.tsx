@@ -23,6 +23,7 @@ const Dashboard: React.FC = () => {
     messages,
     sendMessage,
     startConversation,
+    socket,
   } = useWorkspace();
   
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -90,6 +91,19 @@ const Dashboard: React.FC = () => {
   const handleOpenThread = (messageId: string) => {
     // TODO: Implement thread functionality
     console.log('Open thread for message:', messageId);
+  };
+
+  const handleReaction = (messageId: string, emoji: string) => {
+    // TODO: Implement reaction API via socket
+    console.log('Add reaction:', emoji, 'to message:', messageId);
+    if (!socket || !user) return;
+    
+    socket.emit('reaction', {
+      emoji,
+      id: messageId,
+      isThread: false,
+      userId: user._id,
+    });
   };
 
   if (!user || !currentWorkspaceId) {
@@ -181,6 +195,7 @@ const Dashboard: React.FC = () => {
             onEditMessage={handleEditMessage}
             onDeleteMessage={handleDeleteMessage}
             onOpenThread={handleOpenThread}
+            onReaction={handleReaction}
           />
         ) : (
           <div className="flex-1 flex items-center justify-center bg-[#1a1d21]">

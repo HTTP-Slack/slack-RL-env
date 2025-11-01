@@ -3,6 +3,7 @@ import type { Thread } from '../../constants/chat';
 import type { User, Message } from '../../services/messageApi';
 import MessageItem from './MessageItem';
 import MessageComposer from './MessageComposer';
+import { useProfile } from '../../features/profile/ProfileContext';
 
 interface ChatPaneProps {
   currentUser: User;
@@ -14,6 +15,7 @@ interface ChatPaneProps {
   onEditMessage: (messageId: string, newText: string) => void;
   onDeleteMessage: (messageId: string) => void;
   onOpenThread: (messageId: string) => void;
+  onReaction: (messageId: string, emoji: string) => void;
 }
 
 const ChatPane: React.FC<ChatPaneProps> = ({
@@ -26,8 +28,10 @@ const ChatPane: React.FC<ChatPaneProps> = ({
   onEditMessage,
   onDeleteMessage,
   onOpenThread,
+  onReaction,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { openPanel } = useProfile();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -99,7 +103,10 @@ const ChatPane: React.FC<ChatPaneProps> = ({
               <div className="text-[15px] text-white leading-[1.46668] mb-4">
                 This conversation is just between <strong className="font-bold">@{activeUser.username || 'Unknown User'}</strong> and you. Check out their profile to learn more about them.
               </div>
-              <button className="px-4 py-2 bg-[rgb(26,29,33)] border border-white rounded text-[15px] font-medium text-white hover:bg-[rgb(49,48,44)] transition-colors">
+              <button 
+                onClick={openPanel}
+                className="px-4 py-2 bg-[rgb(26,29,33)] border border-white rounded text-[15px] font-medium text-white hover:bg-[rgb(49,48,44)] transition-colors"
+              >
                 View profile
               </button>
             </div>
@@ -146,6 +153,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({
                     onEdit={(newText) => onEditMessage(message._id, newText)}
                     onDelete={() => onDeleteMessage(message._id)}
                     onOpenThread={() => onOpenThread(message._id)}
+                    onReaction={(emoji) => onReaction(message._id, emoji)}
                     formatTime={formatTime}
                   />
                 </div>

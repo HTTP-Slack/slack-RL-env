@@ -32,81 +32,86 @@ export function ProfilePanel() {
       />
 
       {/* Profile Panel - Right Side */}
-      <div className="ml-auto relative w-full max-w-md h-full bg-[#1a1d21] shadow-2xl overflow-y-auto animate-slide-in-right">
+      <div className="ml-auto relative w-full max-w-[480px] h-full bg-[#1a1d21] shadow-2xl overflow-y-auto animate-slide-in-right">
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-[#1a1d21] border-b border-gray-700 p-4 flex items-center justify-between">
+        <div className="sticky top-0 z-10 bg-[#1a1d21] border-b border-gray-700 px-6 py-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-white">Profile</h2>
           <button
             onClick={closePanel}
-            className="text-gray-400 hover:text-white transition-colors p-1"
+            className="text-gray-400 hover:text-white transition-colors p-1.5 hover:bg-[#2d3139] rounded"
             aria-label="Close profile panel"
           >
-            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         {/* Profile Content */}
-        <div className="p-6">
+        <div className="px-6 py-6">
           {/* Profile Picture Section */}
-          <div className="flex flex-col items-center mb-6">
-            <div
-              className="w-40 h-40 rounded bg-gradient-to-br from-orange-600 to-orange-800 flex items-center justify-center text-white text-6xl font-semibold mb-4"
-              aria-label="Profile picture placeholder for aban hasan"
-            >
-              a
+          <div className="flex flex-col items-center mb-8">
+            {/* Large Profile Image */}
+            <div className="w-full max-w-[400px] aspect-square rounded-lg overflow-hidden mb-6 bg-gradient-to-br from-orange-500 to-orange-700 flex items-center justify-center">
+              <img 
+                src="https://via.placeholder.com/400" 
+                alt="Profile" 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement!.innerHTML = '<span class="text-white text-8xl font-bold">S</span>';
+                }}
+              />
             </div>
             
-            {/* Name and Edit */}
-            <div className="flex items-center gap-2 mb-2">
-              <h3 className="text-2xl font-bold text-white">aban hasan</h3>
-              <button 
-                onClick={openEditModal}
-                className="text-blue-400 hover:text-blue-300 text-sm font-medium"
-              >
-                Edit
-              </button>
-            </div>
-
-            {/* Add name pronunciation */}
-            <button className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-sm mb-4">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-              <span>Add name pronunciation</span>
-            </button>
+            {/* Name */}
+            <h3 className="text-[28px] font-bold text-white mb-2">Shaurya Verma</h3>
 
             {/* Status */}
-            <div className="flex items-center gap-2 text-gray-300 mb-2">
-              <div className="w-2 h-2 rounded-full bg-green-500"></div>
-              <span className="text-sm">Active, notifications snoozed</span>
+            <div className="flex items-center gap-2 text-[#1d9bd1] mb-3">
+              <div className="w-2.5 h-2.5 rounded-full bg-[#1d9bd1]"></div>
+              <span className="text-[15px]">Active, notifications snoozed</span>
             </div>
 
             {/* Local Time */}
-            <div className="flex items-center gap-2 text-gray-400 text-sm">
+            <div className="flex items-center gap-2 text-[#d1d2d3] text-[15px]">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
               </svg>
-              <span>{new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} local time</span>
+              <span>2:35 AM local time</span>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-2 mb-6">
-            <button className="flex-1 px-4 py-2 bg-[#2d3139] hover:bg-gray-700 text-white rounded text-sm font-medium transition-colors">
-              Set a status
+          <div className="flex gap-2 mb-8">
+            <button className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-gray-100 text-[#1d1c1d] rounded-md text-[15px] font-semibold transition-colors border border-gray-300">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+              </svg>
+              <span>Message</span>
             </button>
-            <button className="px-4 py-2 bg-[#2d3139] hover:bg-gray-700 text-white rounded text-sm font-medium transition-colors flex items-center gap-1">
-              <span>View as</span>
+            
+            <button className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-gray-100 text-[#1d1c1d] rounded-md text-[15px] font-semibold transition-colors border border-gray-300">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+              </svg>
+              <span>Huddle</span>
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>
             </button>
+
+            <button className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-gray-100 text-[#1d1c1d] rounded-md text-[15px] font-semibold transition-colors border border-gray-300">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+              </svg>
+              <span>VIP</span>
+            </button>
+
             <div className="relative">
               <button 
                 onClick={() => setShowMenu(!showMenu)}
-                className="px-3 py-2 bg-[#2d3139] hover:bg-gray-700 text-white rounded text-sm font-medium transition-colors"
+                className="px-3 py-2.5 bg-white hover:bg-gray-100 text-[#1d1c1d] rounded-md transition-colors border border-gray-300"
                 aria-label="More options"
                 aria-expanded={showMenu}
               >
@@ -117,33 +122,23 @@ export function ProfilePanel() {
 
               {/* Three-dot menu dropdown */}
               {showMenu && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-[#1a1d21] rounded-lg shadow-xl border border-gray-700 overflow-hidden z-20" role="menu">
-                  <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm" role="menuitem">
-                    Copy display name: @aban hasan
+                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-2xl border border-gray-200 overflow-hidden z-20" role="menu">
+                  <button className="w-full px-4 py-3 text-[#1d1c1d] hover:bg-[#1264a3] hover:text-white transition-colors text-left text-[15px]" role="menuitem">
+                    Set a status
                   </button>
-                  <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm" role="menuitem">
-                    View preferences
+                  <button className="w-full px-4 py-3 text-[#1d1c1d] hover:bg-[#1264a3] hover:text-white transition-colors text-left text-[15px]" role="menuitem">
+                    View profile & account
                   </button>
-                  <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm flex items-center justify-between" role="menuitem">
-                    <span>Account settings</span>
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
-                      <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
-                    </svg>
+                  <button className="w-full px-4 py-3 text-[#1d1c1d] hover:bg-[#1264a3] hover:text-white transition-colors text-left text-[15px]" role="menuitem">
+                    Preferences
                   </button>
-                  <div className="border-t border-gray-700"></div>
-                  <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm" role="menuitem">
-                    View your files
+                  <div className="border-t border-gray-200"></div>
+                  <button className="w-full px-4 py-3 text-[#1d1c1d] hover:bg-[#1264a3] hover:text-white transition-colors text-left text-[15px]" role="menuitem">
+                    Pause notifications
                   </button>
-                  <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm" role="menuitem">
-                    Set yourself away
-                  </button>
-                  <div className="border-t border-gray-700"></div>
-                  <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm" role="menuitem">
-                    Copy member ID
-                  </button>
-                  <button className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm" role="menuitem">
-                    Copy link to profile
+                  <div className="border-t border-gray-200"></div>
+                  <button className="w-full px-4 py-3 text-[#1d1c1d] hover:bg-[#1264a3] hover:text-white transition-colors text-left text-[15px]" role="menuitem">
+                    Sign out of HTTP Test Environment
                   </button>
                 </div>
               )}
@@ -151,41 +146,20 @@ export function ProfilePanel() {
           </div>
 
           {/* Contact Information */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-lg font-bold text-white">Contact information</h4>
-              <button className="text-blue-400 hover:text-blue-300 text-sm font-medium">
-                Edit
-              </button>
-            </div>
-            <div className="flex items-start gap-3 p-3 bg-[#0d1117] rounded">
-              <svg className="w-5 h-5 text-gray-400 mt-1" fill="currentColor" viewBox="0 0 20 20">
+          <div className="mb-8">
+            <h4 className="text-[18px] font-bold text-white mb-4">Contact information</h4>
+            <div className="flex items-start gap-3 py-3">
+              <svg className="w-5 h-5 text-[#d1d2d3] mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
                 <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
               </svg>
-              <div>
-                <div className="text-xs text-gray-400 mb-1">Email Address</div>
-                <a href="mailto:abanpersonal@gmail.com" className="text-blue-400 hover:text-blue-300 text-sm">
-                  abanpersonal@gmail.com
+              <div className="flex-1">
+                <div className="text-[13px] text-[#d1d2d3] mb-1">Email Address</div>
+                <a href="mailto:sagittariusshaurya5@gmail.com" className="text-[#1d9bd1] hover:underline text-[15px]">
+                  sagittariusshaurya5@gmail.com
                 </a>
               </div>
             </div>
-          </div>
-
-          {/* About Me */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-lg font-bold text-white">About me</h4>
-              <button className="text-blue-400 hover:text-blue-300 text-sm font-medium">
-                Edit
-              </button>
-            </div>
-            <button className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-sm">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-              <span>Add Start Date</span>
-            </button>
           </div>
         </div>
       </div>

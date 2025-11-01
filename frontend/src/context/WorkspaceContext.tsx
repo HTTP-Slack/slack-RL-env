@@ -114,6 +114,25 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
       });
     });
 
+    newSocket.on('message-updated', ({ id, message, isThread }: { id: string; message: Message; isThread: boolean }) => {
+      console.log('🔄 Message updated:', id);
+      if (isThread) {
+        // TODO: Handle thread message updates
+        console.log('Thread message update not yet implemented');
+        return;
+      }
+      
+      // Update the message in the messages array with the new reaction data
+      setMessages((prev) => {
+        return prev.map((m) => {
+          if (m._id === id) {
+            return { ...m, reactions: message.reactions };
+          }
+          return m;
+        });
+      });
+    });
+
     newSocket.on('convo-updated', (updatedConversation: Conversation) => {
       console.log('🔄 Conversation updated:', updatedConversation._id);
       setConversations((prev) =>
