@@ -11,6 +11,7 @@ export interface Message {
   _id: string;
   sender: User;
   content: string;
+  attachments?: string[];
   channel?: string;
   organisation: string;
   conversation?: string;

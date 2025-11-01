@@ -20,7 +20,7 @@ interface WorkspaceContextType {
   messages: Message[];
   loading: boolean;
   socket: Socket | null;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, attachments?: string[]) => Promise<void>;
   fetchConversations: () => Promise<void>;
   startConversation: (otherUserId: string) => Promise<void>;
   refreshMessages: () => Promise<void>;
@@ -343,7 +343,7 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
     }
   };
 
-  const sendMessage = async (content: string) => {
+  const sendMessage = async (content: string, attachments?: string[]) => {
     if (!activeConversation || !currentWorkspaceId || !user || !socket) return;
 
     try {
@@ -362,7 +362,8 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
         isSelf: false,
         message: {
           sender: user._id,
-          content,
+          content: content || '',
+          attachments: attachments || [],
         },
         organisation: currentWorkspaceId,
         hasNotOpen,
