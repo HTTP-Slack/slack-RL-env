@@ -18,6 +18,9 @@ export const getOrganisation = async (req, res) => {
       });
     }
 
+    console.log('📋 Fetching organisation:', id);
+    console.log('👤 Current user:', req.user.id);
+
     // 1. Fetch organisation, channels, and conversations in parallel
     const [organisation, channels, conversations] = await Promise.all([
       Organisation.findById(id).populate(['coWorkers', 'owner']),
@@ -32,12 +35,19 @@ export const getOrganisation = async (req, res) => {
       });
     }
 
+    console.log('✅ Found', conversations.length, 'conversations for organisation:', id);
+    conversations.forEach(c => {
+      console.log(`  - Conversation ${c._id}: ${c.collaborators.map(u => u.username).join(', ')}`);
+    });
+
     // 2. Filter conversations to only include those the current user is part of
     const conversationsWithCurrentUser = conversations.filter((conversation) =>
       conversation.collaborators.some(
         (collaborator) => collaborator._id.toString() === req.user.id
       )
     );
+
+    console.log('✅ Filtered to', conversationsWithCurrentUser.length, 'conversations with current user');
 
     // 3. Remap conversations to add a dynamic 'name' and 'createdBy'
     const updatedConversations = conversationsWithCurrentUser.map((convo) => {
