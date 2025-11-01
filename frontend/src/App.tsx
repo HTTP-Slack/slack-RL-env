@@ -3,6 +3,7 @@ import SignIn from './pages/SignIn';
 import SignUp from './pages/SignUp';
 import Pass from './pages/Pass';
 import WorkspaceSelection from './pages/WorkspaceSelection';
+import Dashboard from './pages/Dashboard';
 import ProfileStep1 from './pages/ProfileStep1';
 import ProfileStep2 from './pages/ProfileStep2';
 import ProfileStep3 from './pages/ProfileStep3';
@@ -26,6 +27,7 @@ const App = () => {
           <Route path="/profile-step2" element={<ProfileStep2 />} />
           <Route path="/profile-step3" element={<ProfileStep3 />} />
           <Route path="/profile-step4" element={<ProfileStep4 />} />
+          <Route path="/dashboard" element={<Dashboard />} />
         </Routes>
         <UserMenu />
         <PreferencesModal />
