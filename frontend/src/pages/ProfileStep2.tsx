@@ -1,14 +1,50 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useWorkspaceCreation } from '../context/WorkspaceCreationContext'
+import { createWorkspace } from '../services/workspaceApi'
 
 const ProfileStep2 = () => {
-  const [workspaceName, setWorkspaceName] = useState('New Workspace')
+  const { workspaceName: savedWorkspaceName, setWorkspaceName: saveWorkspaceName, setWorkspaceId } = useWorkspaceCreation()
+  const [workspaceName, setWorkspaceName] = useState(savedWorkspaceName || 'New Workspace')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
   const [step] = useState(2)
   const navigate = useNavigate()
 
-  const handleNext = () => {
-    console.log('Workspace name submitted:', workspaceName)
-    navigate('/profile-step3')
+  useEffect(() => {
+    if (savedWorkspaceName) {
+      setWorkspaceName(savedWorkspaceName)
+    }
+  }, [savedWorkspaceName])
+
+  const handleNext = async () => {
+    if (!workspaceName.trim()) {
+      setError('Workspace name is required')
+      return
+    }
+
+    setIsLoading(true)
+    setError('')
+
+    try {
+      const response = await createWorkspace({ name: workspaceName.trim() })
+      
+      if (response.success && response.data) {
+        // Save workspace name and ID to context
+        saveWorkspaceName(workspaceName.trim())
+        setWorkspaceId(response.data._id)
+        
+        // Navigate to step 3
+        navigate('/profile-step3')
+      } else {
+        setError(response.message || 'Failed to create workspace')
+      }
+    } catch (err) {
+      console.error('Failed to create workspace:', err)
+      setError('An error occurred while creating the workspace')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   // Generate initial from workspace name
@@ -74,23 +110,31 @@ const ProfileStep2 = () => {
           </p>
 
           {/* Workspace Name Input */}
-          <div className="mb-8">
+          <div className="mb-4">
             <input
               type="text"
               value={workspaceName}
               onChange={(e) => setWorkspaceName(e.target.value)}
               className="w-full px-4 py-3 bg-transparent border border-gray-500 rounded text-white text-lg focus:outline-none focus:border-gray-400 placeholder-gray-500"
               placeholder="Enter workspace name"
+              disabled={isLoading}
             />
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/20 border border-red-500 rounded text-red-200 text-sm">
+              {error}
+            </div>
+          )}
 
           {/* Next Button */}
           <button
             onClick={handleNext}
-            disabled={!workspaceName.trim()}
+            disabled={!workspaceName.trim() || isLoading}
             className="px-8 py-2.5 bg-[#611f69] hover:bg-[#4a154b] disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded font-semibold text-base transition-colors"
           >
-            Next
+            {isLoading ? 'Creating workspace...' : 'Next'}
           </button>
         </div>
       </main>

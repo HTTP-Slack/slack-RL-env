@@ -1,30 +1,137 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useWorkspaceCreation } from '../context/WorkspaceCreationContext'
+import { inviteColleagues, getWorkspace } from '../services/workspaceApi'
 
 const ProfileStep3 = () => {
-  const [emails, setEmails] = useState('')
+  const { workspaceName: savedWorkspaceName, workspaceId, inviteEmails, setInviteEmails } = useWorkspaceCreation()
+  const [emailTags, setEmailTags] = useState<string[]>(inviteEmails)
+  const [currentInput, setCurrentInput] = useState('')
+  const [error, setError] = useState('')
+  const [joinLink, setJoinLink] = useState<string>('')
+  const [copySuccess, setCopySuccess] = useState(false)
   const [step] = useState(3)
-  const workspaceName = 'New Workspace'
+  const workspaceName = savedWorkspaceName || 'New Workspace'
   const navigate = useNavigate()
 
-  // Check if at least one email is entered
-  const hasValidEmail = () => {
-    return emails.trim().length > 0 && emails.includes('@')
+  useEffect(() => {
+    if (inviteEmails.length > 0) {
+      setEmailTags(inviteEmails)
+    }
+  }, [inviteEmails])
+
+  // Fetch workspace join link when component mounts
+  useEffect(() => {
+    const fetchJoinLink = async () => {
+      if (workspaceId) {
+        const workspace = await getWorkspace(workspaceId)
+        if (workspace && workspace.joinLink) {
+          const fullLink = `${window.location.origin}/join/${workspace.joinLink}`
+          setJoinLink(fullLink)
+        }
+      }
+    }
+    fetchJoinLink()
+  }, [workspaceId])
+
+  // Email validation regex
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+  const validateEmail = (email: string): boolean => {
+    return emailRegex.test(email)
+  }
+
+  const addEmailTag = async (email: string) => {
+    const trimmedEmail = email.trim()
+    
+    if (!trimmedEmail) return
+
+    if (!validateEmail(trimmedEmail)) {
+      setError('Please enter a valid email address')
+      return
+    }
+
+    if (emailTags.includes(trimmedEmail)) {
+      setError('This email has already been added')
+      return
+    }
+
+    setEmailTags([...emailTags, trimmedEmail])
+    setCurrentInput('')
+    setError('')
+    
+    // Send invitation email to backend
+    if (workspaceId) {
+      try {
+        const result = await inviteColleagues({
+          workspaceId,
+          emails: [trimmedEmail],
+        })
+        
+        if (!result.success) {
+          console.error('Failed to send invitation:', result.message)
+        } else {
+          console.log('Invitation sent successfully to:', trimmedEmail)
+        }
+      } catch (err) {
+        console.error('Error sending invitation:', err)
+      }
+    }
+  }
+
+  const removeEmailTag = (emailToRemove: string) => {
+    setEmailTags(emailTags.filter(email => email !== emailToRemove))
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      addEmailTag(currentInput)
+    } else if (e.key === 'Backspace' && !currentInput && emailTags.length > 0) {
+      // Remove last tag when backspace is pressed on empty input
+      removeEmailTag(emailTags[emailTags.length - 1])
+    }
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCurrentInput(e.target.value)
+    if (error) setError('')
   }
 
   const handleNext = () => {
-    if (hasValidEmail()) {
-      console.log('Emails submitted:', emails)
+    // Add current input if exists
+    if (currentInput.trim()) {
+      addEmailTag(currentInput)
+    }
+    
+    if (emailTags.length > 0) {
+      setInviteEmails(emailTags)
       navigate('/profile-step4')
     }
   }
 
-  const handleCopyLink = () => {
-    console.log('Copy invitation link')
+  const handleCopyLink = async () => {
+    if (!joinLink) {
+      setError('Join link is not available yet')
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(joinLink)
+      setCopySuccess(true)
+      
+      // Reset success message after 2 seconds
+      setTimeout(() => {
+        setCopySuccess(false)
+      }, 2000)
+    } catch (err) {
+      console.error('Failed to copy link:', err)
+      setError('Failed to copy link to clipboard')
+    }
   }
 
   const handleSkip = () => {
-    console.log('Skip this step')
+    setInviteEmails([])
     navigate('/profile-step4')
   }
 
@@ -134,13 +241,49 @@ const ProfileStep3 = () => {
               </button>
             </div>
 
-            {/* Email Textarea */}
-            <textarea
-              value={emails}
-              onChange={(e) => setEmails(e.target.value)}
-              placeholder="Example ellis@gmail.com, maria@gmail.com"
-              className="w-full px-4 py-3 bg-transparent border border-gray-500 rounded text-white text-base focus:outline-none focus:border-gray-400 placeholder-gray-500 resize-none h-32"
-            />
+            {/* Email Tags Input */}
+            <div className="w-full min-h-[120px] px-4 py-3 bg-transparent border border-gray-500 rounded text-white text-base focus-within:border-gray-400">
+              {/* Display Email Tags */}
+              <div className="flex flex-wrap gap-2 mb-2">
+                {emailTags.map((email, index) => (
+                  <div
+                    key={index}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#1264a3] text-white rounded-full text-sm"
+                  >
+                    <span>{email}</span>
+                    <button
+                      onClick={() => removeEmailTag(email)}
+                      className="hover:bg-[#0d4d7f] rounded-full p-0.5 transition-colors"
+                      type="button"
+                    >
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Input Field */}
+              <input
+                type="email"
+                value={currentInput}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                placeholder={emailTags.length === 0 ? "Example: ellis@gmail.com (press Enter to add)" : "Add another email..."}
+                className="w-full bg-transparent outline-none text-white placeholder-gray-500"
+              />
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <p className="mt-2 text-red-400 text-sm">{error}</p>
+            )}
+
+            {/* Success Message */}
+            {copySuccess && (
+              <p className="mt-2 text-green-400 text-sm">✓ Link copied to clipboard!</p>
+            )}
           </div>
 
           {/* Info Text */}
@@ -149,22 +292,29 @@ const ProfileStep3 = () => {
           </p>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             <button
               onClick={handleNext}
-              disabled={!hasValidEmail()}
+              disabled={emailTags.length === 0 && !currentInput.trim()}
               className="px-8 py-2.5 bg-[#4a5568] hover:bg-[#3a4555] disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded font-semibold text-base transition-colors"
             >
               Next
             </button>
             <button
               onClick={handleCopyLink}
-              className="px-6 py-2.5 border border-white text-white rounded hover:bg-white hover:text-gray-900 transition-colors text-sm font-medium flex items-center gap-2"
+              disabled={!joinLink}
+              className="px-6 py-2.5 border border-white text-white rounded hover:bg-white hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium flex items-center gap-2"
             >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" />
-              </svg>
-              Copy invitation link
+              {copySuccess ? (
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" />
+                </svg>
+              )}
+              {copySuccess ? 'Copied!' : 'Copy invitation link'}
             </button>
             <button
               onClick={handleSkip}
