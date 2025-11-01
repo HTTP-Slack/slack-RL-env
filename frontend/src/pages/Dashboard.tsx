@@ -61,13 +61,14 @@ const Dashboard: React.FC = () => {
 
   const handleOpenThread = (messageId: string) => {
     // Check if thread already exists
-    let threadId = Object.keys(threads).find(
+    const existingThreadId = Object.keys(threads).find(
       (tid) => threads[tid]?.[0]?.messageId === messageId
     );
 
     // Create new thread if it doesn't exist
-    if (!threadId) {
-      threadId = `thread-${messageId}`;
+    const threadId = existingThreadId || `thread-${messageId}`;
+    
+    if (!existingThreadId) {
       const newThread: Thread = {
         id: threadId,
         messageId,
@@ -75,7 +76,7 @@ const Dashboard: React.FC = () => {
       };
       setThreads((prev) => ({
         ...prev,
-        [threadId as string]: [newThread],
+        [threadId]: [newThread],
       }));
     }
 

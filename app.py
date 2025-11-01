@@ -2,12 +2,12 @@ from flask import Flask, render_template, request, send_file, session
 import pandas as pd
 import os
 import uuid
-from io import BytesIO
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size
-app.config['SECRET_KEY'] = os.urandom(24)  # Required for sessions
+# Set SECRET_KEY from environment variable for production; use a default for development
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_secret_key')
 
 # Ensure upload and temp directories exist
 if not os.path.exists(app.config['UPLOAD_FOLDER']):

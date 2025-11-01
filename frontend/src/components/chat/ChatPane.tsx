@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import type { User, Message, Thread } from '../../constants/chat';
 import MessageItem from './MessageItem';
 import MessageComposer from './MessageComposer';

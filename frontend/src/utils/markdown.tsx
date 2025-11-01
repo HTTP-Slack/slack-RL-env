@@ -83,8 +83,7 @@ export const parseMarkdown = (text: string): React.ReactNode[] => {
       } else {
         flushList();
         inCodeBlock = true;
-        const lang = line.trim().slice(3).trim();
-        if (lang) codeBlockContent.push(lang);
+        // Language identifier is extracted but not used for syntax highlighting.
       }
       return;
     }
@@ -173,12 +172,11 @@ export const parseMarkdown = (text: string): React.ReactNode[] => {
 const processInlineMarkdown = (text: string): React.ReactNode[] => {
   if (!text) return [];
   
-  const parts: React.ReactNode[] = [];
   let processedText = text;
   const replacements: Array<{ placeholder: string; element: React.ReactNode }> = [];
   
   // Process inline code (backticks) - must be first to avoid conflicts
-  processedText = processedText.replace(/`([^`\n]+)`/g, (match, content) => {
+  processedText = processedText.replace(/`([^`\n]+)`/g, (_match, content) => {
     const placeholder = `__CODE_${replacements.length}__`;
     replacements.push({
       placeholder,
@@ -192,7 +190,7 @@ const processInlineMarkdown = (text: string): React.ReactNode[] => {
   });
 
   // Process links
-  processedText = processedText.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, linkText, url) => {
+  processedText = processedText.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, linkText, url) => {
     const placeholder = `__LINK_${replacements.length}__`;
     replacements.push({
       placeholder,
@@ -212,7 +210,7 @@ const processInlineMarkdown = (text: string): React.ReactNode[] => {
   });
 
   // Process bold (**text**)
-  processedText = processedText.replace(/\*\*([^*\n]+)\*\*/g, (match, content) => {
+  processedText = processedText.replace(/\*\*([^*\n]+)\*\*/g, (_match, content) => {
     const placeholder = `__BOLD_${replacements.length}__`;
     replacements.push({
       placeholder,
@@ -222,7 +220,7 @@ const processInlineMarkdown = (text: string): React.ReactNode[] => {
   });
 
   // Process underline (__text__) - must come before italic underscore
-  processedText = processedText.replace(/__([^_\n]+)__/g, (match, content) => {
+  processedText = processedText.replace(/__([^_\n]+)__/g, (_match, content) => {
     const placeholder = `__UNDERLINE_${replacements.length}__`;
     replacements.push({
       placeholder,
@@ -232,7 +230,7 @@ const processInlineMarkdown = (text: string): React.ReactNode[] => {
   });
 
   // Process strikethrough (~~text~~)
-  processedText = processedText.replace(/~~([^~\n]+)~~/g, (match, content) => {
+  processedText = processedText.replace(/~~([^~\n]+)~~/g, (_match, content) => {
     const placeholder = `__STRIKE_${replacements.length}__`;
     replacements.push({
       placeholder,
@@ -241,10 +239,8 @@ const processInlineMarkdown = (text: string): React.ReactNode[] => {
     return placeholder;
   });
 
-  // Process italic with asterisk (*text*) - handle carefully to avoid conflicts with bold
-  processedText = processedText.replace(/\*([^*\n]+)\*/g, (match, content) => {
-    // Skip if it's part of ** (bold) - already processed
-    if (match.includes('**')) return match;
+  // Process italic with asterisk (*text*) - allow asterisks inside, non-greedy match
+  processedText = processedText.replace(/\*([^\n]+?)\*/g, (_match, content) => {
     const placeholder = `__ITALIC_${replacements.length}__`;
     replacements.push({
       placeholder,
@@ -254,9 +250,7 @@ const processInlineMarkdown = (text: string): React.ReactNode[] => {
   });
   
   // Process italic with underscore (_text_) - underline is already processed, so this is safe
-  processedText = processedText.replace(/_([^_\n]+)_/g, (match, content) => {
-    // Skip if this looks like it might be a placeholder or already processed
-    if (match.includes('__') || content.includes('__')) return match;
+  processedText = processedText.replace(/_([^_\n]+)_/g, (_match, content) => {
     const placeholder = `__ITALIC2_${replacements.length}__`;
     replacements.push({
       placeholder,
