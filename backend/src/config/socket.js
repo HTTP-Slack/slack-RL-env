@@ -160,10 +160,10 @@ const initializeSocket = (io) => {
     )
 
     socket.on('message-view', async (messageId) => {
-      await Message.findByIdAndUpdate(messageId, {
+      const updatedMessage = await Message.findByIdAndUpdate(messageId, {
         hasRead: true,
       })
-      if (message) {
+      if (updatedMessage) {
         io.emit('message-view', messageId)
       } else {
         console.log('message not found')
