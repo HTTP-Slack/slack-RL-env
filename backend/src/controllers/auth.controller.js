@@ -1,4 +1,5 @@
 import User from "../models/user.model.js";
+import jwt from 'jsonwebtoken';
 
 // @desc signup user
 // @route /api/auth/register
@@ -39,7 +40,19 @@ export const register = async (req, res) => {
       password
     });
 
-    // 4. Send success response
+    // 4. Create Token
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: '10d', // Token expires in 10 day
+    })
+
+    // 5. Send token in an httpOnly cookie
+    res.cookie('token', token, {
+      httpOnly: true, // Makes it inaccessible to client-side JS
+      secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
+      maxAge: 24 * 60 * 60 * 1000, // 1 day
+    })
+
+    // 6. Send success response
     res.status(201).json({
       success: true,
       data: {
@@ -98,7 +111,7 @@ export const signin = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Internal server error",
-      error: error
+      error
     });
   }
 }
