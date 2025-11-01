@@ -27,6 +27,7 @@ const App = () => {
           <Route path="/profile-step2" element={<ProfileStep2 />} />
           <Route path="/profile-step3" element={<ProfileStep3 />} />
           <Route path="/profile-step4" element={<ProfileStep4 />} />
+          <Route path="/dashboard" element={<Dashboard />} />
         </Routes>
         <UserMenu />
         <PreferencesModal />
