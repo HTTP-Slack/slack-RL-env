@@ -1,14 +1,7 @@
 // Dummy API functions for workspace selection page
 // These simulate backend calls and will be replaced with real API calls later
 
-export interface Workspace {
-  id: string;
-  name: string;
-  iconUrl: string;
-  members: number;
-  memberAvatars: string[];
-  launchUrl: string;
-}
+import type { Workspace } from '../types/workspace';
 
 // Simulate API delay
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -33,11 +26,5 @@ export const getWorkspaces = async (): Promise<Workspace[]> => {
 
 export const getUserEmail = async (): Promise<string> => {
   await delay(300); // Simulate network delay
-  return 'abanpersonal@gmail.com';
-};
-
-// Remove getInvitations as it's not used in this design
-export const getInvitations = async (): Promise<never[]> => {
-  await delay(300);
-  return [];
+  return 'user@example.com';
 };
