@@ -17,13 +17,3 @@ export interface Workspace {
   createdAt: string;
   updatedAt: string;
 }
-
-// Legacy interface for compatibility (can be removed later)
-export interface WorkspaceDisplay {
-  id: string;
-  name: string;
-  iconUrl: string;
-  members: number;
-  memberAvatars: string[];
-  launchUrl: string;
-}
