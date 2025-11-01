@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
 import api from '../config/axios';
@@ -176,7 +176,7 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
       setMessages([]);
       setActiveConversation(null);
     }
-  }, [currentWorkspaceId]);
+  }, [currentWorkspaceId, fetchConversations, fetchUsers]);
 
   // Fetch messages when active conversation changes
   useEffect(() => {
@@ -199,9 +199,11 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
       // Clear messages if no active conversation
       setMessages([]);
     }
-  }, [activeConversation?._id, currentWorkspaceId]);
+    // activeConversation is tracked through fetchMessages which depends on it
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeConversation?._id, currentWorkspaceId, fetchMessages, socket, user]);
 
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     if (!currentWorkspaceId) return;
     
     setLoading(true);
@@ -220,9 +222,9 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentWorkspaceId]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     if (!currentWorkspaceId) return;
     
     try {
@@ -234,9 +236,9 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
       console.error('❌ Error fetching users:', error);
       setUsers([]);
     }
-  };
+  }, [currentWorkspaceId]);
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     if (!activeConversation || !currentWorkspaceId) return;
     
     setLoading(true);
@@ -263,7 +265,7 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeConversation, currentWorkspaceId]);
 
   const refreshMessages = async () => {
     await fetchMessages();
