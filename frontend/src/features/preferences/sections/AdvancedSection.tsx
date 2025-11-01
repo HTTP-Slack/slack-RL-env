@@ -2,12 +2,14 @@ import { usePreferences, useUpdatePreferences, useResetPreferences } from '../Pr
 import { PreferencesStorage } from '../storage';
 import { SearchSortDefault } from '../types';
 import { useState } from 'react';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 export function AdvancedSection() {
   const preferences = usePreferences();
   const updatePreferences = useUpdatePreferences();
   const resetPreferences = useResetPreferences();
   const [importError, setImportError] = useState<string | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const handleToggle = (field: keyof typeof preferences.advanced) => {
     updatePreferences({
@@ -84,9 +86,12 @@ export function AdvancedSection() {
   };
 
   const handleReset = () => {
-    if (confirm('Are you sure you want to reset all preferences to defaults?')) {
-      resetPreferences();
-    }
+    setShowResetConfirm(true);
+  };
+
+  const confirmReset = () => {
+    resetPreferences();
+    setShowResetConfirm(false);
   };
 
   return (
@@ -353,6 +358,16 @@ export function AdvancedSection() {
           </p>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showResetConfirm}
+        title="Reset all preferences?"
+        message="Are you sure you want to reset all preferences to defaults? This action cannot be undone."
+        confirmLabel="Reset to Defaults"
+        cancelLabel="Cancel"
+        onConfirm={confirmReset}
+        onCancel={() => setShowResetConfirm(false)}
+      />
     </div>
   );
 }
