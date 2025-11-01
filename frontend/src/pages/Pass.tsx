@@ -4,7 +4,7 @@ import type { KeyboardEvent } from 'react'
 
 const Pass = () => {
   const location = useLocation()
-  const email = location.state?.email || 'sagittariusshaurya5@gmail.com'
+  const email = location.state?.email || 'user@example.com'
   
   const [code, setCode] = useState(['', '', '', '', '', ''])
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
