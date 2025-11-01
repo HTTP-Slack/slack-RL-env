@@ -1,9 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-
 const ProfileStep4 = () => {
   const workspaceName = 'New Workspace'
-  const navigate = useNavigate()
 
   const handleStartWithPro = () => {
     console.log('Start with Pro clicked')

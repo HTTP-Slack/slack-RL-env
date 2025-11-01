@@ -9,7 +9,10 @@ const ProfileStep3 = () => {
 
   // Check if at least one email is entered
   const hasValidEmail = () => {
-    return emails.trim().length > 0 && emails.includes('@')
+    // Split emails by comma, trim each, and validate with regex
+    const emailList = emails.split(',').map(e => e.trim()).filter(e => e.length > 0);
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailList.length > 0 && emailList.every(email => emailRegex.test(email));
   }
 
   const handleNext = () => {
