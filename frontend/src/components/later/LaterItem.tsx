@@ -23,6 +23,7 @@ const LaterItem: React.FC<LaterItemProps> = ({ item, onUpdate, onDelete, onEdit 
       setShowActions(false);
     } catch (error) {
       console.error('Failed to update status:', error);
+      alert('Failed to update item status. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -42,6 +43,7 @@ const LaterItem: React.FC<LaterItemProps> = ({ item, onUpdate, onDelete, onEdit 
       onDelete(item._id);
     } catch (error) {
       console.error('Failed to delete item:', error);
+      alert('Failed to delete item. Please try again.');
     } finally {
       setIsLoading(false);
     }
