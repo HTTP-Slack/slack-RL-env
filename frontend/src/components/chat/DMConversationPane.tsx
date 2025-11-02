@@ -69,51 +69,22 @@ const DMConversationPane: React.FC = () => {
 
   console.log('✅ DMConversationPane: Ready to render with', conversationMessages.length, 'messages');
 
+  // Just render ChatPane directly like Dashboard does
+  // ChatPane has its own headers and layout
   return (
-    <div className="flex-1 flex flex-col bg-[#1a1d21]">
-      {/* Custom DM Header */}
-      <div className="h-[60px] border-b border-[#3b2d3e] px-5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="text-white text-[18px] font-bold">{displayName}</h2>
-          {otherUser?.isOnline && (
-            <span className="flex items-center gap-1 text-[#868686] text-[13px]">
-              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-              Active
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Header actions */}
-          <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-[#302234] transition-colors">
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-            </svg>
-          </button>
-          <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-[#302234] transition-colors">
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      {/* Reuse existing ChatPane for messages */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <ChatPane
-          currentUser={user}
-          activeUser={activeUser}
-          messages={conversationMessages}
-          threads={{}}
-          editingMessageId={editingMessageId}
-          conversationId={activeConversation._id}
-          onSendMessage={handleSendMessage}
-          onEditMessage={handleEditMessage}
-          onDeleteMessage={handleDeleteMessage}
-          onOpenThread={handleOpenThread}
-          onReaction={handleReaction}
-        />
-      </div>
-    </div>
+    <ChatPane
+      currentUser={user}
+      activeUser={activeUser}
+      messages={conversationMessages}
+      threads={{}}
+      editingMessageId={editingMessageId}
+      conversationId={activeConversation._id}
+      onSendMessage={handleSendMessage}
+      onEditMessage={handleEditMessage}
+      onDeleteMessage={handleDeleteMessage}
+      onOpenThread={handleOpenThread}
+      onReaction={handleReaction}
+    />
   );
 };
 
