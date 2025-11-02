@@ -25,6 +25,7 @@ const LeftNav: React.FC<LeftNavProps> = ({ workspaceName }) => {
   // Check if we're on the DMs page
   const isDMsPage = location.pathname.startsWith('/dms');
   const isDashboardPage = location.pathname === '/dashboard';
+  const isLaterPage = location.pathname.startsWith('/later');
 
   return (
     <div className="w-[70px] bg-[#350d36] flex flex-col items-center py-3 gap-2 border-r border-[#3b2d3e] relative">
@@ -81,6 +82,21 @@ const LeftNav: React.FC<LeftNavProps> = ({ workspaceName }) => {
           </svg>
         </button>
         <span className="text-white text-[10px] font-medium">Files</span>
+      </div>
+
+      {/* Later */}
+      <div className="flex flex-col items-center gap-0.5">
+        <button
+          onClick={() => navigate('/later')}
+          className={`w-11 h-11 flex items-center justify-center rounded hover:bg-[#6f4d72] transition-colors ${
+            isLaterPage ? 'bg-[#6f4d72]' : ''
+          }`}
+        >
+          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+          </svg>
+        </button>
+        <span className="text-white text-[10px] font-medium">Later</span>
       </div>
 
       {/* More */}

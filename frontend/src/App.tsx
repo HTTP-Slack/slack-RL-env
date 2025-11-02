@@ -18,6 +18,7 @@ import ProfileStep4 from './pages/ProfileStep4';
 import JoinWorkspace from './pages/JoinWorkspace';
 import Dashboard from './pages/Dashboard';
 import DMView from './pages/DMView';
+import LaterView from './pages/LaterView';
 import { SearchResults } from './pages/search/SearchResults';
 
 const App = () => {
@@ -104,6 +105,14 @@ const App = () => {
             element={
               <ProtectedRoute>
                 <DMView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/later"
+            element={
+              <ProtectedRoute>
+                <LaterView />
               </ProtectedRoute>
             }
           />
