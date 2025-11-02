@@ -1,6 +1,7 @@
 import Preferences from '../../models/preferences/preferences.model.js';
 import NotificationPreferences from '../../models/preferences/notificationPreferences.model.js';
 import VIPPreferences from '../../models/preferences/vipPreferences.model.js';
+import NavigationPreferences from '../../models/preferences/navigationPreferences.model.js';
 
 // @desc    get user's complete preferences
 // @route   GET /api/preferences
@@ -108,8 +109,23 @@ export const updatePreferences = async (req, res) => {
       }
     }
 
+    // Handle navigation update
+    if (updateData.navigation) {
+      if (preferences.navigation) {
+        await NavigationPreferences.findByIdAndUpdate(
+          preferences.navigation,
+          updateData.navigation,
+          { new: true }
+        );
+      } else {
+        const navigationPrefs = await NavigationPreferences.create(updateData.navigation);
+        preferences.navigation = navigationPrefs._id;
+        await preferences.save();
+      }
+    }
+
     // TODO: Handle other preference categories as they are implemented
-    // Similar pattern for navigation, home, etc.
+    // Similar pattern for home, appearance, etc.
 
     // Reload preferences with populated fields
     preferences = await Preferences.findById(preferences._id)

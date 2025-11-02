@@ -6,12 +6,21 @@ import {
   updatePreferences,
   createPreferences,
 } from '../../controllers/preferences/preferences.controller.js';
+import notificationPreferencesRoute from './notificationPreferences.route.js';
+import vipPreferencesRoute from './vipPreferences.route.js';
+import navigationPreferencesRoute from './navigationPreferences.route.js';
 
 const router = express.Router();
 
+// Main preferences routes
 router.get('/', protectRoute, getPreferences);
 router.post('/', protectRoute, createPreferences);
 router.patch('/', protectRoute, updatePreferences);
+
+// Subcategory routes
+router.use('/notifications', notificationPreferencesRoute);
+router.use('/vip', vipPreferencesRoute);
+router.use('/navigation', navigationPreferencesRoute);
 
 export default router;
 
