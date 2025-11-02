@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { getNotifications, getUnreadCount, markAsRead, markAllAsRead } from '../services/notificationApi';
 import type { Notification } from '../types/notification';
 
@@ -15,14 +15,7 @@ export function NotificationDropdown({ isOpen, onClose, workspaceId, onUnreadCou
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (isOpen && workspaceId) {
-      fetchNotifications();
-      fetchUnreadCount();
-    }
-  }, [isOpen, workspaceId]);
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!workspaceId) return;
     setLoading(true);
     try {
@@ -33,9 +26,9 @@ export function NotificationDropdown({ isOpen, onClose, workspaceId, onUnreadCou
     } finally {
       setLoading(false);
     }
-  };
+  }, [workspaceId]);
 
-  const fetchUnreadCount = async () => {
+  const fetchUnreadCount = useCallback(async () => {
     if (!workspaceId) return;
     try {
       const count = await getUnreadCount(workspaceId);
@@ -43,7 +36,14 @@ export function NotificationDropdown({ isOpen, onClose, workspaceId, onUnreadCou
     } catch (error) {
       console.error('Error fetching unread count:', error);
     }
-  };
+  }, [workspaceId]);
+
+  useEffect(() => {
+    if (isOpen && workspaceId) {
+      fetchNotifications();
+      fetchUnreadCount();
+    }
+  }, [isOpen, workspaceId, fetchNotifications, fetchUnreadCount]);
 
   const handleNotificationClick = async (notification: Notification) => {
     if (!notification.isRead) {
