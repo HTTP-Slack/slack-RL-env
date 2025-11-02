@@ -112,22 +112,21 @@ export const getChannel = async (req, res) => {
   }
 }
 
-// @desc    update channel by id (add users as collaborator to channel)
+// @desc    update channel by id (add users as collaborator to channel or update description)
 // @route   PATCH /api/channel/:id
 // @access  Private
 /*
   body 
   {
-    "emails": [
-      "alice@example.com",
-      "bob@example.com"
-    ] 
+    "emails": ["alice@example.com", "bob@example.com"] (optional)
+    OR
+    "description": "Channel description" (optional)
   }
 */
 export const addUserToChannel = async (req, res) => {
   try {
     const id = req.params.id;
-    const { emails } = req.body; // <-- 2. Get emails, not 'users'
+    const { emails, description } = req.body;
 
     const channel = await Channel.findById(id);
     if (!channel) {
@@ -137,33 +136,51 @@ export const addUserToChannel = async (req, res) => {
       });
     }
 
-    if (!emails || !Array.isArray(emails) || emails.length === 0) {
+    const updateData = {};
+    let userIdsToAdd = [];
+
+    // Handle description update
+    if (description !== undefined) {
+      updateData.description = description;
+    }
+
+    // Handle adding users via emails
+    if (emails && Array.isArray(emails) && emails.length > 0) {
+      // Find users by their emails
+      const usersToAdd = await User.find({ email: { $in: emails } });
+      if (usersToAdd.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'No users found with the provided emails',
+        });
+      }
+
+      // Get just their IDs
+      userIdsToAdd = usersToAdd.map((user) => user._id);
+    }
+
+    if (Object.keys(updateData).length === 0 && userIdsToAdd.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'An array of "emails" is required in the body',
+        message: 'Either "emails" array or "description" string is required in the body',
       });
     }
 
-    // --- 3. Find users by their emails ---
-    const usersToAdd = await User.find({ email: { $in: emails } });
-    if (usersToAdd.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'No users found with the provided emails',
-      });
+    // Update description if provided
+    if (description !== undefined) {
+      await Channel.findByIdAndUpdate(id, { description });
     }
 
-    // --- 4. Get just their IDs ---
-    const userIdsToAdd = usersToAdd.map((user) => user._id);
+    // Add users if provided
+    if (userIdsToAdd.length > 0) {
+      await Channel.findByIdAndUpdate(
+        id,
+        { $addToSet: { collaborators: { $each: userIdsToAdd } } }
+      );
+    }
 
-    const updatedChannel = await Channel.findByIdAndUpdate(
-      id,
-      // --- 5. Add the array of found user IDs ---
-      { $addToSet: { collaborators: { $each: userIdsToAdd } } },
-      {
-        new: true,
-      }
-    ).populate('collaborators'); // Populate to show the full user objects in the response
+    // Fetch updated channel with populated collaborators
+    const updatedChannel = await Channel.findById(id).populate('collaborators');
 
     res.status(200).json({
       success: true,
@@ -171,6 +188,80 @@ export const addUserToChannel = async (req, res) => {
     });
   } catch (error) {
     console.log('Error in updateChannel:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message,
+    });
+  }
+};
+
+// @desc    star channel
+// @route   POST /api/channel/:id/star
+// @access  Private
+export const starChannel = async (req, res) => {
+  try {
+    const channelId = req.params.id;
+    const userId = req.user.id;
+
+    const channel = await Channel.findById(channelId);
+    if (!channel) {
+      return res.status(404).json({
+        success: false,
+        message: 'Channel not found',
+      });
+    }
+
+    // Add user to starred array if not already starred
+    const updatedChannel = await Channel.findByIdAndUpdate(
+      channelId,
+      { $addToSet: { starred: userId } },
+      { new: true }
+    ).populate('collaborators');
+
+    res.status(200).json({
+      success: true,
+      data: updatedChannel,
+    });
+  } catch (error) {
+    console.log('Error in starChannel:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message,
+    });
+  }
+};
+
+// @desc    unstar channel
+// @route   POST /api/channel/:id/unstar
+// @access  Private
+export const unstarChannel = async (req, res) => {
+  try {
+    const channelId = req.params.id;
+    const userId = req.user.id;
+
+    const channel = await Channel.findById(channelId);
+    if (!channel) {
+      return res.status(404).json({
+        success: false,
+        message: 'Channel not found',
+      });
+    }
+
+    // Remove user from starred array
+    const updatedChannel = await Channel.findByIdAndUpdate(
+      channelId,
+      { $pull: { starred: userId } },
+      { new: true }
+    ).populate('collaborators');
+
+    res.status(200).json({
+      success: true,
+      data: updatedChannel,
+    });
+  } catch (error) {
+    console.log('Error in unstarChannel:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',

@@ -28,6 +28,7 @@ interface WorkspaceContextType {
   fetchConversations: () => Promise<void>;
   startConversation: (otherUserId: string) => Promise<void>;
   refreshMessages: () => Promise<void>;
+  refreshSections: () => Promise<void>;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
@@ -424,6 +425,7 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
     fetchConversations,
     startConversation,
     refreshMessages,
+    refreshSections: fetchSections,
     sections,
     setSections,
   };

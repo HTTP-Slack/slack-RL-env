@@ -67,17 +67,23 @@ const AddMembersToChannelModal: React.FC<AddMembersToChannelModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-[#1a1d21] rounded-lg shadow-xl w-full max-w-md">
+      <div className="bg-[rgb(26,29,33)] rounded-lg shadow-xl w-full max-w-lg">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[rgb(49,48,44)]">
-          <h2 className="text-[22px] font-bold text-white">
-            Add people to #{channelName}
-          </h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[rgba(121,124,129,0.3)]">
+          <div>
+            <h2 className="text-[22px] font-bold text-white">
+              Add people to #{channelName}
+            </h2>
+            <p className="text-[15px] text-[rgb(209,210,211)] mt-1">
+              #{channelName}
+            </p>
+          </div>
           <button
             onClick={handleClose}
-            className="text-[rgb(209,210,211)] hover:text-white transition-colors"
+            className="text-[rgb(209,210,211)] hover:text-white transition-colors w-6 h-6 flex items-center justify-center"
+            aria-label="Close"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -91,21 +97,25 @@ const AddMembersToChannelModal: React.FC<AddMembersToChannelModalProps> = ({
         {/* Content */}
         <form onSubmit={handleSubmit}>
           <div className="px-6 py-4">
-            <label htmlFor="emails" className="block text-[15px] font-semibold text-white mb-2">
-              Email addresses
-            </label>
-            <textarea
-              id="emails"
-              value={emails}
-              onChange={(e) => setEmails(e.target.value)}
-              placeholder="Enter email addresses (comma or line separated)"
-              className="w-full px-3 py-2 bg-[rgb(26,29,33)] border border-[rgb(134,134,134)] rounded text-white placeholder-[rgb(134,134,134)] focus:outline-none focus:border-white resize-none"
-              rows={4}
-              disabled={loading}
-            />
-            <p className="mt-2 text-[13px] text-[rgb(134,134,134)]">
-              Enter one or more email addresses separated by commas, spaces, or line breaks.
-            </p>
+            <div className="relative">
+              <input
+                id="emails"
+                type="text"
+                value={emails}
+                onChange={(e) => setEmails(e.target.value)}
+                placeholder="ex. Nathalie, or james@acme.com"
+                className="w-full px-3 py-2 pr-20 bg-[rgb(26,29,33)] border-2 border-[rgb(97,192,250)] rounded text-white placeholder-[rgb(134,134,134)] focus:outline-none focus:border-[rgb(97,192,250)]"
+                disabled={loading}
+                autoFocus
+              />
+              <button
+                type="submit"
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 bg-[rgb(49,48,44)] hover:bg-[rgb(61,60,56)] border border-[rgba(121,124,129,0.3)] rounded text-[15px] font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading || !emails.trim()}
+              >
+                {loading ? 'Adding...' : 'Add'}
+              </button>
+            </div>
 
             {error && (
               <div className="mt-3 px-3 py-2 bg-red-900 bg-opacity-20 border border-red-700 rounded">
@@ -113,26 +123,30 @@ const AddMembersToChannelModal: React.FC<AddMembersToChannelModalProps> = ({
               </div>
             )}
           </div>
-
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[rgb(49,48,44)]">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="px-4 py-2 rounded text-[15px] font-medium text-white hover:bg-[rgb(49,48,44)] transition-colors"
-              disabled={loading}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-[#007a5a] hover:bg-[#006644] rounded text-[15px] font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={loading}
-            >
-              {loading ? 'Adding...' : 'Add Members'}
-            </button>
-          </div>
         </form>
+
+        {/* Slack Connect PRO Section */}
+        <div className="px-6 py-4 border-t border-[rgba(121,124,129,0.3)] bg-[rgb(26,29,33)]">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[15px] text-[rgb(209,210,211)]">Try Slack Connect</span>
+            <span className="px-2 py-0.5 bg-[rgb(97,31,105)] text-white text-[11px] font-bold rounded uppercase">
+              PRO
+            </span>
+          </div>
+          <p className="text-[13px] text-[rgb(209,210,211)]">
+            Working with external people? Simply type their email above.{' '}
+            <a
+              href="#"
+              className="text-[rgb(97,192,250)] hover:underline"
+              onClick={(e) => {
+                e.preventDefault();
+                // TODO: Navigate to help page or show info
+              }}
+            >
+              Learn more
+            </a>
+          </p>
+        </div>
       </div>
     </div>
   );

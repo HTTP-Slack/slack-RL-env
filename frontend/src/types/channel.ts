@@ -10,6 +10,7 @@ export interface IChannel {
   hasNotOpen: string[];
   isChannel: boolean;
   section: string;
+  starred?: string[];
   createdAt: string;
   updatedAt: string;
 }
