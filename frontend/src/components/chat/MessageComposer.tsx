@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { insertMarkdown, parseMarkdown } from '../../utils/markdown';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { uploadFiles } from '../../services/fileApi';
+import { uploadFiles, getFileUrl } from '../../services/fileApi';
 import { getRecentFiles, formatRelativeTime } from '../../services/recentFilesService';
 import RecentFilesModal from './RecentFilesModal';
 import EmojiPicker from './EmojiPicker';
@@ -1095,7 +1095,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
                             if (file.contentType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif'].includes(extension)) {
                               return (
                                 <div className="w-[60px] h-[60px] flex items-center justify-center bg-gray-200 rounded overflow-hidden flex-shrink-0">
-                                  <img src={file.url || '/placeholder-image.png'} alt={file.filename} className="w-full h-full object-cover" />
+                                  <img src={getFileUrl(file.id, true) || '/placeholder-image.png'} alt={file.filename} className="w-full h-full object-cover" />
                                 </div>
                               );
                             }
