@@ -8,7 +8,12 @@ const DMConversationPane: React.FC = () => {
   const { user } = useAuth();
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
 
+  console.log('🎨 DMConversationPane: Rendering');
+  console.log('💬 Active conversation:', activeConversation?._id);
+  console.log('📨 Total messages:', messages.length);
+
   if (!activeConversation || !user) {
+    console.log('⚠️ DMConversationPane: Missing activeConversation or user');
     return null;
   }
 
@@ -22,6 +27,7 @@ const DMConversationPane: React.FC = () => {
 
   // Filter messages for this conversation
   const conversationMessages = messages.filter(m => m.conversation === activeConversation._id);
+  console.log('💬 Filtered conversation messages:', conversationMessages.length);
 
   // Handlers
   const handleSendMessage = async (text: string, attachments?: string[]) => {
@@ -53,12 +59,15 @@ const DMConversationPane: React.FC = () => {
   const activeUser = activeConversation.isSelf ? user : otherUser;
 
   if (!activeUser) {
+    console.error('❌ DMConversationPane: No activeUser found');
     return (
       <div className="flex-1 flex items-center justify-center text-[#868686]">
         <p>User not found</p>
       </div>
     );
   }
+
+  console.log('✅ DMConversationPane: Ready to render with', conversationMessages.length, 'messages');
 
   return (
     <div className="flex-1 flex flex-col bg-[#1a1d21]">

@@ -133,9 +133,14 @@ const DMListItem: React.FC<DMListItemProps> = ({ conversation, isActive, onClick
   // Check if user is online
   const isOnline = conversation.isSelf ? user?.isOnline : otherUser?.isOnline;
 
+  const handleClick = () => {
+    console.log('🖱️ DMListItem: Clicked on conversation:', conversation._id);
+    onClick();
+  };
+
   return (
     <button
-      onClick={onClick}
+      onClick={handleClick}
       className={`w-full px-5 py-2.5 flex items-start gap-3 hover:bg-[#302234] transition-colors ${
         isActive ? 'bg-[#7d3986]' : ''
       }`}

@@ -8,23 +8,51 @@ import LeftNav from '../components/chat/LeftNav';
 const DMView: React.FC = () => {
   const { conversationId } = useParams<{ conversationId?: string }>();
   const navigate = useNavigate();
-  const { conversations, activeConversation, setActiveConversation, loading } = useWorkspace();
+  const {
+    conversations,
+    activeConversation,
+    setActiveConversation,
+    loading,
+    fetchConversations,
+    currentWorkspaceId
+  } = useWorkspace();
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Fetch conversations on mount if not already loaded
+  useEffect(() => {
+    if (currentWorkspaceId && conversations.length === 0) {
+      console.log('📋 DMView: Fetching conversations on mount');
+      fetchConversations();
+    }
+  }, [currentWorkspaceId, conversations.length, fetchConversations]);
 
   // Set active conversation when conversationId changes
   useEffect(() => {
+    console.log('🔍 DMView: conversationId changed:', conversationId);
+    console.log('📋 DMView: Available conversations:', conversations.length);
+
     if (conversationId && conversations.length > 0) {
       const conversation = conversations.find(c => c._id === conversationId);
+      console.log('💬 DMView: Found conversation:', conversation?._id);
+
       if (conversation) {
-        setActiveConversation(conversation);
+        // Only update if it's a different conversation
+        if (activeConversation?._id !== conversation._id) {
+          console.log('✅ DMView: Setting active conversation:', conversation._id);
+          setActiveConversation(conversation);
+        }
+      } else {
+        console.warn('⚠️ DMView: Conversation not found:', conversationId);
       }
     } else if (!conversationId) {
+      console.log('🚫 DMView: No conversationId, clearing active conversation');
       setActiveConversation(null);
     }
-  }, [conversationId, conversations, setActiveConversation]);
+  }, [conversationId, conversations, setActiveConversation, activeConversation]);
 
   // Handle conversation selection
   const handleConversationSelect = (convId: string) => {
+    console.log('🔗 DMView: Navigating to conversation:', convId);
     navigate(`/dms/${convId}`);
   };
 
