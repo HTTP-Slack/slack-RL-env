@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Environments
+.venv/
+env/
+
+# Playwright artifacts
+playwright-report/
+test-results/
+
+# RL artifacts
+evals/artifacts/
+logs/
+checkpoints/
+replays/
+*.parquet
+*.jsonl
+
+# Editor
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+
+

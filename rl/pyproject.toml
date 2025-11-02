@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "slack-ui-rl"
+version = "0.1.0"
+description = "RL pipeline for controlling a Slack clone UI via browser automation."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+  { name = "Slack RL Team" }
+]
+dependencies = [
+  "gymnasium>=0.29",
+  "numpy>=1.26",
+  "pydantic>=2.7",
+  "pydantic-settings>=2.3",
+  "playwright>=1.47",
+  "typer>=0.12",
+  "rich>=13.7",
+  "tqdm>=4.66",
+  "httpx>=0.27",
+  "orjson>=3.10",
+  "python-dotenv>=1.0",
+  "structlog>=24.1",
+  "pillow>=10.0"
+]
+
+[project.optional-dependencies]
+torch = [
+  "torch>=2.3",
+  "accelerate>=0.31"
+]
+dev = [
+  "pytest>=8.2",
+  "pytest-asyncio>=0.23",
+  "ruff>=0.5",
+  "mypy>=1.11"
+]
+
+[project.urls]
+homepage = "https://github.com/"
+documentation = "https://github.com/"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["rl", "rl.*"]
+namespaces = false
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra"
+testpaths = [
+  "tests"
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+plugins = ["pydantic.mypy"]
+
