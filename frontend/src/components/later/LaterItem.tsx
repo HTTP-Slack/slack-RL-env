@@ -53,9 +53,9 @@ const LaterItem: React.FC<LaterItemProps> = ({ item, onUpdate, onDelete, onEdit 
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = date.getTime() - now.getTime();
-    const diffMinutes = Math.ceil(diffMs / (1000 * 60));
-    const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    const diffMinutes = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
 
     if (diffMinutes < 0) {
       return 'Overdue';
