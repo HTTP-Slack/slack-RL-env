@@ -1,17 +1,9 @@
 import api from '../config/axios';
+import { addRecentFiles } from './recentFilesService';
+import type { FileMetadata } from '../types/file';
 
-export interface FileMetadata {
-  id: string;
-  filename: string;
-  contentType: string;
-  length: number;
-  metadata: {
-    organisation: string;
-    uploader: string;
-    channel?: string;
-    conversation?: string;
-  };
-}
+// Re-export for convenience
+export type { FileMetadata };
 
 interface ApiResponse<T> {
   success: boolean;
@@ -52,6 +44,8 @@ export const uploadFiles = async (
     });
 
     if (response.data.success && response.data.data) {
+      // Add uploaded files to recent files cache
+      addRecentFiles(response.data.data);
       return response.data.data;
     }
 
@@ -91,5 +85,47 @@ export const getFileUrl = (fileId: string, inline: boolean = false): string => {
   const origin = normalizedBaseUrl || rawBaseUrl;
 
   return `${origin}/api/files/${fileId}${inline ? '?inline=1' : ''}`;
+};
+
+/**
+ * Get shareable file link in Slack format: {baseUrl}/files/{workspaceId}/{fileId}/{filename}
+ */
+export const getShareableFileLink = (fileId: string, workspaceId: string, filename: string): string => {
+  const rawBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+  const normalizedBaseUrl = rawBaseUrl.replace(/\/?api\/?$/, '');
+  const origin = normalizedBaseUrl || rawBaseUrl;
+  
+  // Encode filename for URL, preserving Unicode characters
+  const encodedFilename = encodeURIComponent(filename);
+  
+  return `${origin}/files/${workspaceId}/${fileId}/${encodedFilename}`;
+};
+
+/**
+ * Copy text to clipboard
+ */
+export const copyToClipboard = async (text: string): Promise<boolean> => {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } else {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      return successful;
+    }
+  } catch (error) {
+    console.error('Failed to copy to clipboard:', error);
+    return false;
+  }
 };
 

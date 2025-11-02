@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { insertMarkdown, parseMarkdown } from '../../utils/markdown';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { uploadFiles } from '../../services/fileApi';
+import RecentFilesModal from './RecentFilesModal';
 
 interface MessageComposerProps {
   onSend: (text: string) => void;
@@ -16,6 +17,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [showRecentFiles, setShowRecentFiles] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -232,7 +234,27 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     textareaRef.current?.focus();
   };
 
+  const handleSelectRecentFile = async (fileId: string) => {
+    // When a recent file is selected, send it as a message
+    if (activeConversation && currentWorkspaceId) {
+      try {
+        await sendMessage('', [fileId]);
+      } catch (error) {
+        console.error('Error sending recent file:', error);
+        alert('Failed to send file. Please try again.');
+      }
+    }
+  };
+
   return (
+    <>
+      {/* Recent Files Modal */}
+      {showRecentFiles && (
+        <RecentFilesModal
+          onClose={() => setShowRecentFiles(false)}
+          onSelectFile={handleSelectRecentFile}
+        />
+      )}
     <div className="p-message_pane_input">
       {userName && (
         <div className="mb-2 text-[13px] text-[rgb(209,210,211)] leading-[1.38463]">
@@ -474,8 +496,11 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
                 </button>
 
                 <button
-                  className="w-full px-4 py-3 flex items-center gap-3 hover:bg-[rgb(49,48,44)] transition-colors text-left opacity-50 cursor-not-allowed"
-                  disabled
+                  onClick={() => {
+                    setShowRecentFiles(true);
+                    setShowAddMenu(false);
+                  }}
+                  className="w-full px-4 py-3 flex items-center gap-3 hover:bg-[rgb(49,48,44)] transition-colors text-left"
                 >
                   <div className="w-10 h-10 flex items-center justify-center">
                     <svg className="w-6 h-6 text-[rgb(209,210,211)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -485,6 +510,9 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
                   <div className="flex-1">
                     <div className="text-white text-[15px] font-medium">Recent file</div>
                   </div>
+                  <svg className="w-5 h-5 text-[rgb(209,210,211)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </button>
 
                 <div className="border-t border-[rgb(60,56,54)] my-2"></div>
@@ -633,6 +661,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
         )}
       </div>
     </div>
+    </>
   );
 };
 
