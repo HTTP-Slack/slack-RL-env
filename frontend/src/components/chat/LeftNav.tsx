@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { UserMenu } from '../UserMenu';
 
 interface LeftNavProps {
@@ -6,6 +7,9 @@ interface LeftNavProps {
 }
 
 const LeftNav: React.FC<LeftNavProps> = ({ workspaceName }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   // Get workspace initials (first 2 letters or first letter of each word)
   const getInitials = (name?: string) => {
     if (!name) return 'W';
@@ -15,8 +19,13 @@ const LeftNav: React.FC<LeftNavProps> = ({ workspaceName }) => {
     }
     return name.substring(0, 2).toUpperCase();
   };
-  
+
   const initials = getInitials(workspaceName);
+
+  // Check if we're on the DMs page
+  const isDMsPage = location.pathname.startsWith('/dms');
+  const isDashboardPage = location.pathname === '/dashboard';
+
   return (
     <div className="w-[70px] bg-[#350d36] flex flex-col items-center py-3 gap-2 border-r border-[#3b2d3e] relative">
       {/* Workspace Icon */}
@@ -26,7 +35,12 @@ const LeftNav: React.FC<LeftNavProps> = ({ workspaceName }) => {
 
       {/* Home */}
       <div className="flex flex-col items-center gap-0.5">
-        <button className="w-11 h-11 flex items-center justify-center rounded hover:bg-[#6f4d72] transition-colors bg-[#350d36]">
+        <button
+          onClick={() => navigate('/dashboard')}
+          className={`w-11 h-11 flex items-center justify-center rounded hover:bg-[#6f4d72] transition-colors ${
+            isDashboardPage ? 'bg-[#6f4d72]' : 'bg-[#350d36]'
+          }`}
+        >
           <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
           </svg>
@@ -36,7 +50,12 @@ const LeftNav: React.FC<LeftNavProps> = ({ workspaceName }) => {
 
       {/* DMs */}
       <div className="flex flex-col items-center gap-0.5">
-        <button className="w-11 h-11 flex items-center justify-center rounded hover:bg-[#6f4d72] transition-colors relative">
+        <button
+          onClick={() => navigate('/dms')}
+          className={`w-11 h-11 flex items-center justify-center rounded hover:bg-[#6f4d72] transition-colors relative ${
+            isDMsPage ? 'bg-[#6f4d72]' : ''
+          }`}
+        >
           <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
