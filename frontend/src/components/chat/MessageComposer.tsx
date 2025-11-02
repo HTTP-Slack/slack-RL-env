@@ -18,6 +18,7 @@ interface User {
 interface SelectedFile {
   id: string;
   file: File;
+  originalSize?: number; // Store original size for placeholder files (e.g., from recent files)
 }
 
 interface MessageComposerProps {
@@ -27,6 +28,9 @@ interface MessageComposerProps {
   users?: User[]; // Users available for @mentions
   channelId?: string; // Channel ID for file uploads (when in channel context)
 }
+
+// File size limit constant (25MB)
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
 const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder = 'Message...', userName, users = [], channelId }) => {
   const { sendMessage, activeConversation, currentWorkspaceId } = useWorkspace();
@@ -72,6 +76,18 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
 
   // Track active formatting states
   const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
+
+  // Cleanup preview URLs on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      // Revoke all object URLs on unmount
+      filePreviewUrls.forEach((url) => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, [filePreviewUrls]);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -335,6 +351,13 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
       }
 
       // Clear all states after successful send
+      // First, revoke all preview URLs to prevent memory leaks
+      filePreviewUrls.forEach((url) => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+      
       setText('');
       setSelectedFiles([]);
       setUploadedFileIds(new Map());
@@ -353,15 +376,28 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
     
-    // Filter files by size (25MB limit)
-    const MAX_SIZE = 25 * 1024 * 1024;
-    const validFiles = files.filter(file => {
-      if (file.size > MAX_SIZE) {
-        alert(`File ${file.name} is too large. Maximum size is 25MB.`);
-        return false;
+    // Filter files by size and collect rejected files for aggregate error message
+    const validFiles: File[] = [];
+    const rejectedFiles: File[] = [];
+    
+    files.forEach(file => {
+      if (file.size > MAX_FILE_SIZE) {
+        rejectedFiles.push(file);
+      } else {
+        validFiles.push(file);
       }
-      return true;
     });
+    
+    // Show aggregate error message if any files were rejected
+    if (rejectedFiles.length > 0) {
+      const maxSizeMB = (MAX_FILE_SIZE / 1024 / 1024).toFixed(0);
+      if (rejectedFiles.length === 1) {
+        alert(`File "${rejectedFiles[0].name}" is too large. Maximum size is ${maxSizeMB}MB.`);
+      } else {
+        const fileList = rejectedFiles.map(f => `• ${f.name}`).join('\n');
+        alert(`${rejectedFiles.length} files are too large (maximum size is ${maxSizeMB}MB):\n\n${fileList}`);
+      }
+    }
     
     if (validFiles.length === 0) return;
     
@@ -371,17 +407,18 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
       file
     }));
     
-    // Generate preview URLs for images immediately
+    // Generate preview URLs for images immediately using createObjectURL
+    const newPreviewUrls = new Map<string, string>();
     selectedFilesWithIds.forEach((selectedFile) => {
       if (selectedFile.file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const previewUrl = e.target?.result as string;
-          setFilePreviewUrls(prev => new Map(prev).set(selectedFile.id, previewUrl));
-        };
-        reader.readAsDataURL(selectedFile.file);
+        const previewUrl = URL.createObjectURL(selectedFile.file);
+        newPreviewUrls.set(selectedFile.id, previewUrl);
       }
     });
+    
+    if (newPreviewUrls.size > 0) {
+      setFilePreviewUrls(prev => new Map([...prev, ...newPreviewUrls]));
+    }
     
     setSelectedFiles(prev => [...prev, ...selectedFilesWithIds]);
     
@@ -439,6 +476,12 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
   };
 
   const handleRemoveFile = (fileId: string) => {
+    // Revoke the object URL before removing to prevent memory leak
+    const previewUrl = filePreviewUrls.get(fileId);
+    if (previewUrl && previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    
     setSelectedFiles(prev => prev.filter(f => f.id !== fileId));
     setUploadedFileIds(prev => {
       const newMap = new Map(prev);
@@ -698,7 +741,8 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     // Create a placeholder File object with proper metadata
     const placeholderFile: SelectedFile = {
       id: uniqueId,
-      file: new File([], recentFile.filename, { type: recentFile.contentType })
+      file: new File([], recentFile.filename, { type: recentFile.contentType }),
+      originalSize: recentFile.length // Store the original file size from metadata
     };
     
     setSelectedFiles(prev => [...prev, placeholderFile]);
@@ -1211,7 +1255,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
                         
                         <span className="truncate max-w-[200px]">{selectedFile.file.name}</span>
                         <span className="text-xs text-[rgb(134,134,134)]">
-                          {(selectedFile.file.size / 1024 / 1024).toFixed(2)} MB
+                          {((selectedFile.originalSize ?? selectedFile.file.size) / 1024 / 1024).toFixed(2)} MB
                         </span>
                         {hasError && (
                           <span className="text-xs text-red-500">Error</span>
