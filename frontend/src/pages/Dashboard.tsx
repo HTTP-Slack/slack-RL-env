@@ -78,14 +78,25 @@ const Dashboard: React.FC = () => {
   };
 
   const handleEditMessage = (messageId: string, newText: string) => {
-    // TODO: Implement edit message API
     console.log('Edit message:', messageId, newText);
+    if (!socket || !user) return;
+    
+    socket.emit('edit-message', {
+      messageId,
+      newContent: newText,
+      isThread: false,
+    });
     setEditingMessageId(null);
   };
 
   const handleDeleteMessage = (messageId: string) => {
-    // TODO: Implement delete message API
     console.log('Delete message:', messageId);
+    if (!socket || !user) return;
+    
+    socket.emit('delete-message', {
+      messageId,
+      isThread: false,
+    });
   };
 
   const handleOpenThread = (messageId: string) => {

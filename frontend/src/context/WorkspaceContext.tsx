@@ -122,14 +122,28 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
         return;
       }
       
-      // Update the message in the messages array with the new reaction data
+      // Update the message in the messages array with the new data (reactions, content, etc.)
       setMessages((prev) => {
         return prev.map((m) => {
           if (m._id === id) {
-            return { ...m, reactions: message.reactions };
+            return { ...m, ...message };
           }
           return m;
         });
+      });
+    });
+
+    newSocket.on('message-deleted', ({ id, isThread }: { id: string; isThread: boolean }) => {
+      console.log('🗑️ Message deleted:', id);
+      if (isThread) {
+        // TODO: Handle thread message deletions
+        console.log('Thread message deletion not yet implemented');
+        return;
+      }
+      
+      // Remove the message from the messages array
+      setMessages((prev) => {
+        return prev.filter((m) => m._id !== id);
       });
     });
 

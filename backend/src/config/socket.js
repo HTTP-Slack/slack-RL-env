@@ -193,6 +193,76 @@ const initializeSocket = (io) => {
       }
     })
 
+    socket.on('edit-message', async ({ messageId, newContent, isThread }) => {
+      try {
+        let message
+        if (isThread) {
+          message = await Thread.findById(messageId)
+        } else {
+          message = await Message.findById(messageId)
+        }
+
+        if (!message) {
+          console.log('Message not found')
+          return
+        }
+
+        // Update the message content
+        message.content = newContent
+        await message.save()
+
+        // Populate the message with related data
+        if (isThread) {
+          await message.populate(['reactions.reactedToBy', 'sender'])
+        } else {
+          await message.populate([
+            'reactions.reactedToBy',
+            'sender',
+            'threadReplies',
+          ])
+        }
+
+        // Determine the room to broadcast to
+        const roomId = isThread ? message.message : (message.channel || message.conversation)
+
+        // Broadcast the updated message to all users in the room
+        io.to(roomId.toString()).emit('message-updated', { id: messageId, message, isThread })
+      } catch (error) {
+        console.log('Error editing message:', error)
+      }
+    })
+
+    socket.on('delete-message', async ({ messageId, isThread }) => {
+      try {
+        let message
+        if (isThread) {
+          message = await Thread.findById(messageId)
+        } else {
+          message = await Message.findById(messageId)
+        }
+
+        if (!message) {
+          console.log('Message not found')
+          return
+        }
+
+        // Determine the room to broadcast to
+        const roomId = isThread ? message.message : (message.channel || message.conversation)
+
+        // Delete the message
+        if (isThread) {
+          await Thread.findByIdAndDelete(messageId)
+        } else {
+          await Message.findByIdAndDelete(messageId)
+        }
+
+        // Broadcast the deletion to all users in the room
+        io.to(roomId.toString()).emit('message-deleted', { id: messageId, isThread })
+      } catch (error) {
+        console.log('Error deleting message:', error)
+      }
+    })
+
     socket.on('reaction', async ({ emoji, id, isThread, userId }) => {
       // 1. Message.findbyid(id)
       let message
