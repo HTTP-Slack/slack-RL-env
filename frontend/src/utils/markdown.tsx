@@ -1,4 +1,5 @@
 import React from 'react';
+import { convertEmojiShortcodes } from '../constants/emojis';
 
 // Markdown parser utility for live rendering
 export const parseMarkdown = (text: string): React.ReactNode[] => {
@@ -189,6 +190,24 @@ const processInlineMarkdown = (text: string): React.ReactNode[] => {
     return placeholder;
   });
 
+  // Process emoji shortcodes (:emoji_name:)
+  processedText = processedText.replace(/:([a-z0-9_+-]+):/gi, (match, emojiName) => {
+    const emoji = convertEmojiShortcodes(match);
+    if (emoji !== match) {
+      const placeholder = `__EMOJI_${replacements.length}__`;
+      replacements.push({
+        placeholder,
+        element: (
+          <span key={placeholder} className="emoji" role="img" aria-label={emojiName}>
+            {emoji}
+          </span>
+        ),
+      });
+      return placeholder;
+    }
+    return match;
+  });
+
   // Process links
   processedText = processedText.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, linkText, url) => {
     const placeholder = `__LINK_${replacements.length}__`;
@@ -260,7 +279,7 @@ const processInlineMarkdown = (text: string): React.ReactNode[] => {
   });
 
   // Split by placeholders and reconstruct
-  const placeholderRegex = /__(CODE|LINK|BOLD|UNDERLINE|ITALIC|ITALIC2|STRIKE)_(\d+)__/g;
+  const placeholderRegex = /__(CODE|EMOJI|LINK|BOLD|UNDERLINE|ITALIC|ITALIC2|STRIKE)_(\d+)__/g;
   const finalParts: React.ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
