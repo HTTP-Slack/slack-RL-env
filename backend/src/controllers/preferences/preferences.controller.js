@@ -3,6 +3,7 @@ import NotificationPreferences from '../../models/preferences/notificationPrefer
 import VIPPreferences from '../../models/preferences/vipPreferences.model.js';
 import NavigationPreferences from '../../models/preferences/navigationPreferences.model.js';
 import HomePreferences from '../../models/preferences/homePreferences.model.js';
+import AppearancePreferences from '../../models/preferences/appearancePreferences.model.js';
 
 // @desc    get user's complete preferences
 // @route   GET /api/preferences
@@ -16,7 +17,7 @@ export const getPreferences = async (req, res) => {
       .populate('vip')
       .populate('navigation')
       .populate('home')
-      .populate('appearance')
+      .populate({ path: 'appearance', populate: { path: 'theme' } })
       .populate('messagesMedia')
       .populate('languageRegion')
       .populate('accessibility')
@@ -34,7 +35,7 @@ export const getPreferences = async (req, res) => {
         .populate('vip')
         .populate('navigation')
         .populate('home')
-        .populate('appearance')
+        .populate({ path: 'appearance', populate: { path: 'theme' } })
         .populate('messagesMedia')
         .populate('languageRegion')
         .populate('accessibility')
@@ -140,8 +141,23 @@ export const updatePreferences = async (req, res) => {
       }
     }
 
+    // Handle appearance update
+    if (updateData.appearance) {
+      if (preferences.appearance) {
+        await AppearancePreferences.findByIdAndUpdate(
+          preferences.appearance,
+          updateData.appearance,
+          { new: true }
+        );
+      } else {
+        const appearancePrefs = await AppearancePreferences.create(updateData.appearance);
+        preferences.appearance = appearancePrefs._id;
+        await preferences.save();
+      }
+    }
+
     // TODO: Handle other preference categories as they are implemented
-    // Similar pattern for appearance, messagesMedia, etc.
+    // Similar pattern for messagesMedia, languageRegion, etc.
 
     // Reload preferences with populated fields
     preferences = await Preferences.findById(preferences._id)

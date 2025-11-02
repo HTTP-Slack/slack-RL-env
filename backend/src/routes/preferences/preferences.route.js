@@ -10,6 +10,8 @@ import notificationPreferencesRoute from './notificationPreferences.route.js';
 import vipPreferencesRoute from './vipPreferences.route.js';
 import navigationPreferencesRoute from './navigationPreferences.route.js';
 import homePreferencesRoute from './homePreferences.route.js';
+import appearancePreferencesRoute from './appearancePreferences.route.js';
+import themeRoute from './theme.route.js';
 
 const router = express.Router();
 
@@ -23,6 +25,8 @@ router.use('/notifications', notificationPreferencesRoute);
 router.use('/vip', vipPreferencesRoute);
 router.use('/navigation', navigationPreferencesRoute);
 router.use('/home', homePreferencesRoute);
+router.use('/appearance', appearancePreferencesRoute);
+router.use('/themes', themeRoute);
 
 export default router;
 
