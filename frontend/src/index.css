@@ -1,32 +1,54 @@
 @import "tailwindcss";
 
-/* Hide scrollbars for markdown editor overlay */
-.markdown-overlay::-webkit-scrollbar {
-  display: none;
+/*
+  Global custom scrollbar styles to match the design in the attachment.
+  - Thin, rounded thumb
+  - Subtle light thumb on dark backgrounds
+  - Applies to WebKit (Chrome/Edge/Safari) and Firefox
+  These rules use conservative selectors so they apply across the app where
+  elements have overflow. Specific components can still override if needed.
+*/
+
+:root {
+  --scrollbar-thumb: #797c7e;
+  --scrollbar-thumb-hover: #8a8d8f;
+  --scrollbar-track: transparent;
+  --scrollbar-size: 10px; /* default width/height of the scrollbar */
 }
 
-.markdown-overlay {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+/* Firefox: thin + colors */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
-.textarea-overlay::-webkit-scrollbar {
-  display: none;
+/* WebKit-based browsers */
+*::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
 }
 
-.textarea-overlay {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
 }
 
-/* Hide scrollbar for recent files submenu only */
-.recent-files-submenu-scroll::-webkit-scrollbar {
-  display: none;
+*::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 9999px;
+  border: 2px solid rgba(0,0,0,0); /* creates padding effect */
+  background-clip: padding-box;
 }
 
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+/* Ensure overlays and small scroll areas also use the custom style */
+.markdown-overlay,
+.textarea-overlay,
 .recent-files-submenu-scroll {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  -ms-overflow-style: auto; /* don't hide scrollbars in IE/Edge legacy */
+  scrollbar-width: thin;
 }
 
 /* Slide-in animation for side panel */
