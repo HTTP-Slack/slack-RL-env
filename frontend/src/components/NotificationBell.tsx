@@ -42,7 +42,7 @@ export function NotificationBell() {
     return () => {
       socket.off('new-notification', handleNewNotification);
     };
-  }, [socket, isOpen, fetchUnreadCount]);
+  }, [socket, fetchUnreadCount]);
 
   return (
     <div className="relative">
