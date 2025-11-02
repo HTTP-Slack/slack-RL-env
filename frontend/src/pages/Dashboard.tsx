@@ -425,7 +425,7 @@ const Dashboard: React.FC = () => {
   return (
     <div className="flex flex-col h-screen bg-[#1a1d21] text-white overflow-hidden">
       {/* Top Navigation Bar */}
-      <div className="h-11 bg-[#350d36] flex items-center px-2 shrink-0">
+      <div className="h-10 bg-[#350d36] flex items-center px-2 shrink-0">
         {/* Left spacer */}
         <div className="flex-1"></div>
         
@@ -449,16 +449,13 @@ const Dashboard: React.FC = () => {
           </button>
 
           {/* Search Bar */}
-          <div className="w-[600px]">
+          <div className="w-[750px] pr-[50px]">
             <button
               onClick={() => setIsSearchOpen(true)}
               className="w-full bg-[#6f4d72] text-white placeholder-[#d1d2d3] px-3 py-1.5 rounded border border-transparent hover:border-white transition-colors text-[13px] flex items-center justify-between"
             >
-              <span className="text-[#d1d2d3]">Search workspace</span>
+              <span className="text-[#ffffff]">Search workspace</span>
               <div className="flex items-center gap-2">
-                <kbd className="px-1.5 py-0.5 bg-[#5a3b5d] rounded text-xs">
-                  {navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}K
-                </kbd>
                 <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
