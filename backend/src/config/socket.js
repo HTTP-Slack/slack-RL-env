@@ -206,6 +206,10 @@ const initializeSocket = (io) => {
         // Handle the case where the model with the given id is not found
         return
       }
+      
+      // Determine the room to broadcast to
+      const roomId = isThread ? message.message : (message.channel || message.conversation)
+      
       // 2. check if emoji already exists in Message.reactions array
       if (message.reactions.some((r) => r.emoji === emoji)) {
         // 3. if it does, check if userId exists in reactedToBy array
@@ -232,25 +236,7 @@ const initializeSocket = (io) => {
               )
             }
             
-            if (isThread) {
-              await message.populate(['reactions.reactedToBy', 'sender'])
-            } else {
-              await message.populate([
-                'reactions.reactedToBy',
-                'sender',
-                'threadReplies',
-              ])
-            }
-            socket.emit('message-updated', { id, message, isThread })
             await message.save()
-          }
-        } else {
-          // Find the reaction that matches the emoji and push userId to its reactedToBy array
-          const reactionToUpdate = message.reactions.find(
-            (r) => r.emoji === emoji
-          )
-          if (reactionToUpdate) {
-            reactionToUpdate.reactedToBy.push(userId)
             
             if (isThread) {
               await message.populate(['reactions.reactedToBy', 'sender'])
@@ -261,13 +247,39 @@ const initializeSocket = (io) => {
                 'threadReplies',
               ])
             }
-            socket.emit('message-updated', { id, message, isThread })
+            
+            // Broadcast to all users in the room
+            io.to(roomId.toString()).emit('message-updated', { id, message, isThread })
+          }
+        } else {
+          // Find the reaction that matches the emoji and push userId to its reactedToBy array
+          const reactionToUpdate = message.reactions.find(
+            (r) => r.emoji === emoji
+          )
+          if (reactionToUpdate) {
+            reactionToUpdate.reactedToBy.push(userId)
+            
             await message.save()
+            
+            if (isThread) {
+              await message.populate(['reactions.reactedToBy', 'sender'])
+            } else {
+              await message.populate([
+                'reactions.reactedToBy',
+                'sender',
+                'threadReplies',
+              ])
+            }
+            
+            // Broadcast to all users in the room
+            io.to(roomId.toString()).emit('message-updated', { id, message, isThread })
           }
         }
       } else {
         // 4. if it doesn't exists, create a new reaction like this {emoji, reactedToBy: [userId]}
         message.reactions.push({ emoji, reactedToBy: [userId] })
+        
+        await message.save()
         
         if (isThread) {
           await message.populate(['reactions.reactedToBy', 'sender'])
@@ -278,8 +290,9 @@ const initializeSocket = (io) => {
             'threadReplies',
           ])
         }
-        socket.emit('message-updated', { id, message, isThread })
-        await message.save()
+        
+        // Broadcast to all users in the room
+        io.to(roomId.toString()).emit('message-updated', { id, message, isThread })
       }
     })
     // Event handler for joining a room

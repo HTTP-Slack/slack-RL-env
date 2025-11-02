@@ -1004,19 +1004,19 @@ const MessageItem: React.FC<MessageItemProps> = ({
 
               {/* Reaction Bar */}
               <div className="flex items-center gap-1 mt-1">
-                {message.reactions && Object.entries(message.reactions).map(([emoji, reactionData]) => {
-                  const users = Array.isArray(reactionData) ? reactionData : reactionData.reactedToBy || [];
+                {message.reactions && message.reactions.map((reaction) => {
+                  const users = reaction.reactedToBy || [];
                   return users.length > 0 ? (
                     <button
-                      key={emoji}
-                      onClick={() => onReaction(emoji)}
+                      key={reaction.emoji}
+                      onClick={() => onReaction(reaction.emoji)}
                       className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-colors ${
-                        users.some((u: any) => u._id === user._id)
+                        users.some((userId: string) => userId === user._id)
                           ? 'bg-[rgb(0,116,217)] text-white'
                           : 'bg-[rgb(49,48,44)] text-[rgb(209,210,211)] hover:bg-[rgb(60,56,54)]'
                       }`}
                     >
-                      <span>{emoji}</span>
+                      <span>{reaction.emoji}</span>
                       <span>{users.length}</span>
                     </button>
                   ) : null;
