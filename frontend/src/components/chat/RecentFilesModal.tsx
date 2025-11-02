@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { getRecentFiles, formatRelativeTime } from '../../services/recentFilesService';
-import { getFileUrl } from '../../services/fileApi';
 
 interface RecentFilesModalProps {
   onClose: () => void;
@@ -8,7 +7,12 @@ interface RecentFilesModalProps {
 }
 
 const RecentFilesModal: React.FC<RecentFilesModalProps> = ({ onClose, onSelectFile }) => {
-  const [recentFiles] = useState(getRecentFiles());
+  const [recentFiles, setRecentFiles] = useState(getRecentFiles());
+  
+  // Refresh recent files when modal opens
+  useEffect(() => {
+    setRecentFiles(getRecentFiles());
+  }, []);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {

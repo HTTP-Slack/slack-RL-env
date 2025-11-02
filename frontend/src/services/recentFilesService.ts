@@ -61,7 +61,30 @@ export const addRecentFile = (file: FileMetadata): void => {
  * Add multiple files to recent files
  */
 export const addRecentFiles = (files: FileMetadata[]): void => {
-  files.forEach(file => addRecentFile(file));
+  try {
+    const recentFiles = getRecentFiles();
+    const now = new Date().toISOString();
+    
+    // Create a map for quick lookup
+    const fileMap = new Map<string, RecentFile>();
+    
+    // Add existing files to the map
+    recentFiles.forEach(f => fileMap.set(f.id, f));
+    
+    // Add/update incoming files
+    files.forEach(file => {
+      fileMap.set(file.id, { ...file, uploadedAt: now });
+    });
+    
+    // Convert map back to array, sort by uploadedAt descending
+    const updatedFiles = Array.from(fileMap.values())
+      .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())
+      .slice(0, MAX_RECENT_FILES);
+    
+    localStorage.setItem(RECENT_FILES_KEY, JSON.stringify(updatedFiles));
+  } catch (error) {
+    console.error('Error adding recent files:', error);
+  }
 };
 
 /**

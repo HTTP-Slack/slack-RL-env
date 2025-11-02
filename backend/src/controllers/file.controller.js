@@ -5,6 +5,21 @@ import Organisation from '../models/organisation.model.js';
 import { Readable } from 'stream';
 
 /**
+ * Properly encode filename for Content-Disposition header (RFC 5987 compliant)
+ */
+const getContentDisposition = (filename, disposition = 'attachment') => {
+  // Escape quotes and backslashes for quoted-string
+  const escapeFilename = (name) => {
+    return name.replace(/(["\\])/g, '\\$1');
+  };
+  
+  const encodedFilename = escapeFilename(filename);
+  const utf8Filename = encodeURIComponent(filename);
+  
+  return `${disposition}; filename="${encodedFilename}"; filename*=UTF-8''${utf8Filename}`;
+};
+
+/**
  * File filter for allowed file types
  */
 const ALLOWED_MIME_TYPES = [
@@ -402,16 +417,16 @@ export const streamFile = async (req, res) => {
     res.setHeader('Content-Type', file.contentType || 'application/octet-stream');
     
     if (download === '1') {
-      res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+      res.setHeader('Content-Disposition', getContentDisposition(file.filename, 'attachment'));
     } else if (inline === '1') {
       // For inline viewing (images, videos)
-      res.setHeader('Content-Disposition', `inline; filename="${file.filename}"`);
+      res.setHeader('Content-Disposition', getContentDisposition(file.filename, 'inline'));
     } else {
       // For images and videos, default to inline; for others, use attachment
       if (file.contentType && (file.contentType.startsWith('image/') || file.contentType.startsWith('video/'))) {
-        res.setHeader('Content-Disposition', `inline; filename="${file.filename}"`);
+        res.setHeader('Content-Disposition', getContentDisposition(file.filename, 'inline'));
       } else {
-        res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+        res.setHeader('Content-Disposition', getContentDisposition(file.filename, 'attachment'));
       }
     }
 
@@ -534,9 +549,9 @@ export const streamFileByWorkspace = async (req, res) => {
     res.setHeader('Content-Type', file.contentType || 'application/octet-stream');
 
     if (download === '1') {
-      res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+      res.setHeader('Content-Disposition', getContentDisposition(file.filename, 'attachment'));
     } else {
-      res.setHeader('Content-Disposition', `inline; filename="${file.filename}"`);
+      res.setHeader('Content-Disposition', getContentDisposition(file.filename, 'inline'));
     }
 
     res.setHeader('Content-Length', file.length);

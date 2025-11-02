@@ -185,12 +185,10 @@ const FileAttachment: React.FC<{ fileId: string; onClick: () => void; workspaceI
   const [isAudio, setIsAudio] = useState(false);
   const [videoThumbnail, setVideoThumbnail] = useState<string>('');
   const [videoDuration, setVideoDuration] = useState<string>('');
-  const [audioDuration, setAudioDuration] = useState<string>('');
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const fileUrl = getFileUrl(fileId, true);
   const downloadUrl = getFileUrl(fileId, false);
-  const menuButtonRef = React.useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     getFileInfo(fileId).then((info) => {
@@ -679,10 +677,7 @@ const FileAttachment: React.FC<{ fileId: string; onClick: () => void; workspaceI
                 }}
                 onLoadedMetadata={(e) => {
                   const audio = e.currentTarget;
-                  const duration = audio.duration;
-                  const minutes = Math.floor(duration / 60);
-                  const seconds = Math.floor(duration % 60);
-                  setAudioDuration(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+                  // Duration can be accessed via audio.duration if needed in the future
                 }}
               />
             </div>

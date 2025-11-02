@@ -11,6 +11,7 @@ interface FileContextMenuProps {
 
 const FileContextMenu: React.FC<FileContextMenuProps> = ({ file, workspaceId, onClose, position }) => {
   const menuRef = useRef<HTMLDivElement>(null);
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -31,6 +32,10 @@ const FileContextMenu: React.FC<FileContextMenuProps> = ({ file, workspaceId, on
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
+      // Clean up toast timeout if component unmounts
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
     };
   }, [onClose]);
 
@@ -39,14 +44,17 @@ const FileContextMenu: React.FC<FileContextMenuProps> = ({ file, workspaceId, on
     const success = await copyToClipboard(shareableLink);
     
     if (success) {
-      // Show a toast notification (you can replace this with a proper toast component)
+      // Show a toast notification
       const toast = document.createElement('div');
       toast.className = 'fixed top-4 right-4 bg-[rgb(18,100,163)] text-white px-4 py-2 rounded-lg shadow-lg z-[60] text-sm';
       toast.textContent = 'Link copied to clipboard';
       document.body.appendChild(toast);
       
-      setTimeout(() => {
-        toast.remove();
+      toastTimeoutRef.current = setTimeout(() => {
+        if (toast.parentNode) {
+          toast.remove();
+        }
+        toastTimeoutRef.current = null;
       }, 2000);
     } else {
       alert('Failed to copy link. Please try again.');

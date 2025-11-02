@@ -95,13 +95,10 @@ export const getShareableFileLink = (fileId: string, workspaceId: string, filena
   const normalizedBaseUrl = rawBaseUrl.replace(/\/?api\/?$/, '');
   const origin = normalizedBaseUrl || rawBaseUrl;
   
-  // Format filename: replace spaces with underscores and sanitize
-  const sanitizedFilename = filename
-    .replace(/\s+/g, '_')
-    .replace(/[^a-zA-Z0-9._-]/g, '')
-    .replace(/_+/g, '_');
+  // Encode filename for URL, preserving Unicode characters
+  const encodedFilename = encodeURIComponent(filename);
   
-  return `${origin}/files/${workspaceId}/${fileId}/${sanitizedFilename}`;
+  return `${origin}/files/${workspaceId}/${fileId}/${encodedFilename}`;
 };
 
 /**

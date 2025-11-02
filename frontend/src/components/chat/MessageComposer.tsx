@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { insertMarkdown, parseMarkdown } from '../../utils/markdown';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { uploadFiles, getFileInfo } from '../../services/fileApi';
+import { uploadFiles } from '../../services/fileApi';
 import RecentFilesModal from './RecentFilesModal';
 
 interface MessageComposerProps {
