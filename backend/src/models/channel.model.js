@@ -20,6 +20,10 @@ const channelSchema = new mongoose.Schema({
   description: {
     type: String,
   },
+  section: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Section",
+  },
   organisation: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Organisation',

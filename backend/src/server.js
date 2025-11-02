@@ -17,6 +17,7 @@ import organisationRoute from './routes/organisation.route.js';
 import channelRoute from './routes/channel.route.js';
 import conversationRoute from './routes/conversation.route.js';
 import fileRoute from './routes/file.route.js';
+import sectionRoute from './routes/section.route.js';
 import { protectRoute } from './middlewares/protectRoute.js';
 import { streamFileByWorkspace } from './controllers/file.controller.js';
 
@@ -65,6 +66,7 @@ app.use('/api/message', messageRoute);
 app.use('/api/organisation', organisationRoute);
 app.use('/api/channel', channelRoute);
 app.use('/api/conversation', conversationRoute);
+app.use('/api/sections', sectionRoute);
 app.get('/files/:workspaceId/:id/:filename', protectRoute, streamFileByWorkspace);
 app.use('/api/files', fileRoute);
 
