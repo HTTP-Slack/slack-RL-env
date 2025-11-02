@@ -160,12 +160,54 @@ const EmojiSuggestions: React.FC<EmojiSuggestionsProps> = ({
       )
     : commonEmojis.slice(0, 20); // Show first 20 most common if no search
 
+  // Highlight matching characters in emoji code
+  const highlightMatch = (code: string) => {
+    if (!searchTerm) {
+      return <span>:{code}:</span>;
+    }
+
+    const lowerCode = code.toLowerCase();
+    const lowerSearch = searchTerm.toLowerCase();
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+
+    // Find each character of the search term in the code
+    for (let i = 0; i < lowerSearch.length; i++) {
+      const char = lowerSearch[i];
+      const index = lowerCode.indexOf(char, lastIndex);
+
+      if (index !== -1) {
+        // Add text before the match
+        if (index > lastIndex) {
+          parts.push(<span key={`text-${i}-${lastIndex}`}>{code.slice(lastIndex, index)}</span>);
+        }
+        // Add highlighted character
+        parts.push(
+          <span
+            key={`match-${i}-${index}`}
+            className="bg-[#f2c744] text-[#0b4c8c]"
+          >
+            {code[index]}
+          </span>
+        );
+        lastIndex = index + 1;
+      }
+    }
+
+    // Add remaining text
+    if (lastIndex < code.length) {
+      parts.push(<span key={`text-end-${lastIndex}`}>{code.slice(lastIndex)}</span>);
+    }
+
+    return <span>:{parts}:</span>;
+  };
+
   // Scroll selected item into view
   useEffect(() => {
     if (selectedItemRef.current && listRef.current) {
       const listRect = listRef.current.getBoundingClientRect();
       const itemRect = selectedItemRef.current.getBoundingClientRect();
-      
+
       if (itemRect.bottom > listRect.bottom) {
         selectedItemRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       } else if (itemRect.top < listRect.top) {
@@ -186,35 +228,31 @@ const EmojiSuggestions: React.FC<EmojiSuggestionsProps> = ({
         bottom: `${position.bottom}px`,
         left: `${position.left}px`,
         maxHeight: '300px',
-        width: '320px',
+        width: '420px',
       }}
     >
-      <div className="overflow-y-auto max-h-[300px] py-1">
+      <div className="overflow-y-auto max-h-[300px]">
         {filteredEmojis.map((emoji, index) => (
           <div
             key={emoji.code}
             ref={index === selectedIndex ? selectedItemRef : null}
             onClick={() => onSelect(emoji.code)}
-            className={`px-3 py-2 cursor-pointer flex items-center gap-3 ${
+            className={`px-4 py-2 cursor-pointer flex items-center gap-2 transition-colors ${
               index === selectedIndex
-                ? 'bg-[#1164a3] text-white'
+                ? 'bg-[#1264a3] text-white'
                 : 'hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)]'
             }`}
           >
-            <span className="text-[24px] leading-none">{emoji.emoji}</span>
-            <div className="flex-1 min-w-0">
-              <div className="text-[15px] font-medium truncate">:{emoji.code}:</div>
-              <div className="text-[13px] text-[rgb(134,134,134)] truncate">
-                {emoji.description}
-              </div>
+            <span className="text-[22px] leading-none flex-shrink-0">{emoji.emoji}</span>
+            <div className="text-[15px] font-normal overflow-hidden whitespace-nowrap text-ellipsis">
+              {highlightMatch(emoji.code)}
             </div>
           </div>
         ))}
       </div>
       <div className="border-t border-[rgb(60,56,54)] bg-[rgb(26,29,33)] px-3 py-1.5">
-        <div className="text-[11px] text-[rgb(134,134,134)] flex items-center justify-between">
-          <span>↑↓ navigate • Enter to select • Esc to dismiss</span>
-          <span>{filteredEmojis.length} emoji{filteredEmojis.length !== 1 ? 's' : ''}</span>
+        <div className="text-[11px] text-[rgb(134,134,134)]">
+          <span>↑ ↓ to navigate • ← to select • esc to dismiss</span>
         </div>
       </div>
     </div>

@@ -46,3 +46,21 @@ frontend/.next/
 backend/.DS_Store
 frontend/.DS_Store
 backend/legacy-backend/MONGODB_SETUP.md
+
+# Python cache and virtual environments
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/.pytest_cache/
+**/.venv/
+**/venv/
+# Virtual env directories (but not rl/env/ which is source code)
+**/env/bin/
+**/env/lib/
+**/env/include/
+**/env/pyvenv.cfg
+rl/.venv/
+rl/__pycache__/
+rl/.pytest_cache/
+rl/data/
+rl/evals/artifacts/

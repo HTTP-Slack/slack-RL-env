@@ -335,7 +335,7 @@ const Dashboard: React.FC = () => {
       <div className="flex flex-1 overflow-hidden">
         <LeftNav workspaceName={currentWorkspace?.name} />
         <Sidebar
-          currentUser={user}
+          currentUser={user || null}
           workspaceName={currentWorkspace?.name}
           conversations={conversations}
           users={users}
