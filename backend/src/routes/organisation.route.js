@@ -17,12 +17,16 @@ const router = express.Router();
 
 router.post('/', protectRoute, createOrganisation);
 router.get('/workspaces', protectRoute, getWorkspaces);
-router.get('/:id', protectRoute, getOrganisation);
+
+// Routes with specific suffixes must come before generic /:id route
 router.get('/:id/users', protectRoute, getOrganisationUsers);
-router.patch('/:id', protectRoute, updateOrganisation);
+router.get('/:id', protectRoute, getOrganisation);
+
+// PATCH and POST routes (different HTTP methods, no conflict with GET)
 router.patch('/:id/coworkers', protectRoute, addCoworkers);
-router.post('/:id/invite', protectRoute, inviteColleagues);
+router.patch('/:id', protectRoute, updateOrganisation);
 router.post('/:id/conversation', protectRoute, getOrCreateConversation);
+router.post('/:id/invite', protectRoute, inviteColleagues);
 router.post('/join/:joinLink', protectRoute, joinByLink);
 
 export default router;

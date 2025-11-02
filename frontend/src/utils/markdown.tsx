@@ -1,6 +1,344 @@
 import React from 'react';
 import { convertEmojiShortcodes } from '../constants/emojis';
 
+/**
+ * Markdown parser with emoji support
+ * 
+ * Supports Slack-style emoji shortcodes like :smile:, :fire:, :heart:
+ * 
+ * Available emoji categories:
+ * - Smileys & Emotion: :smile:, :joy:, :heart_eyes:, :thinking:, :sunglasses:
+ * - Hand gestures: :wave:, :+1:, :clap:, :pray:, :muscle:
+ * - Hearts: :heart:, :blue_heart:, :green_heart:, :yellow_heart:
+ * - Symbols: :fire:, :star:, :zap:, :sparkles:, :rainbow:
+ * - Food & Drink: :coffee:, :pizza:, :beer:, :cake:, :apple:
+ * - Objects: :rocket:, :computer:, :bulb:, :trophy:, :gift:
+ * - Nature & Animals: :dog:, :cat:, :tree:, :sunflower:, :bee:
+ * 
+ * Plus many more! See emojiMap below for full list.
+ */
+
+// Common emoji map for Slack-style emoji codes
+const emojiMap: Record<string, string> = {
+  // Smileys & Emotion
+  'smile': '😊',
+  'smiley': '😃',
+  'grin': '😁',
+  'laughing': '😆',
+  'satisfied': '😆',
+  'joy': '😂',
+  'rofl': '🤣',
+  'relaxed': '☺️',
+  'blush': '😊',
+  'innocent': '😇',
+  'slightly_smiling_face': '🙂',
+  'upside_down_face': '🙃',
+  'wink': '😉',
+  'relieved': '😌',
+  'heart_eyes': '😍',
+  'kissing_heart': '😘',
+  'kissing': '😗',
+  'kissing_smiling_eyes': '😙',
+  'kissing_closed_eyes': '😚',
+  'yum': '😋',
+  'stuck_out_tongue': '😛',
+  'stuck_out_tongue_winking_eye': '😜',
+  'stuck_out_tongue_closed_eyes': '😝',
+  'neutral_face': '😐',
+  'expressionless': '😑',
+  'no_mouth': '😶',
+  'smirk': '😏',
+  'unamused': '😒',
+  'face_with_rolling_eyes': '🙄',
+  'grimacing': '😬',
+  'lying_face': '🤥',
+  'thinking_face': '🤔',
+  'thinking': '🤔',
+  'zipper_mouth_face': '🤐',
+  'raised_eyebrow': '🤨',
+  'exploding_head': '🤯',
+  'flushed': '😳',
+  'disappointed': '😞',
+  'worried': '😟',
+  'angry': '😠',
+  'rage': '😡',
+  'pensive': '😔',
+  'confused': '😕',
+  'slightly_frowning_face': '🙁',
+  'frowning_face': '☹️',
+  'persevere': '😣',
+  'confounded': '😖',
+  'tired_face': '😫',
+  'weary': '😩',
+  'triumph': '😤',
+  'open_mouth': '😮',
+  'scream': '😱',
+  'fearful': '😨',
+  'cold_sweat': '😰',
+  'hushed': '😯',
+  'frowning': '😦',
+  'anguished': '😧',
+  'cry': '😢',
+  'disappointed_relieved': '😥',
+  'sob': '😭',
+  'sweat': '😓',
+  'sleepy': '😪',
+  'sleeping': '😴',
+  'roll_eyes': '🙄',
+  'sunglasses': '😎',
+  'dizzy_face': '😵',
+  'astonished': '😲',
+  'zipper_mouth': '🤐',
+  'mask': '😷',
+  'face_with_thermometer': '🤒',
+  'face_with_head_bandage': '🤕',
+  'smiling_imp': '😈',
+  'imp': '👿',
+  'japanese_ogre': '👹',
+  'japanese_goblin': '👺',
+  'skull': '💀',
+  'ghost': '👻',
+  'alien': '👽',
+  'robot_face': '🤖',
+  'poop': '💩',
+  'clown_face': '🤡',
+
+  // Hand gestures
+  'wave': '👋',
+  'raised_hand': '✋',
+  'hand': '✋',
+  'ok_hand': '👌',
+  'v': '✌️',
+  'crossed_fingers': '🤞',
+  'metal': '🤘',
+  'call_me_hand': '🤙',
+  'point_left': '👈',
+  'point_right': '👉',
+  'point_up_2': '👆',
+  'point_down': '👇',
+  'point_up': '☝️',
+  '+1': '👍',
+  'thumbsup': '👍',
+  '-1': '👎',
+  'thumbsdown': '👎',
+  'fist': '✊',
+  'facepunch': '👊',
+  'punch': '👊',
+  'left-facing_fist': '🤛',
+  'right-facing_fist': '🤜',
+  'clap': '👏',
+  'raised_hands': '🙌',
+  'open_hands': '👐',
+  'palms_up_together': '🤲',
+  'handshake': '🤝',
+  'pray': '🙏',
+  'writing_hand': '✍️',
+  'nail_care': '💅',
+  'selfie': '🤳',
+  'muscle': '💪',
+
+  // Hearts & Symbols
+  'heart': '❤️',
+  'orange_heart': '🧡',
+  'yellow_heart': '💛',
+  'green_heart': '💚',
+  'blue_heart': '💙',
+  'purple_heart': '�purple',
+  'black_heart': '🖤',
+  'broken_heart': '💔',
+  'heart_exclamation': '❣️',
+  'two_hearts': '💕',
+  'revolving_hearts': '💞',
+  'heartbeat': '💓',
+  'heartpulse': '💗',
+  'sparkling_heart': '💖',
+  'cupid': '💘',
+  'gift_heart': '💝',
+  'star': '⭐',
+  'star2': '🌟',
+  'sparkles': '✨',
+  'zap': '⚡',
+  'boom': '💥',
+  'collision': '💥',
+  'fire': '🔥',
+  'rainbow': '🌈',
+  'sunny': '☀️',
+  'cloud': '☁️',
+  'snowflake': '❄️',
+  'umbrella': '☂️',
+
+  // Common objects & symbols
+  'coffee': '☕',
+  'tea': '🍵',
+  'beer': '🍺',
+  'wine_glass': '🍷',
+  'cocktail': '🍸',
+  'tropical_drink': '🍹',
+  'champagne': '🍾',
+  'pizza': '🍕',
+  'hamburger': '🍔',
+  'fries': '🍟',
+  'popcorn': '🍿',
+  'cake': '🍰',
+  'birthday': '🎂',
+  'cookie': '🍪',
+  'apple': '🍎',
+  'banana': '🍌',
+  'watermelon': '🍉',
+  'grapes': '🍇',
+  'strawberry': '🍓',
+  'rocket': '🚀',
+  'airplane': '✈️',
+  'car': '🚗',
+  'taxi': '🚕',
+  'bus': '🚌',
+  'bike': '🚲',
+  'computer': '💻',
+  'laptop': '💻',
+  'iphone': '📱',
+  'phone': '☎️',
+  'email': '📧',
+  'envelope': '✉️',
+  'memo': '📝',
+  'pencil2': '✏️',
+  'pencil': '📝',
+  'book': '📖',
+  'notebook': '📓',
+  'calendar': '📅',
+  'clock': '🕐',
+  'alarm_clock': '⏰',
+  'hourglass': '⌛',
+  'watch': '⌚',
+  'lock': '🔒',
+  'unlock': '🔓',
+  'key': '🔑',
+  'bulb': '💡',
+  'flashlight': '🔦',
+  'wrench': '🔧',
+  'hammer': '🔨',
+  'scissors': '✂️',
+  'mag': '🔍',
+  'mag_right': '🔎',
+  'bookmark': '🔖',
+  'link': '🔗',
+  'paperclip': '📎',
+  'pushpin': '📌',
+  'triangular_flag_on_post': '🚩',
+  'checkered_flag': '🏁',
+  'white_check_mark': '✅',
+  'heavy_check_mark': '✔️',
+  'x': '❌',
+  'negative_squared_cross_mark': '❎',
+  'warning': '⚠️',
+  'exclamation': '❗',
+  'question': '❓',
+  'grey_question': '❔',
+  'grey_exclamation': '❕',
+  'bangbang': '‼️',
+  'interrobang': '⁉️',
+  'chart_with_upwards_trend': '📈',
+  'chart_with_downwards_trend': '📉',
+  'bar_chart': '📊',
+  'money_with_wings': '💸',
+  'dollar': '💵',
+  'yen': '💴',
+  'euro': '💶',
+  'pound': '💷',
+  'moneybag': '💰',
+  'credit_card': '💳',
+  'trophy': '🏆',
+  'medal': '🏅',
+  'first_place_medal': '🥇',
+  'second_place_medal': '🥈',
+  'third_place_medal': '🥉',
+  'dart': '🎯',
+  'game_die': '🎲',
+  'gift': '🎁',
+  'balloon': '🎈',
+  'tada': '🎉',
+  'confetti_ball': '🎊',
+  'microphone': '🎤',
+  'headphones': '🎧',
+  'musical_note': '🎵',
+  'notes': '🎶',
+  'art': '🎨',
+  'camera': '📷',
+  'video_camera': '📹',
+  'movie_camera': '🎥',
+
+  // Nature & Animals
+  'dog': '🐶',
+  'cat': '🐱',
+  'mouse': '🐭',
+  'hamster': '🐹',
+  'rabbit': '🐰',
+  'fox_face': '🦊',
+  'bear': '🐻',
+  'panda_face': '🐼',
+  'koala': '🐨',
+  'tiger': '🐯',
+  'lion_face': '🦁',
+  'cow': '🐮',
+  'pig': '🐷',
+  'frog': '🐸',
+  'monkey_face': '🐵',
+  'see_no_evil': '🙈',
+  'hear_no_evil': '🙉',
+  'speak_no_evil': '🙊',
+  'chicken': '🐔',
+  'penguin': '🐧',
+  'bird': '🐦',
+  'baby_chick': '🐤',
+  'hatched_chick': '🐥',
+  'hatching_chick': '🐣',
+  'duck': '🦆',
+  'eagle': '🦅',
+  'owl': '🦉',
+  'bat': '🦇',
+  'wolf': '🐺',
+  'boar': '🐗',
+  'horse': '🐴',
+  'unicorn_face': '🦄',
+  'bee': '🐝',
+  'bug': '🐛',
+  'butterfly': '🦋',
+  'snail': '🐌',
+  'shell': '🐚',
+  'beetle': '🐞',
+  'ant': '🐜',
+  'spider': '🕷️',
+  'scorpion': '🦂',
+  'crab': '🦀',
+  'snake': '🐍',
+  'turtle': '🐢',
+  'tropical_fish': '🐠',
+  'fish': '🐟',
+  'dolphin': '🐬',
+  'whale': '🐳',
+  'whale2': '🐋',
+  'shark': '🦈',
+  'octopus': '🐙',
+  'tree': '🌲',
+  'evergreen_tree': '🌲',
+  'deciduous_tree': '🌳',
+  'palm_tree': '🌴',
+  'cactus': '🌵',
+  'tulip': '🌷',
+  'cherry_blossom': '🌸',
+  'rose': '🌹',
+  'hibiscus': '🌺',
+  'sunflower': '🌻',
+  'blossom': '🌼',
+  'bouquet': '💐',
+  'four_leaf_clover': '🍀',
+  'shamrock': '☘️',
+  'leaves': '🍃',
+  'fallen_leaf': '🍂',
+  'herb': '🌿',
+  'mushroom': '🍄',
+  'seedling': '🌱',
+};
+
 // Markdown parser utility for live rendering
 export const parseMarkdown = (text: string): React.ReactNode[] => {
   if (!text) return [];
@@ -94,6 +432,52 @@ export const parseMarkdown = (text: string): React.ReactNode[] => {
       return;
     }
     
+    // Handle horizontal rule
+    if (line.match(/^(-{3,}|\*{3,}|_{3,})$/)) {
+      flushList();
+      parts.push(
+        <hr key={`hr-${lineIdx}`} className="border-t border-[rgb(60,56,54)] my-2" />
+      );
+      return;
+    }
+
+    // Handle headings
+    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+    if (headingMatch) {
+      flushList();
+      const level = headingMatch[1].length;
+      const content = processInlineMarkdown(headingMatch[2]);
+      
+      const headingClasses = {
+        1: 'text-2xl font-bold mb-2 mt-4',
+        2: 'text-xl font-bold mb-1.5 mt-3',
+        3: 'text-lg font-bold mb-1 mt-2',
+        4: 'text-base font-bold mb-1 mt-2',
+        5: 'text-sm font-bold mb-0.5 mt-1',
+        6: 'text-xs font-bold mb-0.5 mt-1',
+      };
+      
+      const className = `text-white ${headingClasses[level as keyof typeof headingClasses]}`;
+      const headingContent = content.map((part, idx) => (
+        <React.Fragment key={idx}>{part}</React.Fragment>
+      ));
+      
+      if (level === 1) {
+        parts.push(<h1 key={`heading-${lineIdx}`} className={className}>{headingContent}</h1>);
+      } else if (level === 2) {
+        parts.push(<h2 key={`heading-${lineIdx}`} className={className}>{headingContent}</h2>);
+      } else if (level === 3) {
+        parts.push(<h3 key={`heading-${lineIdx}`} className={className}>{headingContent}</h3>);
+      } else if (level === 4) {
+        parts.push(<h4 key={`heading-${lineIdx}`} className={className}>{headingContent}</h4>);
+      } else if (level === 5) {
+        parts.push(<h5 key={`heading-${lineIdx}`} className={className}>{headingContent}</h5>);
+      } else {
+        parts.push(<h6 key={`heading-${lineIdx}`} className={className}>{headingContent}</h6>);
+      }
+      return;
+    }
+
     // Handle blockquotes
     const blockquoteMatch = line.match(/^>\s+(.+)$/);
     if (blockquoteMatch) {
@@ -269,13 +653,28 @@ const processInlineMarkdown = (text: string): React.ReactNode[] => {
   });
   
   // Process italic with underscore (_text_) - underline is already processed, so this is safe
-  processedText = processedText.replace(/_([^_\n]+)_/g, (_match, content) => {
+  // Match single underscore not followed by another underscore
+  processedText = processedText.replace(/(?<!_)_([^_\n]+?)_(?!_)/g, (_match, content) => {
     const placeholder = `__ITALIC2_${replacements.length}__`;
     replacements.push({
       placeholder,
       element: <em key={placeholder} className="italic">{content}</em>,
     });
     return placeholder;
+  });
+
+  // Process emoji shortcodes (:emoji_name:)
+  processedText = processedText.replace(/:([a-z0-9_+-]+):/g, (_match, emojiName) => {
+    const emoji = emojiMap[emojiName];
+    if (emoji) {
+      const placeholder = `__EMOJI_${replacements.length}__`;
+      replacements.push({
+        placeholder,
+        element: <span key={placeholder} className="text-[22px] leading-[22px] align-middle mx-0.5">{emoji}</span>,
+      });
+      return placeholder;
+    }
+    return _match; // Return original if emoji not found
   });
 
   // Split by placeholders and reconstruct

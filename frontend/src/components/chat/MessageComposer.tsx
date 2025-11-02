@@ -5,6 +5,8 @@ import { uploadFiles } from '../../services/fileApi';
 import { getRecentFiles, formatRelativeTime } from '../../services/recentFilesService';
 import RecentFilesModal from './RecentFilesModal';
 import EmojiPicker from './EmojiPicker';
+import FormattingHelpModal from './FormattingHelpModal';
+import EmojiSuggestions from './EmojiSuggestions';
 
 interface MessageComposerProps {
   onSend: (text: string) => void;
@@ -26,6 +28,12 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
   const [showFormattingToolbar, setShowFormattingToolbar] = useState(true);
   const [showRecentFilesSubmenu, setShowRecentFilesSubmenu] = useState(false);
   const [showScheduleMenu, setShowScheduleMenu] = useState(false);
+  const [showFormattingHelp, setShowFormattingHelp] = useState(false);
+  const [showEmojiSuggestions, setShowEmojiSuggestions] = useState(false);
+  const [emojiSearchTerm, setEmojiSearchTerm] = useState('');
+  const [emojiSearchStartPos, setEmojiSearchStartPos] = useState(0);
+  const [selectedEmojiIndex, setSelectedEmojiIndex] = useState(0);
+  const [emojiSuggestionsPosition, setEmojiSuggestionsPosition] = useState({ bottom: 0, left: 0 });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -101,7 +109,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
       formats.add('code');
     }
 
-    // Check for lists
+    // Check for lists and blockquote
     const lines = text.split('\n');
     const lineIndex = text.slice(0, start).split('\n').length - 1;
     const currentLine = lines[lineIndex] || '';
@@ -110,6 +118,9 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     }
     if (currentLine.match(/^\s*[-*]\s/)) {
       formats.add('bulletList');
+    }
+    if (currentLine.match(/^>\s/)) {
+      formats.add('blockquote');
     }
 
     setActiveFormats(formats);
@@ -180,7 +191,59 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     }
   }, [showStickyBar]);
 
+  // Helper to get filtered emojis (same logic as in EmojiSuggestions component)
+  const getFilteredEmojis = () => {
+    const commonEmojis = [
+      { code: 'smile', emoji: '😊' }, { code: 'smiley', emoji: '😃' }, { code: 'grin', emoji: '😁' },
+      { code: 'laughing', emoji: '😆' }, { code: 'joy', emoji: '😂' }, { code: 'rofl', emoji: '🤣' },
+      { code: 'wink', emoji: '😉' }, { code: 'heart_eyes', emoji: '😍' }, { code: 'kissing_heart', emoji: '😘' },
+      { code: 'thinking', emoji: '🤔' }, { code: 'sunglasses', emoji: '😎' }, { code: '+1', emoji: '👍' },
+      { code: 'thumbsup', emoji: '👍' }, { code: '-1', emoji: '👎' }, { code: 'clap', emoji: '👏' },
+      { code: 'wave', emoji: '👋' }, { code: 'pray', emoji: '🙏' }, { code: 'muscle', emoji: '💪' },
+      { code: 'heart', emoji: '❤️' }, { code: 'fire', emoji: '🔥' }, { code: 'rocket', emoji: '🚀' },
+      { code: 'star', emoji: '⭐' }, { code: 'sparkles', emoji: '✨' }, { code: 'tada', emoji: '🎉' },
+      { code: 'trophy', emoji: '🏆' }, { code: 'gift', emoji: '🎁' }, { code: 'coffee', emoji: '☕' },
+      { code: 'pizza', emoji: '🍕' }, { code: 'cake', emoji: '🍰' }, { code: 'dog', emoji: '🐶' },
+      { code: 'cat', emoji: '🐱' },
+    ];
+
+    return emojiSearchTerm
+      ? commonEmojis.filter((emoji) =>
+          emoji.code.toLowerCase().includes(emojiSearchTerm.toLowerCase())
+        )
+      : commonEmojis.slice(0, 20);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Handle emoji suggestions navigation
+    if (showEmojiSuggestions) {
+      const filteredEmojis = getFilteredEmojis();
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedEmojiIndex(prev => Math.min(filteredEmojis.length - 1, prev + 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedEmojiIndex(prev => Math.max(0, prev - 1));
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        // Get the currently selected emoji from filtered list
+        const filteredEmojis = getFilteredEmojis();
+        if (filteredEmojis.length > 0 && selectedEmojiIndex < filteredEmojis.length) {
+          handleEmojiSelectFromSuggestions(filteredEmojis[selectedEmojiIndex].code);
+        }
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowEmojiSuggestions(false);
+        return;
+      }
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -263,8 +326,56 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     setShowAddMenu(false);
   };
 
+  const getCursorCoordinates = () => {
+    const container = containerRef.current;
+    if (!container) return { bottom: 60, left: 200 };
+
+    // Position it just above the input area, more to the right
+    const containerHeight = container.offsetHeight;
+    return {
+      bottom: containerHeight + 10, // 10px gap above the container
+      left: 200 // Move it to the right
+    };
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setText(e.target.value);
+    const newText = e.target.value;
+    setText(newText);
+
+    // Check if user is typing an emoji shortcode
+    const textarea = e.target;
+    const cursorPos = textarea.selectionStart;
+    const textBeforeCursor = newText.slice(0, cursorPos);
+
+    // Find the last colon before cursor
+    const lastColonIndex = textBeforeCursor.lastIndexOf(':');
+
+    if (lastColonIndex !== -1) {
+      // Check if there's a space or start of string before the colon
+      const charBeforeColon = lastColonIndex > 0 ? textBeforeCursor[lastColonIndex - 1] : ' ';
+      const isValidStart = charBeforeColon === ' ' || charBeforeColon === '\n' || lastColonIndex === 0;
+
+      if (isValidStart) {
+        const searchTerm = textBeforeCursor.slice(lastColonIndex + 1);
+
+        // Only show suggestions if search term doesn't contain spaces or newlines
+        if (!searchTerm.includes(' ') && !searchTerm.includes('\n') && !searchTerm.includes(':')) {
+          setEmojiSearchTerm(searchTerm);
+          setEmojiSearchStartPos(lastColonIndex);
+
+          // Calculate cursor position for suggestions box
+          const position = getCursorCoordinates();
+          setEmojiSuggestionsPosition(position);
+
+          setShowEmojiSuggestions(true);
+          setSelectedEmojiIndex(0);
+          return;
+        }
+      }
+    }
+
+    // Hide suggestions if conditions aren't met
+    setShowEmojiSuggestions(false);
   };
 
   // Close menu when clicking outside
@@ -298,6 +409,26 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
       };
     }
   }, [showScheduleMenu]);
+
+  const handleEmojiSelectFromSuggestions = (emojiCode: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    // Replace :search with :emojiCode:
+    const beforeEmoji = text.slice(0, emojiSearchStartPos);
+    const afterEmoji = text.slice(textarea.selectionStart);
+    const newText = beforeEmoji + `:${emojiCode}:` + afterEmoji;
+    const newCursorPos = beforeEmoji.length + emojiCode.length + 2; // +2 for the two colons
+
+    setText(newText);
+    setShowEmojiSuggestions(false);
+
+    // Set cursor position after emoji
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  };
 
   const handleFormat = (formatType: string) => {
     const textarea = textareaRef.current;
@@ -680,19 +811,33 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
               <path fill="currentColor" fillRule="evenodd" d="M12.058 3.212c.396.12.62.54.5.936L8.87 16.29a.75.75 0 1 1-1.435-.436l3.686-12.143a.75.75 0 0 1 .936-.5M5.472 6.24a.75.75 0 0 1 .005 1.06l-2.67 2.693 2.67 2.691a.75.75 0 1 1-1.065 1.057l-3.194-3.22a.75.75 0 0 1 0-1.056l3.194-3.22a.75.75 0 0 1 1.06-.005m9.044 1.06a.75.75 0 1 1 1.065-1.056l3.194 3.221a.75.75 0 0 1 0 1.057l-3.194 3.219a.75.75 0 0 1-1.065-1.057l2.67-2.69z" clipRule="evenodd"></path>
             </svg>
           </button>
-          <button 
+          <button
             onClick={(e) => handleFormatClick(e, 'codeBlock')}
             className={`w-7 h-7 min-w-[28px] flex items-center justify-center rounded transition-all mx-0.5 mt-0.5 p-0.5 ${
-              activeFormats.has('codeBlock') 
-                ? 'opacity-100 bg-[rgba(232,232,232,0.1)] text-white' 
+              activeFormats.has('codeBlock')
+                ? 'opacity-100 bg-[rgba(232,232,232,0.1)] text-white'
                 : 'opacity-30 hover:opacity-100 text-[rgba(232,232,232,0.7)]'
-            }`} 
+            }`}
             title="Code block"
             aria-label="Code block"
             aria-pressed={activeFormats.has('codeBlock')}
           >
             <svg data-qa="code-block" aria-hidden="true" viewBox="0 0 20 20" className="w-[18px] h-[18px]">
               <path fill="currentColor" fillRule="evenodd" d="M9.212 2.737a.75.75 0 1 0-1.424-.474l-2.5 7.5a.75.75 0 0 0 1.424.474zm6.038.265a.75.75 0 0 0 0 1.5h2a.25.25 0 0 1 .25.25v11.5a.25.25 0 0 1-.25.25h-13a.25.25 0 0 1-.25-.25v-3.5a.75.75 0 0 0-1.5 0v3.5c0 .966.784 1.75 1.75 1.75h13a1.75 1.75 0 0 0 1.75-1.75v-11.5a1.75 1.75 0 0 0-1.75-1.75zm-3.69.5a.75.75 0 1 0-1.12.996l1.556 1.754-1.556 1.75a.75.75 0 1 0 1.12.997l2-2.249a.75.75 0 0 0 0-.996zM3.999 9.061a.75.75 0 0 1-1.058-.062l-2-2.249a.75.75 0 0 1 0-.996l2-2.252a.75.75 0 1 1 1.12.996L2.504 6.252l1.557 1.75a.75.75 0 0 1-.062 1.059" clipRule="evenodd"></path>
+            </svg>
+          </button>
+          <div className="flex-1"></div>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              setShowFormattingHelp(true);
+            }}
+            className="w-7 h-7 min-w-[28px] flex items-center justify-center rounded transition-all mx-0.5 mt-0.5 p-0.5 opacity-30 hover:opacity-100 text-[rgba(232,232,232,0.7)]"
+            title="Formatting help"
+            aria-label="Formatting help"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </button>
         </div>
@@ -1226,6 +1371,22 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
           </div>
         )}
       </div>
+
+      {/* Emoji Suggestions */}
+      {showEmojiSuggestions && containerRef.current && (
+        <EmojiSuggestions
+          searchTerm={emojiSearchTerm}
+          onSelect={handleEmojiSelectFromSuggestions}
+          position={emojiSuggestionsPosition}
+          selectedIndex={selectedEmojiIndex}
+        />
+      )}
+
+      {/* Modals */}
+      <FormattingHelpModal
+        isOpen={showFormattingHelp}
+        onClose={() => setShowFormattingHelp(false)}
+      />
     </div>
     </>
   );
