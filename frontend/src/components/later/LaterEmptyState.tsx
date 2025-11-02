@@ -31,6 +31,7 @@ const LaterEmptyState: React.FC<LaterEmptyStateProps> = ({ status, onCreateRemin
         </p>
         {onCreateReminder && (
           <button
+            type='button'
             onClick={onCreateReminder}
             className="px-4 py-2 bg-white text-[#1a1d21] font-medium rounded text-[15px] hover:bg-[#e8e8e8] transition-colors"
           >
