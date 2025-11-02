@@ -97,6 +97,9 @@ const DMListItem: React.FC<DMListItemProps> = ({ conversation, isActive, onClick
 
   // Fetch profile picture
   useEffect(() => {
+    let localUrl: string | null = null;
+    let mounted = true;
+
     const fetchProfilePic = async () => {
       if (conversation.isSelf && user?._id) {
         try {
@@ -104,7 +107,15 @@ const DMListItem: React.FC<DMListItemProps> = ({ conversation, isActive, onClick
             responseType: 'blob'
           });
           const imageUrl = URL.createObjectURL(response.data);
-          setProfilePicUrl(imageUrl);
+          localUrl = imageUrl;
+          
+          // Only update state if still mounted and conversation hasn't changed
+          if (mounted) {
+            setProfilePicUrl(imageUrl);
+          } else {
+            // Component unmounted before fetch completed, revoke immediately
+            URL.revokeObjectURL(imageUrl);
+          }
         } catch (error) {
           console.error('Error fetching profile picture:', error);
         }
@@ -114,7 +125,15 @@ const DMListItem: React.FC<DMListItemProps> = ({ conversation, isActive, onClick
             responseType: 'blob'
           });
           const imageUrl = URL.createObjectURL(response.data);
-          setProfilePicUrl(imageUrl);
+          localUrl = imageUrl;
+          
+          // Only update state if still mounted and conversation hasn't changed
+          if (mounted) {
+            setProfilePicUrl(imageUrl);
+          } else {
+            // Component unmounted before fetch completed, revoke immediately
+            URL.revokeObjectURL(imageUrl);
+          }
         } catch (error) {
           console.error('Error fetching profile picture:', error);
         }
@@ -124,8 +143,10 @@ const DMListItem: React.FC<DMListItemProps> = ({ conversation, isActive, onClick
     fetchProfilePic();
 
     return () => {
-      if (profilePicUrl) {
-        URL.revokeObjectURL(profilePicUrl);
+      mounted = false;
+      // Revoke the locally tracked URL created in this effect run
+      if (localUrl) {
+        URL.revokeObjectURL(localUrl);
       }
     };
   }, [conversation._id, user?._id, otherUser?._id]);
