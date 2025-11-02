@@ -9,6 +9,7 @@ import {
 import notificationPreferencesRoute from './notificationPreferences.route.js';
 import vipPreferencesRoute from './vipPreferences.route.js';
 import navigationPreferencesRoute from './navigationPreferences.route.js';
+import homePreferencesRoute from './homePreferences.route.js';
 
 const router = express.Router();
 
@@ -21,6 +22,7 @@ router.patch('/', protectRoute, updatePreferences);
 router.use('/notifications', notificationPreferencesRoute);
 router.use('/vip', vipPreferencesRoute);
 router.use('/navigation', navigationPreferencesRoute);
+router.use('/home', homePreferencesRoute);
 
 export default router;
 
