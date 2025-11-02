@@ -720,20 +720,20 @@ export const insertMarkdown = (
   let newCursorPosition: number;
 
   if (markdown === 'bold') {
-    newText = `${before}**${selectedText || 'bold text'}**${after}`;
-    newCursorPosition = selectionStart + (selectedText ? 0 : 11);
+    newText = `${before}**${selectedText}**${after}`;
+    newCursorPosition = selectedText ? selectionStart + selectedText.length + 4 : selectionStart + 2;
   } else if (markdown === 'italic') {
-    newText = `${before}_${selectedText || 'italic text'}_${after}`;
-    newCursorPosition = selectionStart + (selectedText ? 0 : 12);
+    newText = `${before}_${selectedText}_${after}`;
+    newCursorPosition = selectedText ? selectionStart + selectedText.length + 2 : selectionStart + 1;
   } else if (markdown === 'underline') {
-    newText = `${before}__${selectedText || 'underlined text'}__${after}`;
-    newCursorPosition = selectionStart + (selectedText ? 0 : 16);
+    newText = `${before}__${selectedText}__${after}`;
+    newCursorPosition = selectedText ? selectionStart + selectedText.length + 4 : selectionStart + 2;
   } else if (markdown === 'strikethrough') {
-    newText = `${before}~~${selectedText || 'strikethrough text'}~~${after}`;
-    newCursorPosition = selectionStart + (selectedText ? 0 : 20);
+    newText = `${before}~~${selectedText}~~${after}`;
+    newCursorPosition = selectedText ? selectionStart + selectedText.length + 4 : selectionStart + 2;
   } else if (markdown === 'code') {
-    newText = `${before}\`${selectedText || 'code'}\`${after}`;
-    newCursorPosition = selectionStart + (selectedText ? 0 : 6);
+    newText = `${before}\`${selectedText}\`${after}`;
+    newCursorPosition = selectedText ? selectionStart + selectedText.length + 2 : selectionStart + 1;
   } else if (markdown === 'codeBlock') {
     const lines = text.split('\n');
     const lineIndex = text.slice(0, selectionStart).split('\n').length - 1;
@@ -741,14 +741,14 @@ export const insertMarkdown = (
     if (!currentLine.trim().startsWith('```')) {
       lines[lineIndex] = `\`\`\`\n${currentLine}\n\`\`\``;
       newText = lines.join('\n');
-      newCursorPosition = selectionStart + 5;
+      newCursorPosition = selectionStart + 4;
     } else {
       newText = text;
       newCursorPosition = selectionStart;
     }
   } else if (markdown === 'link') {
-    newText = `${before}[${selectedText || 'link text'}](url)${after}`;
-    newCursorPosition = selectionStart + (selectedText ? selectedText.length + 3 : 10);
+    newText = `${before}[${selectedText}](url)${after}`;
+    newCursorPosition = selectedText ? selectionStart + selectedText.length + 3 : selectionStart + 1;
   } else if (markdown === 'orderedList') {
     const lines = text.split('\n');
     const lineIndex = text.slice(0, selectionStart).split('\n').length - 1;
