@@ -15,6 +15,11 @@ interface User {
   avatar?: string;
 }
 
+interface SelectedFile {
+  id: string;
+  file: File;
+}
+
 interface MessageComposerProps {
   onSend: (text: string, attachments?: string[]) => void;
   placeholder?: string;
@@ -27,15 +32,15 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
   const { sendMessage, activeConversation, currentWorkspaceId } = useWorkspace();
   const [text, setText] = useState('');
   const [isFocused, setIsFocused] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   
   // New states for file upload tracking
-  const [uploadedFileIds, setUploadedFileIds] = useState<Map<number, string>>(new Map()); // Map of file index to uploaded file ID
-  const [uploadingFileIndexes, setUploadingFileIndexes] = useState<Set<number>>(new Set()); // Set of file indexes currently uploading
-  const [filePreviewUrls, setFilePreviewUrls] = useState<Map<number, string>>(new Map()); // Map of file index to preview URL
-  const [uploadErrors, setUploadErrors] = useState<Map<number, string>>(new Map()); // Map of file index to error message
+  const [uploadedFileIds, setUploadedFileIds] = useState<Map<string, string>>(new Map()); // Map of file id to uploaded file ID
+  const [uploadingFileIds, setUploadingFileIds] = useState<Set<string>>(new Set()); // Set of file ids currently uploading
+  const [filePreviewUrls, setFilePreviewUrls] = useState<Map<string, string>>(new Map()); // Map of file id to preview URL
+  const [uploadErrors, setUploadErrors] = useState<Map<string, string>>(new Map()); // Map of file id to error message
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
-  const [previewModalData, setPreviewModalData] = useState<{ file: File; previewUrl: string; index: number } | null>(null);
+  const [previewModalData, setPreviewModalData] = useState<{ file: File; previewUrl: string; id: string } | null>(null);
   const [showFileDetailsEdit, setShowFileDetailsEdit] = useState(false);
   const [editingFileName, setEditingFileName] = useState('');
   const [editingFileDescription, setEditingFileDescription] = useState('');
@@ -333,7 +338,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
       setText('');
       setSelectedFiles([]);
       setUploadedFileIds(new Map());
-      setUploadingFileIndexes(new Set());
+      setUploadingFileIds(new Set());
       setFilePreviewUrls(new Map());
       setUploadErrors(new Map());
       if (textareaRef.current) {
@@ -360,29 +365,30 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     
     if (validFiles.length === 0) return;
     
-    // Capture the start index before state updates
-    const startIndex = selectedFiles.length;
+    // Create SelectedFile objects with unique IDs
+    const selectedFilesWithIds: SelectedFile[] = validFiles.map(file => ({
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      file
+    }));
     
     // Generate preview URLs for images immediately
-    validFiles.forEach((file, idx) => {
-      const fileIndex = startIndex + idx;
-      if (file.type.startsWith('image/')) {
+    selectedFilesWithIds.forEach((selectedFile) => {
+      if (selectedFile.file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onload = (e) => {
           const previewUrl = e.target?.result as string;
-          setFilePreviewUrls(prev => new Map(prev).set(fileIndex, previewUrl));
+          setFilePreviewUrls(prev => new Map(prev).set(selectedFile.id, previewUrl));
         };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(selectedFile.file);
       }
     });
     
-    setSelectedFiles(prev => [...prev, ...validFiles]);
+    setSelectedFiles(prev => [...prev, ...selectedFilesWithIds]);
     
     // Upload files immediately if we have the required context
     if (currentWorkspaceId && (channelId || activeConversation?._id)) {
-      validFiles.forEach((file, idx) => {
-        const fileIndex = startIndex + idx;
-        handleFileUpload(file, fileIndex);
+      selectedFilesWithIds.forEach((selectedFile) => {
+        handleFileUpload(selectedFile.file, selectedFile.id);
       });
     }
     
@@ -392,18 +398,18 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     }
   };
   
-  const handleFileUpload = async (file: File, fileIndex: number) => {
+  const handleFileUpload = async (file: File, fileId: string) => {
     if (!currentWorkspaceId || (!channelId && !activeConversation?._id)) {
       console.error('Cannot upload file: missing workspace context');
-      setUploadErrors(prev => new Map(prev).set(fileIndex, 'Missing workspace context'));
+      setUploadErrors(prev => new Map(prev).set(fileId, 'Missing workspace context'));
       return;
     }
     
     // Mark file as uploading
-    setUploadingFileIndexes(prev => new Set(prev).add(fileIndex));
+    setUploadingFileIds(prev => new Set(prev).add(fileId));
     setUploadErrors(prev => {
       const newMap = new Map(prev);
-      newMap.delete(fileIndex);
+      newMap.delete(fileId);
       return newMap;
     });
     
@@ -416,53 +422,53 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
       );
       
       if (uploadedFiles && uploadedFiles.length > 0) {
-        setUploadedFileIds(prev => new Map(prev).set(fileIndex, uploadedFiles[0].id));
+        setUploadedFileIds(prev => new Map(prev).set(fileId, uploadedFiles[0].id));
       } else {
         throw new Error('No file returned from upload');
       }
     } catch (error: any) {
       console.error('Error uploading file:', error);
-      setUploadErrors(prev => new Map(prev).set(fileIndex, error.message || 'Failed to upload file'));
+      setUploadErrors(prev => new Map(prev).set(fileId, error.message || 'Failed to upload file'));
     } finally {
-      setUploadingFileIndexes(prev => {
+      setUploadingFileIds(prev => {
         const newSet = new Set(prev);
-        newSet.delete(fileIndex);
+        newSet.delete(fileId);
         return newSet;
       });
     }
   };
 
-  const handleRemoveFile = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  const handleRemoveFile = (fileId: string) => {
+    setSelectedFiles(prev => prev.filter(f => f.id !== fileId));
     setUploadedFileIds(prev => {
       const newMap = new Map(prev);
-      newMap.delete(index);
+      newMap.delete(fileId);
       return newMap;
     });
-    setUploadingFileIndexes(prev => {
+    setUploadingFileIds(prev => {
       const newSet = new Set(prev);
-      newSet.delete(index);
+      newSet.delete(fileId);
       return newSet;
     });
     setFilePreviewUrls(prev => {
       const newMap = new Map(prev);
-      newMap.delete(index);
+      newMap.delete(fileId);
       return newMap;
     });
     setUploadErrors(prev => {
       const newMap = new Map(prev);
-      newMap.delete(index);
+      newMap.delete(fileId);
       return newMap;
     });
     // Close modal if this file is being previewed
-    if (previewModalData?.index === index) {
+    if (previewModalData?.id === fileId) {
       setPreviewModalOpen(false);
       setPreviewModalData(null);
     }
   };
 
-  const handleImageClick = (file: File, previewUrl: string, index: number) => {
-    setPreviewModalData({ file, previewUrl, index });
+  const handleImageClick = (file: File, previewUrl: string, id: string) => {
+    setPreviewModalData({ file, previewUrl, id });
     setPreviewModalOpen(true);
     setShowFileDetailsEdit(false);
     setEditingFileName(file.name);
@@ -674,13 +680,34 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
   };
 
   const handleSelectRecentFile = async (fileId: string) => {
-    // When a recent file is selected, send it as a message
-    if (activeConversation && currentWorkspaceId) {
-      try {
-        await sendMessage('', [fileId]);
-      } catch (error) {
-        console.error('Error sending recent file:', error);
-        alert('Failed to send file. Please try again.');
+    // When a recent file is selected, add it to the upload queue
+    const recentFiles = getRecentFiles();
+    const recentFile = recentFiles.find(f => f.id === fileId);
+    
+    if (!recentFile) {
+      console.error('Recent file not found');
+      return;
+    }
+    
+    // Generate a unique ID for this selected file
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Mark this file as already uploaded (it's from recent files)
+    setUploadedFileIds(prev => new Map(prev).set(uniqueId, fileId));
+    
+    // Create a placeholder File object with proper metadata
+    const placeholderFile: SelectedFile = {
+      id: uniqueId,
+      file: new File([], recentFile.filename, { type: recentFile.contentType })
+    };
+    
+    setSelectedFiles(prev => [...prev, placeholderFile]);
+    
+    // If it's an image, set the preview URL
+    if (recentFile.contentType.startsWith('image/')) {
+      const previewUrl = getFileUrl(fileId, true);
+      if (previewUrl) {
+        setFilePreviewUrls(prev => new Map(prev).set(uniqueId, previewUrl));
       }
     }
   };
@@ -1114,15 +1141,15 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
         {selectedFiles.length > 0 && (
           <div className="px-3 pb-2">
             <div className="flex flex-wrap gap-2">
-              {selectedFiles.map((file, index) => {
-                const isUploading = uploadingFileIndexes.has(index);
-                const hasError = uploadErrors.has(index);
-                const previewUrl = filePreviewUrls.get(index);
-                const isImage = file.type.startsWith('image/');
+              {selectedFiles.map((selectedFile) => {
+                const isUploading = uploadingFileIds.has(selectedFile.id);
+                const hasError = uploadErrors.has(selectedFile.id);
+                const previewUrl = filePreviewUrls.get(selectedFile.id);
+                const isImage = selectedFile.file.type.startsWith('image/');
                 
                 return (
                   <div
-                    key={index}
+                    key={selectedFile.id}
                     className={`relative group ${isImage && previewUrl ? 'w-24 h-24' : 'w-auto'} rounded-lg overflow-hidden ${hasError ? 'ring-2 ring-red-500' : ''}`}
                   >
                     {isImage && previewUrl ? (
@@ -1137,15 +1164,15 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
                         
                         <img
                           src={previewUrl}
-                          alt={file.name}
+                          alt={selectedFile.file.name}
                           className="w-full h-full object-cover cursor-pointer"
-                          onClick={() => handleImageClick(file, previewUrl, index)}
+                          onClick={() => handleImageClick(selectedFile.file, previewUrl, selectedFile.id)}
                         />
                         
                         {/* Remove button - only show on hover when not uploading */}
                         {!isUploading && (
                           <button
-                            onClick={() => handleRemoveFile(index)}
+                            onClick={() => handleRemoveFile(selectedFile.id)}
                             className="absolute top-1 right-1 w-6 h-6 bg-[rgba(0,0,0,0.7)] hover:bg-[rgba(0,0,0,0.9)] rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
                             title="Remove file"
                           >
@@ -1172,9 +1199,9 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
                           </div>
                         )}
                         
-                        <span className="truncate max-w-[200px]">{file.name}</span>
+                        <span className="truncate max-w-[200px]">{selectedFile.file.name}</span>
                         <span className="text-xs text-[rgb(134,134,134)]">
-                          {(file.size / 1024 / 1024).toFixed(2)} MB
+                          {(selectedFile.file.size / 1024 / 1024).toFixed(2)} MB
                         </span>
                         {hasError && (
                           <span className="text-xs text-red-500">Error</span>
@@ -1188,7 +1215,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
                         {/* Remove button - only show on hover when not uploading */}
                         {!isUploading && (
                           <button
-                            onClick={() => handleRemoveFile(index)}
+                            onClick={() => handleRemoveFile(selectedFile.id)}
                             className="ml-2 w-5 h-5 rounded-full bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.2)] flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
                             title="Remove file"
                           >
@@ -1379,7 +1406,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
 
                   {/* Recent Files Submenu */}
                   {showRecentFilesSubmenu && (
-                    <div className="absolute left-[calc(100%+4px)] top-0 ml-1 w-[440px] max-h-[500px] bg-[rgb(34,37,41)] rounded-lg shadow-lg border border-[rgb(60,56,54)] overflow-hidden z-50" style={{ transform: 'translateY(-12px)' }}>
+                    <div className="absolute left-[calc(100%+2px)] top-0 w-[440px] max-h-[500px] bg-[rgb(34,37,41)] rounded-lg shadow-lg border border-[rgb(60,56,54)] overflow-hidden z-50" style={{ transform: 'translateY(-12px)' }}>
                       <div className="overflow-y-auto max-h-[500px] py-2 recent-files-submenu-scroll">
                       {(() => {
                         const recentFiles = getRecentFiles();
@@ -1585,17 +1612,17 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
             {/* Send now button */}
             <button
               onClick={handleSend}
-              disabled={(!text.trim() && selectedFiles.length === 0) || uploadingFileIndexes.size > 0}
+              disabled={(!text.trim() && selectedFiles.length === 0) || uploadingFileIds.size > 0}
               className={`relative flex items-center justify-center min-w-[28px] h-7 px-2 rounded-l transition-all ${
-                (!text.trim() && selectedFiles.length === 0) || uploadingFileIndexes.size > 0
+                (!text.trim() && selectedFiles.length === 0) || uploadingFileIds.size > 0
                   ? 'bg-[rgb(0,122,90)] opacity-30 cursor-default'
                   : 'bg-[rgb(0,122,90)] hover:bg-[rgb(0,108,78)] cursor-pointer'
               }`}
               title="Send now"
               aria-label="Send now"
-              aria-disabled={(!text.trim() && selectedFiles.length === 0) || uploadingFileIndexes.size > 0}
+              aria-disabled={(!text.trim() && selectedFiles.length === 0) || uploadingFileIds.size > 0}
             >
-              {uploadingFileIndexes.size > 0 ? (
+              {uploadingFileIds.size > 0 ? (
                 <span className="text-white text-xs">...</span>
               ) : (
                 <svg data-qa="send-filled" aria-hidden="true" viewBox="0 0 20 20" className="w-4 h-4 text-white">
@@ -1609,16 +1636,16 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
             {/* Schedule/Options button */}
             <button
               onClick={() => setShowScheduleMenu(!showScheduleMenu)}
-              disabled={(!text.trim() && selectedFiles.length === 0) || uploadingFileIndexes.size > 0}
+              disabled={(!text.trim() && selectedFiles.length === 0) || uploadingFileIds.size > 0}
               className={`flex items-center justify-center min-w-[28px] h-7 px-1 rounded-r transition-all ${
-                (!text.trim() && selectedFiles.length === 0) || uploadingFileIndexes.size > 0
+                (!text.trim() && selectedFiles.length === 0) || uploadingFileIds.size > 0
                   ? 'bg-[rgb(0,122,90)] opacity-30 cursor-default'
                   : 'bg-[rgb(0,122,90)] hover:bg-[rgb(0,108,78)] cursor-pointer'
               }`}
               title="Schedule for later"
               aria-label="Schedule for later"
               aria-haspopup="menu"
-              aria-disabled={(!text.trim() && selectedFiles.length === 0) || uploadingFileIndexes.size > 0}
+              aria-disabled={(!text.trim() && selectedFiles.length === 0) || uploadingFileIds.size > 0}
             >
               <svg data-qa="caret-down" aria-hidden="true" viewBox="0 0 20 20" className="w-4 h-4 text-white">
                 <path fill="currentColor" fillRule="evenodd" d="M5.72 7.47a.75.75 0 0 1 1.06 0L10 10.69l3.22-3.22a.75.75 0 1 1 1.06 1.06l-3.75 3.75a.75.75 0 0 1-1.06 0L5.72 8.53a.75.75 0 0 1 0-1.06" clipRule="evenodd"></path>
@@ -1765,7 +1792,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
-                    handleRemoveFile(previewModalData.index);
+                    handleRemoveFile(previewModalData.id);
                   }}
                   className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors text-sm"
                 >
