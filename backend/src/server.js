@@ -26,6 +26,7 @@ import fileRoute from './routes/file.route.js';
 import sectionRoute from './routes/section.route.js';
 import listRoute from './routes/list.route.js';
 import canvasRoute from './routes/canvas.route.js';
+import preferencesRoute from './routes/preferences/preferences.route.js';
 import pinnedMessageRoute from './routes/pinnedMessage.route.js';
 import searchRoute from './routes/search.route.js';
 
@@ -84,6 +85,7 @@ app.use('/api/canvas', canvasRoute);
 app.use('/api/teammates', teammatesRoute);
 app.use('/api/users', userRoute);
 app.use('/api/files', fileRoute);
+app.use('/api/preferences', preferencesRoute);
 app.use('/api/pinned-messages', pinnedMessageRoute);
 app.use('/api/search', searchRoute);
 

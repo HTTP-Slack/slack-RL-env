@@ -13,6 +13,7 @@
 10. [List](#list)
 11. [Canvas](#canvas)
 12. [Teammates](#teammates)
+13. [Preferences](#preferences)
 
 ---
 
@@ -768,6 +769,334 @@
 **Description:** Get a teammate's information by user ID
 
 **Response:** Returns user object
+
+---
+
+## Preferences
+
+### GET `/api/preferences`
+**Access:** Private  
+**Description:** Get user's complete preferences including all subcategories
+
+**Response:** Returns preferences object with all populated subcategory references
+
+---
+
+### POST `/api/preferences`
+**Access:** Private  
+**Description:** Create initial preferences for user (only if preferences don't exist)
+
+**Response:** Returns created preferences object
+
+---
+
+### PATCH `/api/preferences`
+**Access:** Private  
+**Description:** Update user's preferences (can update multiple subcategories at once)
+
+**Request Body:**
+```json
+{
+  "notifications": { /* NotificationPreferences fields */ },
+  "vip": { /* VIPPreferences fields */ },
+  "navigation": { /* NavigationPreferences fields */ },
+  "home": { /* HomePreferences fields */ },
+  "appearance": { /* AppearancePreferences fields */ },
+  "messagesMedia": { /* MessagesMediaPreferences fields */ },
+  "languageRegion": { /* LanguageRegionPreferences fields */ },
+  "accessibility": { /* AccessibilityPreferences fields */ },
+  "markAsRead": { /* MarkAsReadPreferences fields */ },
+  "audioVideo": { /* AudioVideoPreferences fields */ },
+  "privacyVisibility": { /* PrivacyVisibilityPreferences fields */ },
+  "slackAI": { /* SlackAIPreferences fields */ },
+  "advanced": { /* AdvancedPreferences fields */ },
+  "streamSummaryResults": "boolean (optional, direct field)"
+}
+```
+
+**Note:** All subcategory fields are optional. Can update any combination of subcategories in a single request.
+
+---
+
+### GET `/api/preferences/:subcategory`
+**Access:** Private  
+**Description:** Get a specific preference subcategory
+
+**Available Subcategories:**
+- `/notifications` - Notification preferences
+- `/vip` - VIP preferences
+- `/navigation` - Navigation preferences
+- `/home` - Home preferences
+- `/appearance` - Appearance preferences
+- `/messages-media` - Messages & Media preferences
+- `/language-region` - Language & Region preferences
+- `/accessibility` - Accessibility preferences
+- `/mark-as-read` - Mark As Read preferences
+- `/audio-video` - Audio & Video preferences
+- `/privacy-visibility` - Privacy & Visibility preferences
+- `/advanced` - Advanced preferences
+
+**Response:** Returns the specific subcategory preferences (defaults created if don't exist)
+
+---
+
+### POST `/api/preferences/:subcategory`
+**Access:** Private  
+**Description:** Create preferences for a specific subcategory (only if subcategory doesn't exist)
+
+**Request Body:** Varies by subcategory (see subcategory-specific documentation)
+
+**Response:** Returns created subcategory preferences
+
+---
+
+### PATCH `/api/preferences/:subcategory`
+**Access:** Private  
+**Description:** Update preferences for a specific subcategory
+
+**Request Body:** Varies by subcategory (all fields optional, only provided fields are updated)
+
+**Response:** Returns updated subcategory preferences
+
+---
+
+### POST `/api/preferences/vip/vip-list`
+**Access:** Private  
+**Description:** Add a user to VIP list
+
+**Request Body:**
+```json
+{
+  "vip": "string (user ID, email, or identifier)"
+}
+```
+
+**Response:** Returns updated VIP preferences
+
+---
+
+### DELETE `/api/preferences/vip/vip-list/:vip`
+**Access:** Private  
+**Description:** Remove a user from VIP list
+
+**URL Parameters:**
+- `vip`: User ID, email, or identifier to remove
+
+**Response:** Returns updated VIP preferences
+
+---
+
+### POST `/api/preferences/privacy-visibility/blocked-invitations`
+**Access:** Private  
+**Description:** Block invitations from a user
+
+**Request Body:**
+```json
+{
+  "userIdentifier": "string (user ID or email)"
+}
+```
+
+**Response:** Returns updated privacy & visibility preferences with populated user references
+
+---
+
+### DELETE `/api/preferences/privacy-visibility/blocked-invitations/:userIdentifier`
+**Access:** Private  
+**Description:** Unblock invitations from a user
+
+**URL Parameters:**
+- `userIdentifier`: User ID or email to unblock
+
+**Response:** Returns updated privacy & visibility preferences
+
+---
+
+### POST `/api/preferences/privacy-visibility/hidden-people`
+**Access:** Private  
+**Description:** Hide a person (won't see notifications or messages from them)
+
+**Request Body:**
+```json
+{
+  "userIdentifier": "string (user ID or email)"
+}
+```
+
+**Response:** Returns updated privacy & visibility preferences with populated user references
+
+---
+
+### DELETE `/api/preferences/privacy-visibility/hidden-people/:userIdentifier`
+**Access:** Private  
+**Description:** Unhide a person
+
+**URL Parameters:**
+- `userIdentifier`: User ID or email to unhide
+
+**Response:** Returns updated privacy & visibility preferences
+
+---
+
+## Preferences Subcategory Details
+
+### Notification Preferences
+**Fields:**
+- `type`: "all" | "direct_mentions_keywords" | "nothing"
+- `differentMobileSettings`: boolean
+- `huddles`: boolean
+- `threadReplies`: boolean
+- `keywords`: string
+
+---
+
+### VIP Preferences
+**Fields:**
+- `allowFromVIPs`: boolean
+- `vipList`: string[] (array of user identifiers)
+
+---
+
+### Navigation Preferences
+**Fields:**
+- `showHome`: boolean
+- `showDMs`: boolean
+- `showActivity`: boolean
+- `showFiles`: boolean
+- `showTools`: boolean
+- `tabAppearance`: "icons_text" | "icons_only"
+
+---
+
+### Home Preferences
+**Fields:**
+- `showChannelOrganization`: boolean
+- `showActivityDot`: boolean
+- `alwaysShowUnreads`: boolean
+- `alwaysShowHuddles`: boolean
+- `alwaysShowThreads`: boolean
+- `alwaysShowDraftsSent`: boolean
+- `alwaysShowDirectories`: boolean
+- `show`: "all" | "unreads" | "mentions" | "custom"
+- `sort`: "alphabetically" | "most_recent" | "priority"
+- `showProfilePhotos`: boolean
+- `separatePrivateChannels`: boolean
+- `separateDirectMessages`: boolean
+- `moveUnreadMentions`: boolean
+- `organizeExternalConversations`: boolean
+- `displayMutedItems`: boolean
+
+---
+
+### Appearance Preferences
+**Fields:**
+- `font`: string
+- `colorMode`: "light" | "dark" | "system"
+- `theme`: "aubergine" | "clementine" | "banana" | "jade" | "lagoon" | "barbra" | "gray" | "mood_indigo"
+- `displayTypingIndicator`: boolean
+- `displayColorSwatches`: boolean
+- `emojiSkinTone`: "default" | "light" | "medium_light" | "medium" | "medium_dark" | "dark"
+- `displayEmojiAsText`: boolean
+- `showJumbomoji`: boolean
+- `convertEmoticons`: boolean
+- `showOneClickReactions`: boolean
+- `customReactionEmojis`: string[]
+
+---
+
+### Messages & Media Preferences
+**Fields:**
+- `showImagesFiles`: boolean
+- `showImagesLinked`: boolean
+- `showImagesLarge`: boolean
+- `showTextPreviews`: boolean
+
+---
+
+### Language & Region Preferences
+**Fields:**
+- `language`: string
+- `timezone`: string
+- `autoTimezone`: boolean
+- `keyboardLayout`: string
+- `spellcheck`: boolean
+
+---
+
+### Accessibility Preferences
+**Fields:**
+- `simplifiedLayoutMode`: boolean
+- `underlineLinks`: boolean
+- `tabPreviews`: boolean
+- `autoPlayAnimations`: boolean
+- `messageFormat`: "sender_message_date" | "sender_date_message"
+- `announceIncomingMessages`: boolean
+- `readEmojiReactions`: boolean
+- `playEmojiSound`: boolean
+
+---
+
+### Mark As Read Preferences
+**Fields:**
+- `behavior`: "start_where_left" | "start_newest_mark" | "start_newest_leave"
+- `promptOnMarkAll`: boolean
+
+---
+
+### Audio & Video Preferences
+**Fields:**
+- `microphoneDevice`: string
+- `speakerDevice`: string
+- `cameraDevice`: string
+- `setStatusToInHuddle`: boolean
+- `muteMicrophoneOnJoin`: boolean
+- `autoTurnOnCaptions`: boolean
+- `warnLargeChannel`: boolean
+- `blurVideoBackground`: boolean
+- `playMusic`: boolean
+- `musicStartDelay`: string
+
+---
+
+### Privacy & Visibility Preferences
+**Fields:**
+- `slackConnectDiscoverable`: boolean
+- `contactSharing`: "all" | "workspace_only" | "none"
+- `blockedInvitations`: User[] (array of user ObjectIds, populated with email and username)
+- `hiddenPeople`: User[] (array of user ObjectIds, populated with email and username)
+
+**Note:** `blockedInvitations` and `hiddenPeople` are arrays of User references. When retrieved, they are automatically populated with user `email` and `username` fields.
+
+---
+
+### Slack AI Preferences
+**Fields:**
+- `streamSummaries`: boolean
+
+---
+
+### Advanced Preferences
+**Fields:**
+- `whenTypingCodeEnterShouldNotSend`: boolean
+- `formatMessagesWithMarkup`: boolean
+- `enterBehavior`: "send" | "newline"
+- `ctrlFStartsSearch`: boolean
+- `searchShortcut`: "cmd_f" | "cmd_k"
+- `excludeChannelsFromSearch`: string[] (array of channel names)
+- `searchSortDefault`: "most_relevant" | "last_used"
+- `confirmUnsend`: boolean
+- `confirmAwayToggle`: boolean
+- `warnMaliciousLinks`: boolean
+- `warnExternalFiles`: boolean
+- `warnExternalCanvases`: boolean
+- `channelSuggestions`: boolean
+- `surveys`: boolean
+
+---
+
+### Streaming Preferences
+**Fields:**
+- `streamSummaryResults`: boolean (direct field on main preferences, not a subcategory)
 
 ---
 

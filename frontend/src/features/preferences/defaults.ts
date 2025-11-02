@@ -96,6 +96,8 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   privacyVisibility: {
     slackConnectDiscoverable: true,
     contactSharing: 'all',
+    blockedInvitations: [],
+    hiddenPeople: [],
   },
   slackAI: {
     streamSummaries: true,
@@ -104,6 +106,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
     whenTypingCodeEnterShouldNotSend: false,
     formatMessagesWithMarkup: false,
     enterBehavior: 'send',
+    ctrlFStartsSearch: false,
     searchShortcut: 'cmd_k',
     excludeChannelsFromSearch: [],
     searchSortDefault: SearchSortDefault.MOST_RELEVANT,
@@ -115,5 +118,6 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
     channelSuggestions: true,
     surveys: true,
   },
+  streamSummaryResults: true,
 };
 
