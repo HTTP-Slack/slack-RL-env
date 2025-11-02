@@ -26,7 +26,9 @@ import {
   $createTextNode,
   COMMAND_PRIORITY_HIGH,
   COMMAND_PRIORITY_CRITICAL,
+  COMMAND_PRIORITY_EDITOR,
   KEY_ENTER_COMMAND,
+  KEY_BACKSPACE_COMMAND,
   FORMAT_TEXT_COMMAND,
 } from 'lexical';
 import { $isListNode, $isListItemNode } from '@lexical/list';
@@ -258,6 +260,102 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
         COMMAND_PRIORITY_HIGH
       );
     }, [editor, showEmojiSuggestions, showMentionSuggestions]);
+
+    return null;
+  }
+
+  function BackspaceKeyPlugin() {
+    const [editor] = useLexicalComposerContext();
+
+    useEffect(() => {
+      return editor.registerCommand(
+        KEY_BACKSPACE_COMMAND,
+        (event) => {
+          if (!event) return false;
+
+          let shouldExitList = false;
+          let listItemNode: any = null;
+
+          editor.getEditorState().read(() => {
+            const selection = $getSelection();
+            if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
+              return;
+            }
+
+            const anchor = selection.anchor;
+            const node = anchor.getNode();
+
+            // Check if we're in a list item
+            let currentNode: any = node;
+            while (currentNode) {
+              if ($isListItemNode(currentNode)) {
+                listItemNode = currentNode;
+                break;
+              }
+              const parent = currentNode.getParent();
+              if (!parent) break;
+              currentNode = parent;
+            }
+
+            if (!listItemNode) return;
+
+            // Check if list item is empty (no text content or only whitespace)
+            const textContent = listItemNode.getTextContent().trim();
+            const isEmpty = textContent === '';
+
+            if (!isEmpty) return;
+
+            // Check if cursor is at the start of the list item
+            // We need to check if we're at position 0 in the first child node
+            const children = listItemNode.getChildren();
+            
+            if (children.length === 0) {
+              // Completely empty list item
+              shouldExitList = true;
+            } else {
+              // Check if we're at the start of the first child
+              const firstChild = children[0];
+              if (firstChild) {
+                // If the current node is the first child and offset is 0, we're at the start
+                if (node === firstChild && anchor.offset === 0) {
+                  shouldExitList = true;
+                } else if (firstChild.getType() === 'paragraph') {
+                  // List items often contain paragraph nodes
+                  const paragraphChildren = firstChild.getChildren();
+                  if (paragraphChildren.length === 0) {
+                    // Empty paragraph in list item
+                    shouldExitList = true;
+                  } else if (paragraphChildren.length === 1 && paragraphChildren[0].getType() === 'text') {
+                    // Single text node in paragraph
+                    if (node === paragraphChildren[0] && anchor.offset === 0) {
+                      shouldExitList = true;
+                    }
+                  }
+                }
+              }
+            }
+          });
+
+          if (shouldExitList && listItemNode) {
+            event.preventDefault();
+            editor.update(() => {
+              // Create a new paragraph node
+              const paragraph = $createParagraphNode();
+              
+              // Replace the list item with the paragraph
+              listItemNode.replace(paragraph);
+              
+              // Select the paragraph
+              paragraph.selectStart();
+            });
+            return true;
+          }
+
+          return false;
+        },
+        COMMAND_PRIORITY_EDITOR
+      );
+    }, [editor]);
 
     return null;
   }
@@ -1740,6 +1838,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
               <ListPlugin />
               <LinkPlugin />
               <EnterKeyPlugin />
+              <BackspaceKeyPlugin />
               <FormatTrackingPlugin />
               <OnChangeSyncPlugin />
               <MentionEmojiSuggestionPlugin />
