@@ -9,9 +9,10 @@ interface LeftNavProps {
   onLaterClick?: () => void;
   isActivityOpen?: boolean;
   isDMsOpen?: boolean;
+  isLaterOpen?: boolean;
 }
 
-const LeftNav: React.FC<LeftNavProps> = ({ workspaceName, onActivityClick, onHomeClick, onDMsClick, onLaterClick, isActivityOpen, isDMsOpen }) => {
+const LeftNav: React.FC<LeftNavProps> = ({ workspaceName, onActivityClick, onHomeClick, onDMsClick, onLaterClick, isActivityOpen, isDMsOpen, isLaterOpen }) => {
   // Get workspace initials (first 2 letters or first letter of each word)
   const getInitials = (name?: string) => {
     if (!name) return 'W';
@@ -27,7 +28,7 @@ const LeftNav: React.FC<LeftNavProps> = ({ workspaceName, onActivityClick, onHom
   return (
     <div className="w-[70px] bg-[#350d36] flex flex-col items-center py-3 gap-2 border-r border-[#3b2d3e] relative">
       {/* Workspace Icon */}
-      <button className="w-12 h-12 rounded bg-white hover:rounded-xl transition-all duration-200 flex items-center justify-center mb-3">
+      <button className="w-10 h-10 rounded-xl bg-[#a9a6a6] transition-all duration-200 flex items-center justify-center mb-3">
         <span className="text-[20px] font-bold text-[#522653]">{initials}</span>
       </button>
 
@@ -36,7 +37,7 @@ const LeftNav: React.FC<LeftNavProps> = ({ workspaceName, onActivityClick, onHom
         <button 
           onClick={onHomeClick}
           className={`w-11 h-11 flex items-center justify-center rounded transition-colors ${
-            !isActivityOpen && !isDMsOpen ? 'bg-[#7d3986]' : 'hover:bg-[#6f4d72]'
+            !isActivityOpen && !isDMsOpen && !isLaterOpen ? 'bg-[#7d3986]' : 'hover:bg-[#6f4d72]'
           }`}
         >
           <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -90,7 +91,9 @@ const LeftNav: React.FC<LeftNavProps> = ({ workspaceName, onActivityClick, onHom
       <div className="flex flex-col items-center gap-0.5">
         <button 
           onClick={onLaterClick}
-          className="w-11 h-11 flex items-center justify-center rounded hover:bg-[#6f4d72] transition-colors"
+          className={`w-11 h-11 flex items-center justify-center rounded transition-colors ${
+            isLaterOpen ? 'bg-[#7d3986]' : 'hover:bg-[#6f4d72]'
+          }`}
         >
           <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />

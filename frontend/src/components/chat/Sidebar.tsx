@@ -507,7 +507,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </svg>
           }
           label="Threads"
-          isActive={true}
+          isActive={false}
         />
         <SidebarNavLink
           icon={
