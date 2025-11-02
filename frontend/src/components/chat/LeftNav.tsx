@@ -3,7 +3,7 @@ import { UserMenu } from '../UserMenu';
 
 const LeftNav: React.FC = () => {
   return (
-    <div className="w-[70px] bg-[#350d36] flex flex-col items-center py-3 gap-2 border-r border-[#3c3836] relative">
+    <div className="w-[70px] bg-[#350d36] flex flex-col items-center py-3 gap-2 border-r border-[#3b2d3e] relative">
       {/* Workspace Icon */}
       <button className="w-12 h-12 rounded bg-white hover:rounded-xl transition-all duration-200 flex items-center justify-center mb-3">
         <span className="text-[20px] font-bold text-[#522653]">HT</span>
