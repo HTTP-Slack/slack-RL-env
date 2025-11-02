@@ -677,6 +677,12 @@ export const updateFile = async (req, res) => {
       updates.filename = filename.trim();
     }
     if (description !== undefined) {
+      if (typeof description !== 'string') {
+        return res.status(400).json({
+          success: false,
+          message: 'Description must be a string',
+        });
+      }
       updates.metadata = {
         description: description.trim(),
       };
