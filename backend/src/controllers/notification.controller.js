@@ -7,7 +7,39 @@ import Notification from '../models/notification.model.js';
 export const getNotifications = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { organisation, isRead, limit = 50, skip = 0 } = req.query;
+    const { organisation, isRead } = req.query;
+
+    // Pagination params - validate and cap to reasonable limits
+    const MAX_LIMIT = 100; // maximum items per page
+    const MAX_SKIP = 1_000_000; // maximum offset to avoid huge skips
+
+    const limitRaw = req.query.limit !== undefined ? req.query.limit : '50';
+    const skipRaw = req.query.skip !== undefined ? req.query.skip : '0';
+
+    const parsedLimit = parseInt(limitRaw, 10);
+    const parsedSkip = parseInt(skipRaw, 10);
+
+    if (
+      Number.isNaN(parsedLimit) ||
+      !Number.isFinite(parsedLimit) ||
+      !Number.isInteger(parsedLimit) ||
+      parsedLimit < 0
+    ) {
+      return res.status(400).json({ success: false, message: 'Invalid "limit" query parameter' });
+    }
+
+    if (
+      Number.isNaN(parsedSkip) ||
+      !Number.isFinite(parsedSkip) ||
+      !Number.isInteger(parsedSkip) ||
+      parsedSkip < 0
+    ) {
+      return res.status(400).json({ success: false, message: 'Invalid "skip" query parameter' });
+    }
+
+    // Cap values to prevent abuse
+    const safeLimit = Math.min(parsedLimit, MAX_LIMIT);
+    const safeSkip = Math.min(parsedSkip, MAX_SKIP);
 
     const query = { user: userId };
 
@@ -25,9 +57,9 @@ export const getNotifications = async (req, res) => {
       .populate('channel', 'name')
       .populate('conversation')
       .populate('organisation', 'name')
-      .sort({ createdAt: -1 })
-      .limit(parseInt(limit))
-      .skip(parseInt(skip));
+  .sort({ createdAt: -1 })
+  .limit(safeLimit)
+  .skip(safeSkip);
 
     const totalCount = await Notification.countDocuments(query);
     const unreadCount = await Notification.countDocuments({ ...query, isRead: false });
