@@ -491,6 +491,9 @@ const Dashboard: React.FC = () => {
             setIsDMsOpen(true);
             setIsActivityOpen(false);
           }}
+          onLaterClick={() => {
+            navigate(`/later?workspace=${currentWorkspaceId}`);
+          }}
           isActivityOpen={isActivityOpen}
           isDMsOpen={isDMsOpen}
         />
