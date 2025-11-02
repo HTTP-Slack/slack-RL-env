@@ -24,7 +24,7 @@ class MegaLLMClient:
     def __init__(
         self,
         api_key: str,
-        base_url: str = "https://api.megallm.io/v1",
+        base_url: str = "https://ai.megallm.io/v1",
         timeout: float = 60.0
     ):
         """

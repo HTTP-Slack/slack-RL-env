@@ -5,6 +5,7 @@ Defines concrete tasks for benchmarking web navigation agents.
 """
 
 from typing import Dict, Any
+from datetime import timedelta
 from .specs import TaskSpec, AcceptanceCriteria, TaskInstance
 
 
@@ -43,17 +44,11 @@ NAVIGATE_TO_LATER = TaskSpec(
         "The Later button has a bookmark icon",
         "Click the Later button to navigate to /later"
     ],
-    timeout=30,
-    acceptance_criteria=[
-        AcceptanceCriteria(
-            description="URL is /later",
-            validator=check_url_match("/later")
-        ),
-        AcceptanceCriteria(
-            description="Later view is active",
-            validator=check_view_active("later")
-        )
-    ],
+    timeout=timedelta(seconds=30),
+    acceptance_criteria=AcceptanceCriteria(
+        description="URL is /later and Later view is active",
+        validator=lambda obs: check_url_match("/later")(obs) and check_view_active("later")(obs)
+    ),
     reward_weight=1.0
 )
 
@@ -290,4 +285,7 @@ def create_task_instance(task_name: str, seed: int = None) -> TaskInstance:
         TaskInstance
     """
     task_spec = get_task_by_name(task_name)
-    return TaskInstance.from_spec(task_spec, seed=seed)
+    if seed is None:
+        import random
+        seed = random.randint(0, 1000000)
+    return TaskInstance(spec=task_spec, seed=seed)
