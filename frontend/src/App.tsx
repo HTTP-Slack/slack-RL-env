@@ -17,6 +17,7 @@ import ProfileStep3 from './pages/ProfileStep3';
 import ProfileStep4 from './pages/ProfileStep4';
 import JoinWorkspace from './pages/JoinWorkspace';
 import Dashboard from './pages/Dashboard';
+import DMView from './pages/DMView';
 import { SearchResults } from './pages/search/SearchResults';
 
 const App = () => {
@@ -87,6 +88,22 @@ const App = () => {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dms"
+            element={
+              <ProtectedRoute>
+                <DMView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dms/:conversationId"
+            element={
+              <ProtectedRoute>
+                <DMView />
               </ProtectedRoute>
             }
           />
