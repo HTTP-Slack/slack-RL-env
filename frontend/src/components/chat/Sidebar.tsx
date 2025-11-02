@@ -39,6 +39,7 @@ interface SidebarProps {
   onUserSelect: (userId: string) => void;
   onChannelSelect: (channelId: string) => void;
   onChannelMenuClick?: (channel: IChannel, position: { x: number; y: number }) => void;
+  expandDMs?: boolean;
 }
 
 interface SortableChannelProps {
@@ -226,6 +227,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onUserSelect,
   onChannelSelect,
   onChannelMenuClick,
+  expandDMs = false,
 }) => {
   const { sections, setSections, currentWorkspaceId } = useWorkspace();
   const [isCreateSectionOpen, setIsCreateSectionOpen] = useState(false);
@@ -234,6 +236,13 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [isChannelsDropdownOpen, setIsChannelsDropdownOpen] = useState(false);
   const [isDirectMessagesExpanded, setIsDirectMessagesExpanded] = useState(true);
   const [isStarredExpanded, setIsStarredExpanded] = useState(true);
+
+  // Update DMs expanded state when expandDMs prop changes
+  useEffect(() => {
+    if (expandDMs) {
+      setIsDirectMessagesExpanded(true);
+    }
+  }, [expandDMs]);
   const channelsDropdownRef = useRef<HTMLDivElement>(null);
   const channelsButtonRef = useRef<HTMLButtonElement>(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });

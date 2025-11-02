@@ -4,6 +4,7 @@ export interface User {
   _id: string;
   username: string;
   email: string;
+  isOnline?: boolean;
 }
 
 export interface AuthResponse {

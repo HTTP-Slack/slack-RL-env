@@ -7,14 +7,23 @@ import RecentFilesModal from './RecentFilesModal';
 import EmojiPicker from './EmojiPicker';
 import FormattingHelpModal from './FormattingHelpModal';
 import EmojiSuggestions from './EmojiSuggestions';
+import MentionSuggestions from './MentionSuggestions';
+
+interface User {
+  _id: string;
+  username: string;
+  email?: string;
+  avatar?: string;
+}
 
 interface MessageComposerProps {
   onSend: (text: string) => void;
   placeholder?: string;
   userName?: string;
+  users?: User[]; // Users available for @mentions
 }
 
-const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder = 'Message...', userName }) => {
+const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder = 'Message...', userName, users = [] }) => {
   const { sendMessage, activeConversation, currentWorkspaceId } = useWorkspace();
   const [text, setText] = useState('');
   const [isFocused, setIsFocused] = useState(false);
@@ -34,6 +43,11 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
   const [emojiSearchStartPos, setEmojiSearchStartPos] = useState(0);
   const [selectedEmojiIndex, setSelectedEmojiIndex] = useState(0);
   const [emojiSuggestionsPosition, setEmojiSuggestionsPosition] = useState({ bottom: 0, left: 0 });
+  const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
+  const [mentionSearchTerm, setMentionSearchTerm] = useState('');
+  const [mentionSearchStartPos, setMentionSearchStartPos] = useState(0);
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const [mentionSuggestionsPosition, setMentionSuggestionsPosition] = useState({ bottom: 0, left: 0 });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -215,6 +229,45 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Handle mention suggestions navigation
+    if (showMentionSuggestions) {
+      // Filter users based on search term
+      const filteredUsers = users.filter(user =>
+        user.username.toLowerCase().includes(mentionSearchTerm.toLowerCase())
+      );
+      const specialMentions = [
+        { username: 'channel' },
+        { username: 'here' },
+        { username: 'everyone' },
+      ].filter(mention =>
+        mention.username.toLowerCase().includes(mentionSearchTerm.toLowerCase())
+      );
+      const allSuggestions = [...specialMentions, ...filteredUsers];
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedMentionIndex(prev => Math.min(allSuggestions.length - 1, prev + 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedMentionIndex(prev => Math.max(0, prev - 1));
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        if (allSuggestions.length > 0 && selectedMentionIndex < allSuggestions.length) {
+          handleMentionSelect(allSuggestions[selectedMentionIndex].username);
+        }
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowMentionSuggestions(false);
+        return;
+      }
+    }
+
     // Handle emoji suggestions navigation
     if (showEmojiSuggestions) {
       const filteredEmojis = getFilteredEmojis();
@@ -342,12 +395,41 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     const newText = e.target.value;
     setText(newText);
 
-    // Check if user is typing an emoji shortcode
     const textarea = e.target;
     const cursorPos = textarea.selectionStart;
     const textBeforeCursor = newText.slice(0, cursorPos);
 
-    // Find the last colon before cursor
+    // Check for @ mentions first
+    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtIndex !== -1) {
+      // Check if there's a space or start of string before the @
+      const charBeforeAt = lastAtIndex > 0 ? textBeforeCursor[lastAtIndex - 1] : ' ';
+      const isValidStart = charBeforeAt === ' ' || charBeforeAt === '\n' || lastAtIndex === 0;
+
+      if (isValidStart) {
+        const searchTerm = textBeforeCursor.slice(lastAtIndex + 1);
+
+        // Only show suggestions if search term doesn't contain spaces, newlines, or @
+        if (!searchTerm.includes(' ') && !searchTerm.includes('\n') && !searchTerm.includes('@')) {
+          setMentionSearchTerm(searchTerm);
+          setMentionSearchStartPos(lastAtIndex);
+
+          // Calculate cursor position for suggestions box
+          const position = getCursorCoordinates();
+          setMentionSuggestionsPosition(position);
+
+          setShowMentionSuggestions(true);
+          setSelectedMentionIndex(0);
+          setShowEmojiSuggestions(false); // Hide emoji suggestions
+          return;
+        }
+      }
+    } else {
+      setShowMentionSuggestions(false);
+    }
+
+    // Check if user is typing an emoji shortcode
     const lastColonIndex = textBeforeCursor.lastIndexOf(':');
 
     if (lastColonIndex !== -1) {
@@ -369,6 +451,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
 
           setShowEmojiSuggestions(true);
           setSelectedEmojiIndex(0);
+          setShowMentionSuggestions(false); // Hide mention suggestions
           return;
         }
       }
@@ -376,6 +459,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
 
     // Hide suggestions if conditions aren't met
     setShowEmojiSuggestions(false);
+    setShowMentionSuggestions(false);
   };
 
   // Close menu when clicking outside
@@ -424,6 +508,26 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     setShowEmojiSuggestions(false);
 
     // Set cursor position after emoji
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  };
+
+  const handleMentionSelect = (username: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    // Replace @search with @username 
+    const beforeMention = text.slice(0, mentionSearchStartPos);
+    const afterMention = text.slice(textarea.selectionStart);
+    const newText = beforeMention + `@${username} ` + afterMention;
+    const newCursorPos = beforeMention.length + username.length + 2; // +1 for @ and +1 for space
+
+    setText(newText);
+    setShowMentionSuggestions(false);
+
+    // Set cursor position after mention
     setTimeout(() => {
       textarea.focus();
       textarea.setSelectionRange(newCursorPos, newCursorPos);
@@ -1386,6 +1490,18 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
           </div>
         )}
       </div>
+
+      {/* Mention Suggestions */}
+      {showMentionSuggestions && containerRef.current && (
+        <MentionSuggestions
+          users={users}
+          searchTerm={mentionSearchTerm}
+          selectedIndex={selectedMentionIndex}
+          position={mentionSuggestionsPosition}
+          onSelect={handleMentionSelect}
+          onClose={() => setShowMentionSuggestions(false)}
+        />
+      )}
 
       {/* Emoji Suggestions */}
       {showEmojiSuggestions && containerRef.current && (

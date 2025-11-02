@@ -5,6 +5,8 @@ import Sidebar from '../components/chat/Sidebar';
 import ChatPane from '../components/chat/ChatPane';
 import ChannelChatPane from '../components/chat/ChannelChatPane';
 import ThreadPanel from '../components/chat/ThreadPanel';
+import { ActivityPanel } from '../components/chat/ActivityPanel';
+import { DMPanel } from '../components/chat/DMPanel';
 import ChannelContextMenu from '../components/chat/ChannelContextMenu';
 import ChannelSettingsModal from '../components/chat/ChannelSettingsModal';
 import ChannelActionsMenu from '../components/chat/ChannelActionsMenu';
@@ -47,6 +49,8 @@ const Dashboard: React.FC = () => {
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
   const [activeChannel, setActiveChannel] = useState<IChannel | null>(null);
   const [channelMessages, setChannelMessages] = useState<any[]>([]);
+  const [isActivityOpen, setIsActivityOpen] = useState(false);
+  const [isDMsOpen, setIsDMsOpen] = useState(false);
   const [channelContextMenu, setChannelContextMenu] = useState<{
     channel: IChannel;
     position: { x: number; y: number };
@@ -78,6 +82,57 @@ const Dashboard: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Listen for notification navigation events
+  useEffect(() => {
+    const handleNavigateToChannel = async (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { channelId } = customEvent.detail;
+      if (channelId) {
+        try {
+          const channelData = await getChannel(channelId);
+          setActiveChannel(channelData.data);
+          setActiveConversation(null);
+          setChannelMessages([]);
+          
+          if (socket && currentWorkspaceId && user) {
+            socket.emit('channel-open', { 
+              id: channelId,
+              userId: user._id 
+            });
+            
+            const messages = await getMessages({
+              channelId,
+              organisation: currentWorkspaceId,
+            });
+            setChannelMessages(messages);
+          }
+        } catch (error) {
+          console.error('Failed to load channel:', error);
+        }
+      }
+    };
+
+    const handleNavigateToConversation = async (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { conversationId } = customEvent.detail;
+      if (conversationId) {
+        const conversation = conversations.find(c => c._id === conversationId);
+        if (conversation) {
+          setActiveConversation(conversation);
+          setActiveChannel(null);
+        }
+      }
+    };
+
+    window.addEventListener('navigate-to-channel', handleNavigateToChannel);
+    window.addEventListener('navigate-to-conversation', handleNavigateToConversation);
+
+    return () => {
+      window.removeEventListener('navigate-to-channel', handleNavigateToChannel);
+      window.removeEventListener('navigate-to-conversation', handleNavigateToConversation);
+    };
+  }, [conversations, setActiveConversation, socket, currentWorkspaceId, user]);
 
   // Initialize workspace from URL or fetch workspaces
   useEffect(() => {
@@ -422,25 +477,86 @@ const Dashboard: React.FC = () => {
 
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
-        <LeftNav workspaceName={currentWorkspace?.name} />
-        <Sidebar
-          currentUser={user || null}
+        <LeftNav 
           workspaceName={currentWorkspace?.name}
-          conversations={conversations}
-          users={users}
-          activeConversation={activeConversation}
-          activeChannel={activeChannel}
-          onConversationSelect={(conv) => {
-            setActiveConversation(conv);
-            setActiveChannel(null); // Clear channel when selecting conversation
+          onActivityClick={() => {
+            setIsActivityOpen(true);
+            setIsDMsOpen(false);
           }}
-          onUserSelect={handleUserSelect}
-          onChannelSelect={handleChannelSelect}
-          onChannelMenuClick={(channel, position) => {
-            setChannelContextMenu({ channel, position });
+          onHomeClick={() => {
+            setIsActivityOpen(false);
+            setIsDMsOpen(false);
           }}
+          onDMsClick={() => {
+            setIsDMsOpen(true);
+            setIsActivityOpen(false);
+          }}
+          isActivityOpen={isActivityOpen}
+          isDMsOpen={isDMsOpen}
         />
-        {activeChannel ? (
+        {isDMsOpen ? (
+          <>
+            {/* DMs Panel - Like Activity Panel */}
+            <DMPanel
+              isOpen={isDMsOpen}
+              onClose={() => setIsDMsOpen(false)}
+              onConversationSelect={(conv) => {
+                setActiveConversation(conv);
+                setActiveChannel(null);
+              }}
+            />
+            {/* Chat content shown alongside DM panel */}
+            {activeConversation && activeUser ? (
+              <>
+                <ChatPane
+                  currentUser={user}
+                  activeUser={activeUser}
+                  messages={messages}
+                  threads={{}}
+                  editingMessageId={editingMessageId}
+                  onSendMessage={handleSendMessage}
+                  onEditMessage={handleEditMessage}
+                  onDeleteMessage={handleDeleteMessage}
+                  onOpenThread={handleOpenThread}
+                  onReaction={handleReaction}
+                />
+                {activeThread && (
+                  <ThreadPanel
+                    parentMessage={activeThread}
+                    currentUser={user}
+                    onClose={handleCloseThread}
+                  />
+                )}
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center bg-[#1a1d21]">
+                <div className="text-center">
+                  <p className="text-[#d1d2d3] text-lg mb-4">Select a conversation to start chatting</p>
+                  <p className="text-[#616061] text-sm">Choose a user from the sidebar</p>
+                </div>
+              </div>
+            )}
+          </>
+        ) : isActivityOpen ? (
+          <>
+            <ActivityPanel
+              isOpen={isActivityOpen}
+              onClose={() => setIsActivityOpen(false)}
+              onNavigate={(type, id) => {
+                // Don't close Activity panel - keep it open alongside chat
+                if (type === 'channel') {
+                  handleChannelSelect(id);
+                } else if (type === 'conversation') {
+                  const conversation = conversations.find(c => c._id === id);
+                  if (conversation) {
+                    setActiveConversation(conversation);
+                    setActiveChannel(null);
+                  }
+                }
+              }}
+            />
+            {/* Chat content shown alongside Activity panel */}
+            {activeChannel ? (
           <>
             <ChannelChatPane
               currentUser={user}
@@ -491,6 +607,28 @@ const Dashboard: React.FC = () => {
               />
             )}
           </>
+        ) : activeConversation && activeUser ? (
+          <>
+            <ChatPane
+              currentUser={user}
+              activeUser={activeUser}
+              messages={messages}
+              threads={{}}
+              editingMessageId={editingMessageId}
+              onSendMessage={handleSendMessage}
+              onEditMessage={handleEditMessage}
+              onDeleteMessage={handleDeleteMessage}
+              onOpenThread={handleOpenThread}
+              onReaction={handleReaction}
+            />
+            {activeThread && (
+              <ThreadPanel
+                parentMessage={activeThread}
+                currentUser={user}
+                onClose={handleCloseThread}
+              />
+            )}
+          </>
         ) : (
           <div className="flex-1 flex items-center justify-center bg-[#1a1d21]">
             <div className="text-center">
@@ -498,6 +636,87 @@ const Dashboard: React.FC = () => {
               <p className="text-[#616061] text-sm">Choose a user or channel from the sidebar</p>
             </div>
           </div>
+        )}
+          </>
+        ) : (
+          <>
+            <Sidebar
+              currentUser={user || null}
+              workspaceName={currentWorkspace?.name}
+              conversations={conversations}
+              users={users}
+              activeConversation={activeConversation}
+              activeChannel={activeChannel}
+              onConversationSelect={(conv) => {
+                setActiveConversation(conv);
+                setActiveChannel(null);
+              }}
+              onUserSelect={handleUserSelect}
+              onChannelSelect={handleChannelSelect}
+              onChannelMenuClick={(channel, position) => {
+                setChannelContextMenu({ channel, position });
+              }}
+            />
+            {activeChannel ? (
+              <>
+                <ChannelChatPane
+                  currentUser={user}
+                  channel={activeChannel}
+                  messages={channelMessages}
+                  threads={{}}
+                  editingMessageId={editingMessageId}
+                  onSendMessage={handleSendChannelMessage}
+                  onEditMessage={handleEditMessage}
+                  onDeleteMessage={handleDeleteMessage}
+                  onOpenThread={handleOpenThread}
+                  onReaction={handleReaction}
+                  onRefreshChannel={handleRefreshChannel}
+                  onOpenChannelSettings={() => {
+                    setIsChannelSettingsOpen(true);
+                  }}
+                  onOpenMoreOptions={(position) => {
+                    setMoreOptionsMenu({ position });
+                  }}
+                />
+                {activeThread && (
+                  <ThreadPanel
+                    parentMessage={activeThread}
+                    currentUser={user}
+                    onClose={handleCloseThread}
+                  />
+                )}
+              </>
+            ) : activeConversation && activeUser ? (
+              <>
+                <ChatPane
+                  currentUser={user}
+                  activeUser={activeUser}
+                  messages={messages}
+                  threads={{}}
+                  editingMessageId={editingMessageId}
+                  onSendMessage={handleSendMessage}
+                  onEditMessage={handleEditMessage}
+                  onDeleteMessage={handleDeleteMessage}
+                  onOpenThread={handleOpenThread}
+                  onReaction={handleReaction}
+                />
+                {activeThread && (
+                  <ThreadPanel
+                    parentMessage={activeThread}
+                    currentUser={user}
+                    onClose={handleCloseThread}
+                  />
+                )}
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center bg-[#1a1d21]">
+                <div className="text-center">
+                  <p className="text-[#d1d2d3] text-lg mb-4">Select a conversation or channel to start chatting</p>
+                  <p className="text-[#616061] text-sm">Choose a user or channel from the sidebar</p>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
       

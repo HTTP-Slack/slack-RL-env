@@ -121,17 +121,23 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
     });
 
     newSocket.on('message-updated', ({ id, message, isThread }: { id: string; message: Message; isThread: boolean }) => {
-      console.log('🔄 Message updated:', id);
-      if (isThread) {
-        // TODO: Handle thread message updates
-        console.log('Thread message update not yet implemented');
-        return;
-      }
+      console.log('🔄 Message updated:', id, isThread ? '(thread)' : '(main)');
       
       // Update the message in the messages array with the new data (reactions, content, etc.)
       setMessages((prev) => {
         return prev.map((m) => {
           if (m._id === id) {
+            // If it's a thread update, update thread-related fields
+            if (isThread) {
+              return {
+                ...m,
+                threadRepliesCount: message.threadRepliesCount,
+                threadLastReplyDate: message.threadLastReplyDate,
+                threadReplies: message.threadReplies,
+                reactions: message.reactions,
+              };
+            }
+            // Regular message update
             return { ...m, ...message };
           }
           return m;
@@ -140,10 +146,13 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
     });
 
     newSocket.on('message-deleted', ({ id, isThread }: { id: string; isThread: boolean }) => {
-      console.log('🗑️ Message deleted:', id);
+      console.log('🗑️ Message deleted:', id, isThread ? '(thread)' : '(main)');
+      
       if (isThread) {
-        // TODO: Handle thread message deletions
-        console.log('Thread message deletion not yet implemented');
+        // For thread message deletions, we need to update the parent message's thread count
+        // The backend will update the parent message and emit 'message-updated'
+        // So we don't need to do anything here - the message-updated handler will take care of it
+        console.log('Thread message deleted - parent message will be updated via message-updated event');
         return;
       }
       

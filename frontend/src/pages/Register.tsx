@@ -17,6 +17,12 @@ const Register = () => {
     e.preventDefault()
     setError('')
 
+    // Validate username has no spaces
+    if (username.includes(' ')) {
+      setError('Username cannot contain spaces')
+      return
+    }
+
     // Validate passwords match
     if (password !== confirmPassword) {
       setError('Passwords do not match')
