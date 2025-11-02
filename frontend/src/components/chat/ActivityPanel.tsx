@@ -78,11 +78,29 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({ isOpen, onNavigate
   const fetchActivities = async () => {
     setLoading(true);
     try {
+      // Map UI tab names to backend notification enum values
+      const getTypeFilter = (): string | undefined => {
+        switch (activeTab) {
+          case 'all':
+            return undefined;
+          case 'mentions':
+            return 'mention,channel_mention,direct_message';
+          case 'threads':
+            return 'thread-reply';
+          case 'reactions':
+            return 'reaction';
+          case 'invitations':
+            return 'channel-invitation';
+          default:
+            return undefined;
+        }
+      };
+
       const response = await axios.get('/notifications', {
         params: {
           organisation: currentWorkspaceId,
-          type: activeTab === 'all' ? undefined : activeTab,
-          unreadOnly: showUnreadsOnly,
+          type: getTypeFilter(),
+          isRead: showUnreadsOnly ? false : undefined,
         },
       });
       setActivities(response.data.data || []);

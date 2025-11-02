@@ -7,7 +7,7 @@ import Notification from '../models/notification.model.js';
 export const getNotifications = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { organisation, isRead } = req.query;
+    const { organisation, isRead, type } = req.query;
 
     // Pagination params - validate and cap to reasonable limits
     const MAX_LIMIT = 100; // maximum items per page
@@ -49,6 +49,16 @@ export const getNotifications = async (req, res) => {
 
     if (isRead !== undefined) {
       query.isRead = isRead === 'true';
+    }
+
+    // Handle type filtering - support single type or multiple types (comma-separated)
+    if (type) {
+      const types = type.split(',').map(t => t.trim()).filter(Boolean);
+      if (types.length === 1) {
+        query.type = types[0];
+      } else if (types.length > 1) {
+        query.type = { $in: types };
+      }
     }
 
     const notifications = await Notification.find(query)
