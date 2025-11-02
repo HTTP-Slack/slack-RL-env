@@ -560,6 +560,26 @@ const processInlineMarkdown = (text: string): React.ReactNode[] => {
   let processedText = text;
   const replacements: Array<{ placeholder: string; element: React.ReactNode }> = [];
   
+  // Process mentions (@username, @channel, @here, @everyone) - must be before other inline processing
+  processedText = processedText.replace(/@(\w+)/g, (_match, username) => {
+    const placeholder = `__MENTION_${replacements.length}__`;
+    const specialMentions = ['channel', 'here', 'everyone'];
+    const isSpecial = specialMentions.includes(username.toLowerCase());
+    
+    replacements.push({
+      placeholder,
+      element: (
+        <span 
+          key={placeholder} 
+          className={`${isSpecial ? 'bg-[#ffc107]' : 'bg-[#1164A3]'} px-1 py-0.5 rounded text-white font-medium cursor-pointer hover:opacity-80`}
+        >
+          @{username}
+        </span>
+      ),
+    });
+    return placeholder;
+  });
+
   // Process inline code (backticks) - must be first to avoid conflicts
   processedText = processedText.replace(/`([^`\n]+)`/g, (_match, content) => {
     const placeholder = `__CODE_${replacements.length}__`;
@@ -678,7 +698,7 @@ const processInlineMarkdown = (text: string): React.ReactNode[] => {
   });
 
   // Split by placeholders and reconstruct
-  const placeholderRegex = /__(CODE|EMOJI|LINK|BOLD|UNDERLINE|ITALIC|ITALIC2|STRIKE)_(\d+)__/g;
+  const placeholderRegex = /__(CODE|EMOJI|LINK|BOLD|UNDERLINE|ITALIC|ITALIC2|STRIKE|MENTION)_(\d+)__/g;
   const finalParts: React.ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
