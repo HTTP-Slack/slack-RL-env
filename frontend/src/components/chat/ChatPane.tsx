@@ -1,7 +1,9 @@
 import React, { useRef, useEffect } from 'react';
-import type { User, Message, Thread } from '../../constants/chat';
+import type { Thread } from '../../constants/chat';
+import type { User, Message } from '../../services/messageApi';
 import MessageItem from './MessageItem';
 import MessageComposer from './MessageComposer';
+import { useProfile } from '../../features/profile/ProfileContext';
 
 interface ChatPaneProps {
   currentUser: User;
@@ -9,24 +11,26 @@ interface ChatPaneProps {
   messages: Message[];
   threads: Record<string, Thread[]>;
   editingMessageId: string | null;
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string, attachments?: string[]) => void;
   onEditMessage: (messageId: string, newText: string) => void;
   onDeleteMessage: (messageId: string) => void;
   onOpenThread: (messageId: string) => void;
+  onReaction: (messageId: string, emoji: string) => void;
 }
 
 const ChatPane: React.FC<ChatPaneProps> = ({
   currentUser,
   activeUser,
   messages,
-  threads,
   editingMessageId,
   onSendMessage,
   onEditMessage,
   onDeleteMessage,
   onOpenThread,
+  onReaction,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { openPanel } = useProfile();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -40,9 +44,9 @@ const ChatPane: React.FC<ChatPaneProps> = ({
     return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
 
-  const getThreadCount = (messageId: string) => {
-    const thread = Object.values(threads).find((t) => t[0]?.messageId === messageId);
-    return thread?.[0]?.messages.length || 0;
+  const getThreadCount = (message: Message) => {
+    // Get thread count from message.threadRepliesCount
+    return message.threadRepliesCount || 0;
   };
 
   return (
@@ -53,7 +57,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({
           <button className="flex items-center gap-2 hover:bg-[rgb(49,48,44)] px-2 py-1 rounded transition-colors">
             <span className="text-white text-xl">#</span>
             <span className="text-[18px] font-bold text-white">
-              {activeUser.displayName.toLowerCase().replace(/\s/g, '-')}
+              {activeUser.username || 'Unknown User'}
             </span>
             <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -90,15 +94,18 @@ const ChatPane: React.FC<ChatPaneProps> = ({
           <div className="flex flex-col items-start px-5 pt-5">
             <div className="mb-6 w-full">
               <div className="w-16 h-16 rounded bg-[rgb(97,31,105)] flex items-center justify-center text-white text-2xl font-bold mb-4">
-                {activeUser.displayName.charAt(0).toUpperCase()}
+                {activeUser.username?.charAt(0).toUpperCase() || 'U'}
               </div>
               <h2 className="text-[15px] font-bold text-white mb-2">
-                {activeUser.displayName}
+                {activeUser.username || 'Unknown User'}
               </h2>
               <div className="text-[15px] text-white leading-[1.46668] mb-4">
-                This conversation is just between <strong className="font-bold">@{activeUser.displayName}</strong> and you. Check out their profile to learn more about them.
+                This conversation is just between <strong className="font-bold">@{activeUser.username || 'Unknown User'}</strong> and you. Check out their profile to learn more about them.
               </div>
-              <button className="px-4 py-2 bg-[rgb(26,29,33)] border border-white rounded text-[15px] font-medium text-white hover:bg-[rgb(49,48,44)] transition-colors">
+              <button 
+                onClick={openPanel}
+                className="px-4 py-2 bg-[rgb(26,29,33)] border border-white rounded text-[15px] font-medium text-white hover:bg-[rgb(49,48,44)] transition-colors"
+              >
                 View profile
               </button>
             </div>
@@ -114,21 +121,23 @@ const ChatPane: React.FC<ChatPaneProps> = ({
                 </svg>
               </button>
             </div>
-            {messages.map((message, index) => {
-              const isCurrentUser = message.userId === currentUser.id;
+            {messages
+              .filter(message => message.sender && message.sender._id) // Filter out messages with missing sender
+              .map((message, index, validMessages) => {
+              const isCurrentUser = message.sender._id === currentUser._id;
               const messageUser = isCurrentUser ? currentUser : activeUser;
-              const showAvatar = index === 0 || messages[index - 1].userId !== message.userId;
-              const threadCount = getThreadCount(message.id);
+              const showAvatar = index === 0 || !validMessages[index - 1].sender || validMessages[index - 1].sender._id !== message.sender._id;
+              const threadCount = getThreadCount(message);
               const shouldShowTimestamp = index === 0 || 
-                new Date(message.timestamp).getTime() - new Date(messages[index - 1].timestamp).getTime() > 600000; // 10 minutes
+                new Date(message.createdAt).getTime() - new Date(validMessages[index - 1].createdAt).getTime() > 600000; // 10 minutes
 
               return (
-                <div key={message.id}>
+                <div key={message._id}>
                   {shouldShowTimestamp && index > 0 && (
                     <div className="flex items-center my-4">
                       <div className="flex-1 border-t border-[rgb(49,48,44)]"></div>
                       <span className="px-2 text-[13px] text-[rgb(209,210,211)]">
-                        {formatTime(message.timestamp)}
+                        {formatTime(new Date(message.createdAt))}
                       </span>
                       <div className="flex-1 border-t border-[rgb(49,48,44)]"></div>
                     </div>
@@ -139,10 +148,11 @@ const ChatPane: React.FC<ChatPaneProps> = ({
                     isCurrentUser={isCurrentUser}
                     showAvatar={showAvatar}
                     threadCount={threadCount}
-                    isEditing={editingMessageId === message.id}
-                    onEdit={(newText) => onEditMessage(message.id, newText)}
-                    onDelete={() => onDeleteMessage(message.id)}
-                    onOpenThread={() => onOpenThread(message.id)}
+                    isEditing={editingMessageId === message._id}
+                    onEdit={(newText) => onEditMessage(message._id, newText)}
+                    onDelete={() => onDeleteMessage(message._id)}
+                    onOpenThread={() => onOpenThread(message._id)}
+                    onReaction={(emoji) => onReaction(message._id, emoji)}
                     formatTime={formatTime}
                   />
                 </div>
@@ -157,8 +167,8 @@ const ChatPane: React.FC<ChatPaneProps> = ({
       <div className="bg-[rgb(26,29,33)] px-5 pb-5">
         <MessageComposer
           onSend={onSendMessage}
-          placeholder={`Message ${activeUser.displayName}`}
-          userName={activeUser.displayName}
+          placeholder={`Message ${activeUser.username || 'Unknown User'}`}
+          userName={activeUser.username || 'Unknown User'}
         />
       </div>
     </div>

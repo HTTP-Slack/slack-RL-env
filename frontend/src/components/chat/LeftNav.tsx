@@ -1,11 +1,27 @@
 import React from 'react';
+import { UserMenu } from '../UserMenu';
 
-const LeftNav: React.FC = () => {
+interface LeftNavProps {
+  workspaceName?: string;
+}
+
+const LeftNav: React.FC<LeftNavProps> = ({ workspaceName }) => {
+  // Get workspace initials (first 2 letters or first letter of each word)
+  const getInitials = (name?: string) => {
+    if (!name) return 'W';
+    const words = name.trim().split(/\s+/);
+    if (words.length >= 2) {
+      return (words[0][0] + words[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+  
+  const initials = getInitials(workspaceName);
   return (
-    <div className="w-[70px] bg-[#350d36] flex flex-col items-center py-3 gap-2 border-r border-[#3c3836]">
+    <div className="w-[70px] bg-[#350d36] flex flex-col items-center py-3 gap-2 border-r border-[#3b2d3e] relative">
       {/* Workspace Icon */}
       <button className="w-12 h-12 rounded bg-white hover:rounded-xl transition-all duration-200 flex items-center justify-center mb-3">
-        <span className="text-[20px] font-bold text-[#522653]">HT</span>
+        <span className="text-[20px] font-bold text-[#522653]">{initials}</span>
       </button>
 
       {/* Home */}
@@ -67,10 +83,8 @@ const LeftNav: React.FC = () => {
         </svg>
       </button>
 
-      {/* User Profile */}
-      <button className="w-9 h-9 rounded bg-[#6f4d72] flex items-center justify-center hover:opacity-80 transition-opacity mb-2">
-        <span className="text-white text-sm font-semibold">SV</span>
-      </button>
+      {/* User Profile Menu */}
+      <UserMenu />
     </div>
   );
 };

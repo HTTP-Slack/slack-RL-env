@@ -6,6 +6,11 @@ const messageSchema = new mongoose.Schema({
     ref: 'User',
   },
   content: String,
+  attachments: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+    },
+  ],
   channel: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Channel',

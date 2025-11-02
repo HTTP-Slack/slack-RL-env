@@ -1,4 +1,5 @@
 import Message from "../models/message.model.js";
+import Thread from "../models/thread.model.js";
 
 // @desc    get all messages matching queries
 // @route   GET /api/message
@@ -171,5 +172,38 @@ export const createMessage = async (req, res) => {
       error: error.message,
     });
     console.log("Error in createMessage controller", error);
+  }
+};
+
+// @desc    Get thread replies for a message
+// @route   GET /api/message/:id/replies
+// @access  Private
+export const getThreadReplies = async (req, res) => {
+  try {
+    const messageId = req.params.id;
+
+    if (!messageId) {
+      return res.status(400).json({
+        success: false,
+        message: "Message ID is required"
+      });
+    }
+
+    // Find all thread replies for this message
+    const replies = await Thread.find({ message: messageId })
+      .populate(['sender', 'reactions.reactedToBy'])
+      .sort({ createdAt: 1 }); // Sort by oldest first
+
+    res.status(200).json({
+      success: true,
+      data: replies
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message
+    });
+    console.log("Error in getThreadReplies controller", error);
   }
 };

@@ -13,13 +13,18 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Please enter your email'],
       unique: true,
-      match: [/^\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}$/, 'Please enter a valid email'],
+      match: [/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, 'Please enter a valid email'],
     },
     password: {
       type: String,
       required: [true, 'Please enter a password'],
       select: false,
-      minlength: [8, 'Password must be at least 8 characters long'],
+      minlength: [8, 'Password must be at least 8 characters long']
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true, // Allows multiple null values
     },
     isOnline: Boolean,
     role: String,

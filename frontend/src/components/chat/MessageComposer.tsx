@@ -1,18 +1,30 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { insertMarkdown, parseMarkdown } from '../../utils/markdown';
+import { useWorkspace } from '../../context/WorkspaceContext';
+import { uploadFiles } from '../../services/fileApi';
+import RecentFilesModal from './RecentFilesModal';
+import EmojiPicker from './EmojiPicker';
 
 interface MessageComposerProps {
-  onSend: (text: string) => void;
+  onSend: (text: string, attachments?: string[]) => void;
   placeholder?: string;
   userName?: string;
 }
 
 const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder = 'Message...', userName }) => {
+  const { sendMessage, activeConversation, currentWorkspaceId } = useWorkspace();
   const [text, setText] = useState('');
   const [isFocused, setIsFocused] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const [showRecentFiles, setShowRecentFiles] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const addMenuRef = useRef<HTMLDivElement>(null);
   
   // Track active formatting states
   const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
@@ -102,20 +114,96 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     }
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const trimmedText = text.trim();
-    if (trimmedText) {
-      onSend(trimmedText);
+    const hasFiles = selectedFiles.length > 0;
+    
+    if (!trimmedText && !hasFiles) return;
+
+    try {
+      let attachmentIds: string[] = [];
+
+      // Upload files first if any
+      if (hasFiles && activeConversation && currentWorkspaceId) {
+        setUploadingFiles(true);
+        try {
+          const uploadedFiles = await uploadFiles(
+            selectedFiles,
+            currentWorkspaceId,
+            undefined,
+            activeConversation._id
+          );
+          attachmentIds = uploadedFiles.map(f => f.id);
+        } catch (error) {
+          console.error('Error uploading files:', error);
+          alert('Failed to upload files. Please try again.');
+          setUploadingFiles(false);
+          return;
+        }
+        setUploadingFiles(false);
+        setSelectedFiles([]);
+      }
+
+      // Send message - always use onSend prop which handles both regular messages and thread replies
+      onSend(trimmedText, attachmentIds.length > 0 ? attachmentIds : undefined);
+
       setText('');
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
+    } catch (error) {
+      console.error('Error sending message:', error);
     }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      // Filter files by size (25MB limit)
+      const MAX_SIZE = 25 * 1024 * 1024;
+      const validFiles = files.filter(file => {
+        if (file.size > MAX_SIZE) {
+          alert(`File ${file.name} is too large. Maximum size is 25MB.`);
+          return false;
+        }
+        return true;
+      });
+      setSelectedFiles(prev => [...prev, ...validFiles]);
+    }
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAttachClick = () => {
+    fileInputRef.current?.click();
+    setShowAddMenu(false);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);
   };
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (addMenuRef.current && !addMenuRef.current.contains(event.target as Node)) {
+        setShowAddMenu(false);
+      }
+    };
+
+    if (showAddMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showAddMenu]);
 
   const handleFormat = (formatType: string) => {
     const textarea = textareaRef.current;
@@ -143,7 +231,53 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     textareaRef.current?.focus();
   };
 
+  const handleSelectRecentFile = async (fileId: string) => {
+    // When a recent file is selected, send it as a message
+    if (activeConversation && currentWorkspaceId) {
+      try {
+        await sendMessage('', [fileId]);
+      } catch (error) {
+        console.error('Error sending recent file:', error);
+        alert('Failed to send file. Please try again.');
+      }
+    }
+  };
+
+  const handleSelectEmoji = (emoji: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const newText = text.slice(0, start) + emoji + text.slice(end);
+    setText(newText);
+
+    // Set cursor position after emoji
+    setTimeout(() => {
+      textarea.focus();
+      const newPosition = start + emoji.length;
+      textarea.setSelectionRange(newPosition, newPosition);
+    }, 0);
+  };
+
   return (
+    <>
+      {/* Recent Files Modal */}
+      {showRecentFiles && (
+        <RecentFilesModal
+          onClose={() => setShowRecentFiles(false)}
+          onSelectFile={handleSelectRecentFile}
+        />
+      )}
+
+      {/* Emoji Picker */}
+      {showEmojiPicker && (
+        <EmojiPicker
+          onSelectEmoji={handleSelectEmoji}
+          onClose={() => setShowEmojiPicker(false)}
+        />
+      )}
+
     <div className="p-message_pane_input">
       {userName && (
         <div className="mb-2 text-[13px] text-[rgb(209,210,211)] leading-[1.38463]">
@@ -152,127 +286,125 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
       )}
       <div 
         ref={containerRef}
-        className={`bg-[rgb(26,29,33)] rounded-lg border transition-colors relative ${
-          isFocused ? 'border-[rgb(29,28,29)] shadow-[0_0_0_1px_rgb(29,28,29),0_0_0_5px_rgba(29,122,177,0.3)]' : 'border-[rgb(134,134,134)]'
+        className={`bg-[rgb(26,29,33)] rounded-lg border transition-all relative ${
+          isFocused ? 'border-[rgb(209,210,211)] shadow-[0_0_0_1px_rgba(29,122,177,0.5)]' : 'border-[rgb(82,82,82)]'
         }`}
         onClick={handleContainerClick}
       >
         {/* Formatting Toolbar - Top */}
-        <div className="px-2 pt-1 pb-1 border-b border-[rgb(60,56,54)] flex items-center gap-0 bg-[rgb(30,30,30)]">
+        <div className="px-3 py-1.5 border-b border-[rgb(60,56,54)] flex items-center gap-0.5 bg-[rgb(30,30,30)]">
           <button 
             onClick={(e) => handleFormatClick(e, 'bold')}
-            className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+            className={`w-8 h-7 flex items-center justify-center rounded text-[rgb(209,210,211)] transition-colors ${
               activeFormats.has('bold') 
-                ? 'bg-[rgb(60,56,54)] text-white' 
-                : 'hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)]'
+                ? 'bg-[rgb(60,56,54)]' 
+                : 'hover:bg-[rgb(49,48,44)]'
             }`} 
             title="Bold"
           >
-            <span className="text-[13px] font-bold">B</span>
+            <span className="text-sm font-bold">B</span>
           </button>
-          <div className="w-[1px] h-5 bg-[rgb(60,56,54)] mx-0.5"></div>
           <button 
             onClick={(e) => handleFormatClick(e, 'italic')}
-            className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+            className={`w-8 h-7 flex items-center justify-center rounded text-[rgb(209,210,211)] transition-colors ${
               activeFormats.has('italic') 
-                ? 'bg-[rgb(60,56,54)] text-white' 
-                : 'hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)]'
+                ? 'bg-[rgb(60,56,54)]' 
+                : 'hover:bg-[rgb(49,48,44)]'
             }`} 
             title="Italic"
           >
-            <span className="text-[13px] italic font-serif">I</span>
+            <span className="text-sm italic font-serif">I</span>
           </button>
-          <div className="w-[1px] h-5 bg-[rgb(60,56,54)] mx-0.5"></div>
           <button 
             onClick={(e) => handleFormatClick(e, 'underline')}
-            className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+            className={`w-8 h-7 flex items-center justify-center rounded text-[rgb(209,210,211)] transition-colors ${
               activeFormats.has('underline') 
-                ? 'bg-[rgb(60,56,54)] text-white' 
-                : 'hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)]'
+                ? 'bg-[rgb(60,56,54)]' 
+                : 'hover:bg-[rgb(49,48,44)]'
             }`} 
             title="Underline"
           >
-            <span className="text-[13px] underline">U</span>
+            <span className="text-sm underline">U</span>
           </button>
-          <div className="w-[1px] h-5 bg-[rgb(60,56,54)] mx-0.5"></div>
           <button 
             onClick={(e) => handleFormatClick(e, 'strikethrough')}
-            className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+            className={`w-8 h-7 flex items-center justify-center rounded text-[rgb(209,210,211)] transition-colors ${
               activeFormats.has('strikethrough') 
-                ? 'bg-[rgb(60,56,54)] text-white' 
-                : 'hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)]'
+                ? 'bg-[rgb(60,56,54)]' 
+                : 'hover:bg-[rgb(49,48,44)]'
             }`} 
             title="Strikethrough"
           >
-            <span className="text-[13px] line-through">S</span>
+            <span className="text-sm line-through">S</span>
           </button>
-          <div className="w-[1px] h-5 bg-[rgb(60,56,54)] mx-0.5"></div>
+          <div className="w-px h-5 bg-[rgb(60,56,54)] mx-2"></div>
           <button 
             onClick={(e) => handleFormatClick(e, 'link')}
-            className="w-7 h-7 flex items-center justify-center rounded hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)] transition-colors" 
+            className="w-8 h-7 flex items-center justify-center rounded hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)] transition-colors" 
             title="Link"
           >
-            <svg className="w-4 h-4" viewBox="0 0 14 14" fill="currentColor">
-              <path d="M6.5 9.5l-1 1c-.6.6-1.6.6-2.1 0-.6-.6-.6-1.6 0-2.1l2-2c.6-.6 1.6-.6 2.1 0 .1.1.2.2.2.4h1.5c0-.5-.2-.9-.5-1.3-1.2-1.2-3.1-1.2-4.2 0l-2 2c-1.2 1.2-1.2 3.1 0 4.2 1.2 1.2 3.1 1.2 4.2 0l1-1h-1.2zm5.5-5.5l-1 1h1.2l1-1c.6-.6.6-1.6 0-2.1-.6-.6-1.6-.6-2.1 0l-2 2c-.6.6-.6 1.6 0 2.1.1.1.2.2.4.2V4.7c-.5 0-.9-.2-1.3-.5-1.2-1.2-1.2-3.1 0-4.2l2-2c1.2-1.2 3.1-1.2 4.2 0 1.2 1.2 1.2 3.1 0 4.2z"></path>
+            <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" />
             </svg>
           </button>
-          <div className="w-[1px] h-5 bg-[rgb(60,56,54)] mx-0.5"></div>
+          <div className="w-px h-5 bg-[rgb(60,56,54)] mx-2"></div>
           <button 
             onClick={(e) => handleFormatClick(e, 'orderedList')}
-            className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+            className={`w-8 h-7 flex items-center justify-center rounded text-[rgb(209,210,211)] transition-colors ${
               activeFormats.has('orderedList') 
-                ? 'bg-[rgb(60,56,54)] text-white' 
-                : 'hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)]'
+                ? 'bg-[rgb(60,56,54)]' 
+                : 'hover:bg-[rgb(49,48,44)]'
             }`} 
             title="Numbered list"
           >
-            <svg className="w-4 h-4" viewBox="0 0 14 14" fill="currentColor">
-              <path d="M1 2h2v1H1V2zm0 3h2v1H1V5zm0 3h2v1H1V8zm0 3h2v1H1v-1z"></path>
-              <path d="M5 2h8v1H5V2zm0 3h8v1H5V5zm0 3h8v1H5V8zm0 3h8v1H5v-1z"></path>
+            <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
             </svg>
           </button>
-          <div className="w-[1px] h-5 bg-[rgb(60,56,54)] mx-0.5"></div>
           <button 
             onClick={(e) => handleFormatClick(e, 'bulletList')}
-            className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+            className={`w-8 h-7 flex items-center justify-center rounded text-[rgb(209,210,211)] transition-colors ${
               activeFormats.has('bulletList') 
-                ? 'bg-[rgb(60,56,54)] text-white' 
-                : 'hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)]'
+                ? 'bg-[rgb(60,56,54)]' 
+                : 'hover:bg-[rgb(49,48,44)]'
             }`} 
             title="Bulleted list"
           >
-            <svg className="w-4 h-4" viewBox="0 0 14 14" fill="currentColor">
-              <circle cx="2" cy="3" r="1" fill="currentColor"></circle>
-              <circle cx="2" cy="7" r="1" fill="currentColor"></circle>
-              <circle cx="2" cy="11" r="1" fill="currentColor"></circle>
-              <line x1="4" y1="3" x2="12" y2="3" stroke="currentColor" strokeWidth="1"></line>
-              <line x1="4" y1="7" x2="12" y2="7" stroke="currentColor" strokeWidth="1"></line>
-              <line x1="4" y1="11" x2="12" y2="11" stroke="currentColor" strokeWidth="1"></line>
+            <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+              <circle cx="3" cy="4" r="1.5" />
+              <circle cx="3" cy="10" r="1.5" />
+              <circle cx="3" cy="16" r="1.5" />
+              <rect x="7" y="3" width="11" height="2" rx="1" />
+              <rect x="7" y="9" width="11" height="2" rx="1" />
+              <rect x="7" y="15" width="11" height="2" rx="1" />
             </svg>
           </button>
-          <div className="w-[1px] h-5 bg-[rgb(60,56,54)] mx-0.5"></div>
+          <div className="w-px h-5 bg-[rgb(60,56,54)] mx-2"></div>
           <button 
             onClick={(e) => handleFormatClick(e, 'codeBlock')}
-            className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+            className={`w-8 h-7 flex items-center justify-center rounded text-[rgb(209,210,211)] transition-colors ${
               activeFormats.has('codeBlock') 
-                ? 'bg-[rgb(60,56,54)] text-white' 
-                : 'hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)]'
+                ? 'bg-[rgb(60,56,54)]' 
+                : 'hover:bg-[rgb(49,48,44)]'
             }`} 
             title="Code block"
           >
-            <span className="text-[13px] font-mono">&lt; /&gt;</span>
+            <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
           </button>
-          <div className="w-[1px] h-5 bg-[rgb(60,56,54)] mx-0.5"></div>
           <button 
             onClick={(e) => handleFormatClick(e, 'code')}
-            className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
+            className={`w-8 h-7 flex items-center justify-center rounded text-[rgb(209,210,211)] transition-colors ${
               activeFormats.has('code') 
-                ? 'bg-[rgb(60,56,54)] text-white' 
-                : 'hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)]'
+                ? 'bg-[rgb(60,56,54)]' 
+                : 'hover:bg-[rgb(49,48,44)]'
             }`} 
             title="Inline code"
           >
-            <span className="text-[13px] font-mono">&lt;/&gt;</span>
+            <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M5.854 4.854a.5.5 0 10-.708-.708l-3.5 3.5a.5.5 0 000 .708l3.5 3.5a.5.5 0 00.708-.708L2.707 8l3.147-3.146zm4.292 0a.5.5 0 01.708-.708l3.5 3.5a.5.5 0 010 .708l-3.5 3.5a.5.5 0 01-.708-.708L13.293 8l-3.147-3.146z"/>
+            </svg>
           </button>
         </div>
 
@@ -320,85 +452,226 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
         </div>
 
         {/* Action Bar - Bottom */}
-        <div className="px-3 pb-2 flex items-center justify-between border-t border-[rgb(60,56,54)] bg-[rgb(30,30,30)]">
+        <div className="px-3 py-2 flex items-center justify-between bg-[rgb(26,29,33)] relative">
           {/* Left side - Action icons */}
-          <div className="flex items-center gap-1">
-            <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)] transition-colors" title="Add">
+          <div className="flex items-center gap-0.5 relative">
+            <button 
+              onClick={() => setShowAddMenu(!showAddMenu)}
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)] transition-colors" 
+              title="Add"
+            >
               <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
                 <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.2" fill="none"></circle>
                 <path d="M8 5v6M5 8h6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"></path>
               </svg>
             </button>
+
+            {/* Add Menu Dropdown */}
+            {showAddMenu && (
+              <div 
+                ref={addMenuRef}
+                className="absolute bottom-full left-0 mb-2 w-[280px] bg-[rgb(34,37,41)] rounded-lg shadow-lg border border-[rgb(60,56,54)] py-2 z-50"
+              >
+                <button
+                  onClick={handleAttachClick}
+                  className="w-full px-4 py-3 flex items-center gap-3 hover:bg-[rgb(49,48,44)] transition-colors text-left"
+                >
+                  <div className="w-10 h-10 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-[rgb(209,210,211)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-white text-[15px] font-medium">Upload from your computer</div>
+                  </div>
+                </button>
+
+                <div className="border-t border-[rgb(60,56,54)] my-2"></div>
+
+                <button
+                  className="w-full px-4 py-3 flex items-center gap-3 hover:bg-[rgb(49,48,44)] transition-colors text-left opacity-50 cursor-not-allowed"
+                  disabled
+                >
+                  <div className="w-10 h-10 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-[rgb(209,210,211)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-white text-[15px] font-medium">Canvas</div>
+                  </div>
+                </button>
+
+                <button
+                  className="w-full px-4 py-3 flex items-center gap-3 hover:bg-[rgb(49,48,44)] transition-colors text-left opacity-50 cursor-not-allowed"
+                  disabled
+                >
+                  <div className="w-10 h-10 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-[rgb(209,210,211)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-white text-[15px] font-medium">List</div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowRecentFiles(true);
+                    setShowAddMenu(false);
+                  }}
+                  className="w-full px-4 py-3 flex items-center gap-3 hover:bg-[rgb(49,48,44)] transition-colors text-left"
+                >
+                  <div className="w-10 h-10 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-[rgb(209,210,211)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-white text-[15px] font-medium">Recent file</div>
+                  </div>
+                  <svg className="w-5 h-5 text-[rgb(209,210,211)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+
+                <div className="border-t border-[rgb(60,56,54)] my-2"></div>
+
+                <button
+                  className="w-full px-4 py-3 flex items-center gap-3 hover:bg-[rgb(49,48,44)] transition-colors text-left opacity-50 cursor-not-allowed"
+                  disabled
+                >
+                  <div className="w-10 h-10 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-[rgb(209,210,211)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-white text-[15px] font-medium">Text snippet</div>
+                    <div className="text-[rgb(209,210,211)] text-[13px]">⌘ ⇧ ↵ Enter</div>
+                  </div>
+                </button>
+
+                <button
+                  className="w-full px-4 py-3 flex items-center gap-3 hover:bg-[rgb(49,48,44)] transition-colors text-left opacity-50 cursor-not-allowed"
+                  disabled
+                >
+                  <div className="w-10 h-10 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-[rgb(209,210,211)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-white text-[15px] font-medium">Workflow</div>
+                  </div>
+                </button>
+              </div>
+            )}
             <button 
               className="w-8 h-8 flex items-center justify-center rounded hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)] transition-colors" 
-              title="Format"
+              title="Text formatting"
             >
-              <span className="text-[13px] font-medium underline">Aa</span>
+              <span className="text-sm font-medium">Aa</span>
             </button>
-            <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)] transition-colors" title="Emoji">
-              <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
-                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1" fill="none"></circle>
-                <circle cx="5.5" cy="7" r="1" fill="currentColor"></circle>
-                <circle cx="10.5" cy="7" r="1" fill="currentColor"></circle>
-                <path d="M5.5 10.5c0.5 1.5 2 2.5 3.5 2.5s3-1 3.5-2.5" stroke="currentColor" strokeWidth="1" fill="none" strokeLinecap="round"></path>
+            <button 
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)] transition-colors" 
+              title="Insert emoji"
+            >
+              <svg className="w-[18px] h-[18px]" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm7-1a1 1 0 11-2 0 1 1 0 012 0zm-.464 5.535a1 1 0 10-1.415-1.414 3 3 0 01-4.242 0 1 1 0 00-1.415 1.414 5 5 0 007.072 0z" clipRule="evenodd" />
               </svg>
             </button>
-            <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)] transition-colors" title="Mention">
-              <span className="text-[13px] font-medium">@</span>
+            <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)] transition-colors" title="Mention someone">
+              <span className="text-base font-medium">@</span>
             </button>
-            <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)] transition-colors" title="Video call">
-              <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
-                <rect x="3" y="4" width="8" height="6" rx="1" stroke="currentColor" strokeWidth="1" fill="none"></rect>
-                <path d="M12 6l2-2v6l-2-2" stroke="currentColor" strokeWidth="1" fill="none"></path>
+            <div className="w-px h-5 bg-[rgb(60,56,54)] mx-1"></div>
+            <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)] transition-colors" title="Start a video call">
+              <svg className="w-[18px] h-[18px]" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
               </svg>
             </button>
-            <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)] transition-colors" title="Voice message">
-              <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
-                <rect x="4" y="3" width="8" height="10" rx="1" stroke="currentColor" strokeWidth="1" fill="none"></rect>
-                <path d="M6 6h4M6 8h4M6 10h2" stroke="currentColor" strokeWidth="1" strokeLinecap="round"></path>
-                <circle cx="8" cy="8" r="1" fill="currentColor"></circle>
+            <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)] transition-colors" title="Record an audio clip">
+              <svg className="w-[18px] h-[18px]" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
               </svg>
             </button>
-            <div className="w-[1px] h-5 bg-[rgb(60,56,54)] mx-1"></div>
-            <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)] transition-colors" title="Attach file">
-              <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <rect x="2" y="4" width="12" height="8" rx="1"></rect>
-                <path d="M6 8h4"></path>
+            <div className="w-px h-5 bg-[rgb(60,56,54)] mx-1"></div>
+            <button 
+              onClick={handleAttachClick}
+              className="w-8 h-8 flex items-center justify-center rounded hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)] transition-colors" 
+              title="Attach a file"
+              disabled={uploadingFiles}
+            >
+              <svg className="w-[18px] h-[18px]" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clipRule="evenodd" />
               </svg>
             </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              onChange={handleFileSelect}
+              className="hidden"
+            />
           </div>
 
-          {/* Right side - Hint text and send button */}
-          <div className="flex items-center gap-2">
-            <span className="text-[13px] text-[rgb(209,210,211)]">
-              <span className="font-medium text-white">Shift + Return</span> to add a new line
-            </span>
-            <div className="flex items-center gap-0">
-              <button
-                onClick={handleSend}
-                disabled={!text.trim()}
-                className="px-3 py-1.5 bg-[rgb(46,204,113)] hover:bg-[rgb(42,185,103)] disabled:opacity-40 disabled:cursor-not-allowed rounded-l flex items-center gap-1.5 transition-colors"
-                title="Send"
-              >
-                <svg className="w-4 h-4 text-white" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M1.5 8l12-6v12L1.5 8zm12-4L4.5 8l9 4V4z" fillRule="evenodd" clipRule="evenodd"></path>
+          {/* Right side - Send button */}
+          <div className="flex items-center gap-0">
+            <button
+              onClick={handleSend}
+              disabled={(!text.trim() && selectedFiles.length === 0) || uploadingFiles}
+              className={`w-8 h-8 flex items-center justify-center rounded transition-colors ${
+                (!text.trim() && selectedFiles.length === 0) || uploadingFiles
+                  ? 'text-[rgb(134,134,134)] cursor-not-allowed'
+                  : 'text-[rgb(209,210,211)] hover:bg-[rgb(49,48,44)]'
+              }`}
+              title="Send message"
+            >
+              {uploadingFiles ? (
+                <svg className="w-[18px] h-[18px] animate-spin" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
                 </svg>
-              </button>
-              <div className="w-[1px] h-4 bg-white/30"></div>
-              <button
-                className="px-1.5 py-1.5 bg-[rgb(46,204,113)] hover:bg-[rgb(42,185,103)] disabled:opacity-40 disabled:cursor-not-allowed rounded-r transition-colors"
-                title="Send options"
-                disabled={!text.trim()}
-              >
-                <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="currentColor">
-                  <path d="M6 9l-3-3 3-3 3 3-3 3z"></path>
+              ) : (
+                <svg className="w-[18px] h-[18px]" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
                 </svg>
-              </button>
-            </div>
+              )}
+            </button>
           </div>
         </div>
+
+        {/* Selected Files Preview */}
+        {selectedFiles.length > 0 && (
+          <div className="px-3 pt-2 pb-2 border-t border-[rgb(60,56,54)] bg-[rgb(30,30,30)]">
+            <div className="flex flex-wrap gap-2">
+              {selectedFiles.map((file, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-2 px-2 py-1 bg-[rgb(49,48,44)] rounded text-sm text-[rgb(209,210,211)]"
+                >
+                  <span className="truncate max-w-[200px]">{file.name}</span>
+                  <span className="text-xs text-[rgb(134,134,134)]">
+                    {(file.size / 1024 / 1024).toFixed(2)} MB
+                  </span>
+                  <button
+                    onClick={() => handleRemoveFile(index)}
+                    className="ml-1 text-[rgb(209,210,211)] hover:text-white"
+                    title="Remove file"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
+    </>
   );
 };
 

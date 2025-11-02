@@ -33,7 +33,8 @@ const SignIn = () => {
   }
 
   const handleGoogleSignIn = () => {
-    console.log('Sign in with Google')
+    // Redirect to backend Google OAuth endpoint
+    window.location.href = 'http://localhost:5000/api/auth/google'
   }
 
   const handleAppleSignIn = () => {
@@ -63,7 +64,7 @@ const SignIn = () => {
         </div>
         <div className="absolute right-8 text-sm text-gray-600 flex flex-col items-end">
           <span>New to Slack?</span>
-          <Link to="/signup" className="text-blue-600 hover:underline">
+          <Link to="/register" className="text-blue-600 hover:underline">
             Create an account
           </Link>
         </div>
