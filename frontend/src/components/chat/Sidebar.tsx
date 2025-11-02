@@ -226,6 +226,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isChannelsDropdownOpen, setIsChannelsDropdownOpen] = useState(false);
   const [isDirectMessagesExpanded, setIsDirectMessagesExpanded] = useState(true);
+  const [isStarredExpanded, setIsStarredExpanded] = useState(true);
   const channelsDropdownRef = useRef<HTMLDivElement>(null);
   const channelsButtonRef = useRef<HTMLButtonElement>(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
@@ -270,6 +271,14 @@ const Sidebar: React.FC<SidebarProps> = ({
   if (!currentUser) {
     return null;
   }
+
+  // Get all starred channels across all sections
+  const starredChannels = useMemo(() => {
+    const allChannels = sections.flatMap((section) => section.channels);
+    return allChannels.filter((channel) =>
+      channel.starred && channel.starred.includes(currentUser._id)
+    );
+  }, [sections, currentUser._id]);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(String(event.active.id));
@@ -545,7 +554,13 @@ const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Starred Section */}
-      <StarredSection />
+      <StarredSection
+        isExpanded={isStarredExpanded}
+        onToggle={() => setIsStarredExpanded(!isStarredExpanded)}
+        starredChannels={starredChannels}
+        onChannelSelect={onChannelSelect}
+        onChannelMenuClick={onChannelMenuClick}
+      />
 
       {/* Spacing before Channels */}
       <div className="h-4" />

@@ -9,6 +9,7 @@ interface ChannelContextMenuProps {
   onSummarizeChannel?: () => void;
   onEditNotifications?: () => void;
   onStarChannel?: () => void;
+  onUnstarChannel?: () => void;
   onMoveChannel?: () => void;
   onAddTemplate?: () => void;
   onAddWorkflow?: () => void;
@@ -17,6 +18,7 @@ interface ChannelContextMenuProps {
   onSearchInChannel?: () => void;
   onLeaveChannel?: () => void;
   currentNotificationSetting?: string;
+  currentUserId?: string;
 }
 
 const ChannelContextMenu: React.FC<ChannelContextMenuProps> = ({
@@ -27,6 +29,7 @@ const ChannelContextMenu: React.FC<ChannelContextMenuProps> = ({
   onSummarizeChannel,
   onEditNotifications,
   onStarChannel,
+  onUnstarChannel,
   onMoveChannel,
   onAddTemplate,
   onAddWorkflow,
@@ -35,6 +38,7 @@ const ChannelContextMenu: React.FC<ChannelContextMenuProps> = ({
   onSearchInChannel,
   onLeaveChannel,
   currentNotificationSetting = 'All new posts',
+  currentUserId,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [showNotificationsSubmenu, setShowNotificationsSubmenu] = useState(false);
@@ -195,12 +199,17 @@ const ChannelContextMenu: React.FC<ChannelContextMenuProps> = ({
 
         <button
           onClick={() => {
-            onStarChannel?.();
+            const isStarred = currentUserId && channel.starred?.includes(currentUserId);
+            if (isStarred) {
+              onUnstarChannel?.();
+            } else {
+              onStarChannel?.();
+            }
             onClose();
           }}
           className="w-full px-4 py-2 text-left text-[15px] text-[#d1d2d3] hover:bg-[#302234] transition-colors"
         >
-          Star channel
+          {currentUserId && channel.starred?.includes(currentUserId) ? 'Unstar channel' : 'Star channel'}
         </button>
 
         <button

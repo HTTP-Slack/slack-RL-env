@@ -17,7 +17,7 @@ import { useProfile } from '../features/profile/ProfileContext';
 import { useAuth } from '../context/AuthContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { getWorkspaces } from '../services/workspaceApi';
-import { getChannel, leaveChannel, archiveChannel, deleteChannel, starChannel } from '../services/channelApi';
+import { getChannel, leaveChannel, archiveChannel, deleteChannel, starChannel, unstarChannel } from '../services/channelApi';
 import { getMessages } from '../services/messageApi';
 import type { Workspace } from '../types/workspace';
 import type { IChannel } from '../types/channel';
@@ -38,6 +38,7 @@ const Dashboard: React.FC = () => {
     sendMessage,
     startConversation,
     socket,
+    refreshSections,
   } = useWorkspace();
   
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -438,6 +439,7 @@ const Dashboard: React.FC = () => {
           channel={channelContextMenu.channel}
           position={channelContextMenu.position}
           onClose={() => setChannelContextMenu(null)}
+          currentUserId={user?._id}
           onOpenChannelDetails={() => {
             setActiveChannel(channelContextMenu.channel);
             setIsChannelSettingsOpen(true);
@@ -454,12 +456,29 @@ const Dashboard: React.FC = () => {
           onStarChannel={async () => {
             try {
               await starChannel(channelContextMenu.channel._id);
+              // Refresh sections to update starred status across all channels
+              await refreshSections();
               // Refresh channel if it's active
               if (activeChannel?._id === channelContextMenu.channel._id) {
                 await handleRefreshChannel();
               }
+              setChannelContextMenu(null);
             } catch (error) {
               console.error('Failed to star channel:', error);
+            }
+          }}
+          onUnstarChannel={async () => {
+            try {
+              await unstarChannel(channelContextMenu.channel._id);
+              // Refresh sections to update starred status across all channels
+              await refreshSections();
+              // Refresh channel if it's active
+              if (activeChannel?._id === channelContextMenu.channel._id) {
+                await handleRefreshChannel();
+              }
+              setChannelContextMenu(null);
+            } catch (error) {
+              console.error('Failed to unstar channel:', error);
             }
           }}
           onMoveChannel={() => {
@@ -527,6 +546,7 @@ const Dashboard: React.FC = () => {
           position={moreOptionsMenu.position}
           onClose={() => setMoreOptionsMenu(null)}
           channel={activeChannel}
+          currentUserId={user?._id}
           onOpenChannelDetails={() => {
             setIsChannelSettingsOpen(true);
             setMoreOptionsMenu(null);
@@ -544,10 +564,23 @@ const Dashboard: React.FC = () => {
           onStarChannel={async () => {
             try {
               await starChannel(activeChannel._id);
+              // Refresh sections to update starred status across all channels
+              await refreshSections();
               await handleRefreshChannel();
               setMoreOptionsMenu(null);
             } catch (error) {
               console.error('Failed to star channel:', error);
+            }
+          }}
+          onUnstarChannel={async () => {
+            try {
+              await unstarChannel(activeChannel._id);
+              // Refresh sections to update starred status across all channels
+              await refreshSections();
+              await handleRefreshChannel();
+              setMoreOptionsMenu(null);
+            } catch (error) {
+              console.error('Failed to unstar channel:', error);
             }
           }}
           onMoveChannel={() => {

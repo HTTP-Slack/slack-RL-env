@@ -9,6 +9,7 @@ interface ChannelActionsMenuProps {
   onSummarizeChannel?: () => void;
   onEditNotifications?: () => void;
   onStarChannel?: () => void;
+  onUnstarChannel?: () => void;
   onMoveChannel?: () => void;
   onAddTemplate?: () => void;
   onAddWorkflow?: () => void;
@@ -16,6 +17,7 @@ interface ChannelActionsMenuProps {
   onCopy?: () => void;
   onSearchInChannel?: () => void;
   onLeaveChannel?: () => void;
+  currentUserId?: string;
 }
 
 const ChannelActionsMenu: React.FC<ChannelActionsMenuProps> = ({
@@ -26,6 +28,7 @@ const ChannelActionsMenu: React.FC<ChannelActionsMenuProps> = ({
   onSummarizeChannel,
   onEditNotifications,
   onStarChannel,
+  onUnstarChannel,
   onMoveChannel,
   onAddTemplate,
   onAddWorkflow,
@@ -33,6 +36,7 @@ const ChannelActionsMenu: React.FC<ChannelActionsMenuProps> = ({
   onCopy,
   onSearchInChannel,
   onLeaveChannel,
+  currentUserId,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -163,7 +167,18 @@ const ChannelActionsMenu: React.FC<ChannelActionsMenuProps> = ({
         Edit notifications
       </MenuItem>
 
-      <MenuItem onClick={onStarChannel}>Star channel</MenuItem>
+      <MenuItem
+        onClick={() => {
+          const isStarred = currentUserId && channel.starred?.includes(currentUserId);
+          if (isStarred) {
+            onUnstarChannel?.();
+          } else {
+            onStarChannel?.();
+          }
+        }}
+      >
+        {currentUserId && channel.starred?.includes(currentUserId) ? 'Unstar channel' : 'Star channel'}
+      </MenuItem>
 
       <MenuItem onClick={onMoveChannel}>Move channel</MenuItem>
 

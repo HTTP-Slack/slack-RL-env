@@ -195,3 +195,77 @@ export const addUserToChannel = async (req, res) => {
     });
   }
 };
+
+// @desc    star channel
+// @route   POST /api/channel/:id/star
+// @access  Private
+export const starChannel = async (req, res) => {
+  try {
+    const channelId = req.params.id;
+    const userId = req.user.id;
+
+    const channel = await Channel.findById(channelId);
+    if (!channel) {
+      return res.status(404).json({
+        success: false,
+        message: 'Channel not found',
+      });
+    }
+
+    // Add user to starred array if not already starred
+    const updatedChannel = await Channel.findByIdAndUpdate(
+      channelId,
+      { $addToSet: { starred: userId } },
+      { new: true }
+    ).populate('collaborators');
+
+    res.status(200).json({
+      success: true,
+      data: updatedChannel,
+    });
+  } catch (error) {
+    console.log('Error in starChannel:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message,
+    });
+  }
+};
+
+// @desc    unstar channel
+// @route   POST /api/channel/:id/unstar
+// @access  Private
+export const unstarChannel = async (req, res) => {
+  try {
+    const channelId = req.params.id;
+    const userId = req.user.id;
+
+    const channel = await Channel.findById(channelId);
+    if (!channel) {
+      return res.status(404).json({
+        success: false,
+        message: 'Channel not found',
+      });
+    }
+
+    // Remove user from starred array
+    const updatedChannel = await Channel.findByIdAndUpdate(
+      channelId,
+      { $pull: { starred: userId } },
+      { new: true }
+    ).populate('collaborators');
+
+    res.status(200).json({
+      success: true,
+      data: updatedChannel,
+    });
+  } catch (error) {
+    console.log('Error in unstarChannel:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message,
+    });
+  }
+};

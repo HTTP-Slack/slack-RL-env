@@ -1,13 +1,20 @@
 import React, { useState } from 'react';
+import type { IChannel } from '../../types/channel';
 
 interface StarredSectionProps {
   isExpanded?: boolean;
   onToggle?: () => void;
+  starredChannels?: IChannel[];
+  onChannelSelect?: (channelId: string) => void;
+  onChannelMenuClick?: (channel: IChannel, position: { x: number; y: number }) => void;
 }
 
 const StarredSection: React.FC<StarredSectionProps> = ({
   isExpanded = true,
   onToggle,
+  starredChannels = [],
+  onChannelSelect,
+  onChannelMenuClick,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -120,12 +127,48 @@ const StarredSection: React.FC<StarredSectionProps> = ({
         </div>
       </div>
 
-      {/* Drag and drop placeholder text */}
+      {/* Starred Channels List or Empty State */}
       {isExpanded && (
         <div className="px-3 py-2">
-          <p className="text-[13px] text-[rgba(227,206,235,0.6)] italic">
-            Drag and drop important stuff here
-          </p>
+          {starredChannels.length > 0 ? (
+            <div className="space-y-1">
+              {starredChannels.map((channel) => (
+                <div key={channel._id} className="relative group/channel">
+                  <button
+                    onClick={() => onChannelSelect?.(channel._id)}
+                    className="w-full px-2 py-1 rounded flex items-center hover:bg-[#302234] transition-colors"
+                  >
+                    <span className="text-[#d1d2d3] mr-2">#</span>
+                    <span className="text-[15px] text-[#d1d2d3] truncate flex-1 text-left">
+                      {channel.name}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onChannelMenuClick) {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          onChannelMenuClick(channel, {
+                            x: rect.right + 4,
+                            y: rect.top,
+                          });
+                        }
+                      }}
+                      className="p-1 opacity-0 group-hover/channel:opacity-100 transition-opacity hover:bg-[#4a3a4d] rounded"
+                      title="Channel options"
+                    >
+                      <svg className="w-3 h-3 text-[#d1d2d3]" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 5.5A1.75 1.75 0 1 1 10 2a1.75 1.75 0 0 1 0 3.5m0 6.25a1.75 1.75 0 1 1 0-3.5 1.75 1.75 0 0 1 0 3.5m-1.75 4.5a1.75 1.75 0 1 0 3.5 0 1.75 1.75 0 0 0-3.5 0" />
+                      </svg>
+                    </button>
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[13px] text-[rgba(227,206,235,0.6)] italic">
+              Star important channels to keep them here
+            </p>
+          )}
         </div>
       )}
     </div>
