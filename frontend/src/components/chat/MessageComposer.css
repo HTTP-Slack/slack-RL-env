@@ -96,13 +96,24 @@
 
 .editor-list-ol,
 .editor-list-ul {
-  padding-left: 24px;
-  margin: 4px 0;
+  padding-left: 24px !important;
+  margin: 4px 0 !important;
+  list-style-position: outside !important;
+  display: block !important;
+}
+
+.editor-list-ol {
+  list-style-type: decimal !important;
+}
+
+.editor-list-ul {
+  list-style-type: disc !important;
 }
 
 .editor-listitem {
-  margin: 2px 0;
-  color: white;
+  margin: 2px 0 !important;
+  color: white !important;
+  display: list-item !important;
 }
 
 .editor-nested-listitem {
@@ -119,3 +130,25 @@
   text-decoration: underline;
 }
 
+/* Ensure proper rendering of lists in HTML output */
+.message-content ol,
+.message-content ul {
+  padding-left: 24px !important;
+  margin: 4px 0 !important;
+  list-style-position: outside !important;
+  display: block !important;
+}
+
+.message-content ol {
+  list-style-type: decimal !important;
+}
+
+.message-content ul {
+  list-style-type: disc !important;
+}
+
+.message-content li {
+  margin: 2px 0 !important;
+  color: white !important;
+  display: list-item !important;
+}

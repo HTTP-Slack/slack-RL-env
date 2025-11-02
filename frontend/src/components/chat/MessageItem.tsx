@@ -6,6 +6,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import EmojiPicker from './EmojiPicker';
 import FileContextMenu from './FileContextMenu';
 import MessageContextMenu from './MessageContextMenu';
+import './MessageComposer.css';
 
 interface MessageItemProps {
   message: ApiMessage;
@@ -963,10 +964,17 @@ const MessageItem: React.FC<MessageItemProps> = ({
           ) : (
             <>
               <div className="text-[15px] text-white break-words leading-[1.46668]">
-                <div>
-                  {parseMarkdown(message.content).map((part, idx) => (
-                    <React.Fragment key={idx}>{part}</React.Fragment>
-                  ))}
+                <div className="message-content">
+                  {/* Check if content is HTML (starts with <) or markdown */}
+                  {message.content.trim().startsWith('<') ? (
+                    <div dangerouslySetInnerHTML={{ __html: message.content }} />
+                  ) : (
+                    <>
+                      {parseMarkdown(message.content).map((part, idx) => (
+                        <React.Fragment key={idx}>{part}</React.Fragment>
+                      ))}
+                    </>
+                  )}
                 </div>
                 {message.updatedAt && message.updatedAt !== message.createdAt && (
                   <span className="text-[12px] text-[rgb(209,210,211)] ml-1">(edited)</span>

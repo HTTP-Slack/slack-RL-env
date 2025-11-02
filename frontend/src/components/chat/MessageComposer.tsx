@@ -23,13 +23,16 @@ import {
   $getSelection,
   $isRangeSelection,
   $createParagraphNode,
+  $createTextNode,
   COMMAND_PRIORITY_HIGH,
   KEY_ENTER_COMMAND,
   FORMAT_TEXT_COMMAND,
 } from 'lexical';
+import { $isListNode, $isListItemNode } from '@lexical/list';
 import { INSERT_UNORDERED_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, REMOVE_LIST_COMMAND } from '@lexical/list';
 import { $createQuoteNode } from '@lexical/rich-text';
 import { $createCodeNode } from '@lexical/code';
+import { $createLinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
 import { $generateHtmlFromNodes } from '@lexical/html';
 import './MessageComposer.css';
 
@@ -81,6 +84,10 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
   const [showRecentFilesSubmenu, setShowRecentFilesSubmenu] = useState(false);
   const [showScheduleMenu, setShowScheduleMenu] = useState(false);
   const [showFormattingHelp, setShowFormattingHelp] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkModalText, setLinkModalText] = useState('');
+  const [linkModalUrl, setLinkModalUrl] = useState('');
+  const [linkModalSelectedText, setLinkModalSelectedText] = useState('');
   const [showEmojiSuggestions, setShowEmojiSuggestions] = useState(false);
   const [emojiSearchTerm, setEmojiSearchTerm] = useState('');
   const [emojiSearchStartPos, setEmojiSearchStartPos] = useState(0);
@@ -165,12 +172,48 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
       return editor.registerCommand(
         KEY_ENTER_COMMAND,
         (event) => {
-          if (event && !event.shiftKey) {
-            event.preventDefault();
-            handleSend();
-            return true;
+          if (!event) return false;
+          
+          // Allow Shift+Enter for newlines (including in lists)
+          if (event.shiftKey) {
+            return false; // Let Lexical handle it
           }
-          return false;
+          
+          // Check if we're in a list - if so, let ListPlugin handle Enter
+          let isInList = false;
+          editor.getEditorState().read(() => {
+            const selection = $getSelection();
+            if ($isRangeSelection(selection)) {
+              const anchor = selection.anchor;
+              const node = anchor.getNode();
+              
+              // Check if we're inside a list item
+              let currentNode: any = node;
+              while (currentNode) {
+                if ($isListItemNode(currentNode)) {
+                  isInList = true;
+                  break;
+                }
+                if ($isListNode(currentNode)) {
+                  isInList = true;
+                  break;
+                }
+                const parent = currentNode.getParent();
+                if (!parent) break;
+                currentNode = parent;
+              }
+            }
+          });
+          
+          if (isInList) {
+            // We're in a list - let ListPlugin handle Enter to create new list items
+            return false;
+          }
+          
+          // Not in a list - Enter should send the message
+          event.preventDefault();
+          handleSend();
+          return true;
         },
         COMMAND_PRIORITY_HIGH
       );
@@ -239,11 +282,168 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
       
       return editor.registerUpdateListener(({ editorState }) => {
         editorState.read(() => {
-          const htmlString = $generateHtmlFromNodes(editor);
+          // Generate HTML with proper formatting for lists
+          const htmlString = $generateHtmlFromNodes(editor, null);
           setText(htmlString);
         });
       });
     }, [editor]);
+
+    return null;
+  }
+
+  // Mention and Emoji Suggestion Plugin
+  function MentionEmojiSuggestionPlugin() {
+    const [editor] = useLexicalComposerContext();
+
+    useEffect(() => {
+      return editor.registerUpdateListener(({ editorState }) => {
+        editorState.read(() => {
+          const selection = $getSelection();
+          if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
+            setShowMentionSuggestions(false);
+            setShowEmojiSuggestions(false);
+            return;
+          }
+
+          // Get text from current node up to cursor position
+          const anchor = selection.anchor;
+          const node = anchor.getNode();
+          const offset = anchor.offset;
+          
+          // Get text content from current node (simplified - works for most cases)
+          const nodeText = node.getTextContent();
+          const textBeforeCursor = nodeText.slice(0, offset);
+
+          // Check for @ mentions first
+          const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+          if (lastAtIndex !== -1) {
+            const charBeforeAt = lastAtIndex > 0 ? textBeforeCursor[lastAtIndex - 1] : ' ';
+            const isValidStart = charBeforeAt === ' ' || charBeforeAt === '\n' || lastAtIndex === 0;
+
+            if (isValidStart) {
+              const searchTerm = textBeforeCursor.slice(lastAtIndex + 1);
+              if (!searchTerm.includes(' ') && !searchTerm.includes('\n') && !searchTerm.includes('@')) {
+                setMentionSearchTerm(searchTerm);
+                setMentionSearchStartPos(lastAtIndex);
+                const position = getCursorCoordinates();
+                setMentionSuggestionsPosition(position);
+                setShowMentionSuggestions(true);
+                setSelectedMentionIndex(0);
+                setShowEmojiSuggestions(false);
+                return;
+              }
+            }
+          }
+
+          // Check for :emoji: shortcodes
+          const lastColonIndex = textBeforeCursor.lastIndexOf(':');
+          if (lastColonIndex !== -1) {
+            const charBeforeColon = lastColonIndex > 0 ? textBeforeCursor[lastColonIndex - 1] : ' ';
+            const isValidStart = charBeforeColon === ' ' || charBeforeColon === '\n' || lastColonIndex === 0;
+
+            if (isValidStart) {
+              const searchTerm = textBeforeCursor.slice(lastColonIndex + 1);
+              if (!searchTerm.includes(' ') && !searchTerm.includes('\n') && !searchTerm.includes(':')) {
+                setEmojiSearchTerm(searchTerm);
+                setEmojiSearchStartPos(lastColonIndex);
+                const position = getCursorCoordinates();
+                setEmojiSuggestionsPosition(position);
+                setShowEmojiSuggestions(true);
+                setSelectedEmojiIndex(0);
+                setShowMentionSuggestions(false);
+                return;
+              }
+            }
+          }
+
+          // Hide suggestions if conditions aren't met
+          setShowEmojiSuggestions(false);
+          setShowMentionSuggestions(false);
+        });
+      });
+    }, [editor]);
+
+    return null;
+  }
+
+  // Keyboard navigation for suggestions
+  function SuggestionKeyboardPlugin() {
+    const [editor] = useLexicalComposerContext();
+
+    useEffect(() => {
+      const handleKeyDown = (event: KeyboardEvent) => {
+        // Handle mention suggestions navigation
+        if (showMentionSuggestions) {
+          const filteredUsers = users.filter(user =>
+            user.username.toLowerCase().includes(mentionSearchTerm.toLowerCase())
+          );
+          const specialMentions = [
+            { username: 'channel' },
+            { username: 'here' },
+            { username: 'everyone' },
+          ].filter(mention =>
+            mention.username.toLowerCase().includes(mentionSearchTerm.toLowerCase())
+          );
+          const allSuggestions = [...specialMentions, ...filteredUsers];
+
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setSelectedMentionIndex(prev => Math.min(allSuggestions.length - 1, prev + 1));
+            return;
+          }
+          if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setSelectedMentionIndex(prev => Math.max(0, prev - 1));
+            return;
+          }
+          if (event.key === 'Enter' || event.key === 'Tab') {
+            event.preventDefault();
+            if (allSuggestions.length > 0 && selectedMentionIndex < allSuggestions.length) {
+              handleMentionSelect(allSuggestions[selectedMentionIndex].username);
+            }
+            return;
+          }
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            setShowMentionSuggestions(false);
+            return;
+          }
+        }
+
+        // Handle emoji suggestions navigation
+        if (showEmojiSuggestions) {
+          const filteredEmojis = getFilteredEmojis();
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setSelectedEmojiIndex(prev => Math.min(filteredEmojis.length - 1, prev + 1));
+            return;
+          }
+          if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setSelectedEmojiIndex(prev => Math.max(0, prev - 1));
+            return;
+          }
+          if (event.key === 'Enter' || event.key === 'Tab') {
+            event.preventDefault();
+            if (filteredEmojis.length > 0 && selectedEmojiIndex < filteredEmojis.length) {
+              handleEmojiSelectFromSuggestions(filteredEmojis[selectedEmojiIndex].code);
+            }
+            return;
+          }
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            setShowEmojiSuggestions(false);
+            return;
+          }
+        }
+      };
+
+      document.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown);
+      };
+    }, [editor, showMentionSuggestions, showEmojiSuggestions, mentionSearchTerm, selectedMentionIndex, selectedEmojiIndex, users]);
 
     return null;
   }
@@ -841,8 +1041,21 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     editor.update(() => {
       const selection = $getSelection();
       if ($isRangeSelection(selection)) {
-        // Insert emoji code at cursor position
-        selection.insertText(`:${emojiCode}:`);
+        const anchor = selection.anchor;
+        const node = anchor.getNode();
+        const offset = anchor.offset;
+        const textBeforeCursor = node.getTextContent().slice(0, offset);
+        const lastColonIndex = textBeforeCursor.lastIndexOf(':');
+        
+        if (lastColonIndex !== -1 && node.getType() === 'text') {
+          // Select from : to cursor and replace
+          selection.setTextNodeRange(node as any, lastColonIndex + 1, node as any, offset);
+          // Replace with emoji code
+          selection.insertText(emojiCode + ':');
+        } else {
+          // Fallback: just insert
+          selection.insertText(`:${emojiCode}:`);
+        }
       }
     });
 
@@ -856,8 +1069,21 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     editor.update(() => {
       const selection = $getSelection();
       if ($isRangeSelection(selection)) {
-        // Insert mention at cursor position
-        selection.insertText(`@${username} `);
+        const anchor = selection.anchor;
+        const node = anchor.getNode();
+        const offset = anchor.offset;
+        const textBeforeCursor = node.getTextContent().slice(0, offset);
+        const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+        
+        if (lastAtIndex !== -1 && node.getType() === 'text') {
+          // Select from @ to cursor and replace
+          selection.setTextNodeRange(node as any, lastAtIndex + 1, node as any, offset);
+          // Replace with username
+          selection.insertText(username + ' ');
+        } else {
+          // Fallback: just insert
+          selection.insertText(`@${username} `);
+        }
       }
     });
 
@@ -932,9 +1158,15 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
           selection.insertNodes([codeNode]);
           break;
         }
-        case 'link':
-          // Link formatting would need a dialog - keeping for future
+        case 'link': {
+          // Get selected text and open link modal
+          const selectedText = selection.getTextContent();
+          setLinkModalSelectedText(selectedText);
+          setLinkModalText(selectedText || '');
+          setLinkModalUrl('');
+          setShowLinkModal(true);
           break;
+        }
       }
     });
   };
@@ -942,6 +1174,42 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
   const handleFormatClick = (e: React.MouseEvent, formatType: string) => {
     e.preventDefault();
     handleFormat(formatType);
+  };
+
+  const handleLinkModalSave = () => {
+    if (!linkModalUrl.trim()) return;
+
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    editor.update(() => {
+      const selection = $getSelection();
+      if (!$isRangeSelection(selection)) return;
+
+      if (linkModalSelectedText) {
+        // If text was selected, wrap it in a link
+        editor.dispatchCommand(TOGGLE_LINK_COMMAND, linkModalUrl.trim());
+      } else {
+        // No selection - create link with text
+        const linkText = linkModalText.trim() || linkModalUrl.trim();
+        const textNode = $createTextNode(linkText);
+        const linkNode = $createLinkNode(linkModalUrl.trim());
+        linkNode.append(textNode);
+        selection.insertNodes([linkNode]);
+      }
+    });
+
+    setShowLinkModal(false);
+    setLinkModalText('');
+    setLinkModalUrl('');
+    setLinkModalSelectedText('');
+  };
+
+  const handleLinkModalCancel = () => {
+    setShowLinkModal(false);
+    setLinkModalText('');
+    setLinkModalUrl('');
+    setLinkModalSelectedText('');
   };
 
   const handleContainerClick = () => {
@@ -1388,6 +1656,8 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
               <EnterKeyPlugin />
               <FormatTrackingPlugin />
               <OnChangeSyncPlugin />
+              <MentionEmojiSuggestionPlugin />
+              <SuggestionKeyboardPlugin />
             </div>
           </LexicalComposer>
         </div>
@@ -1996,6 +2266,112 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
         isOpen={showFormattingHelp}
         onClose={() => setShowFormattingHelp(false)}
       />
+
+      {/* Link Modal */}
+      {showLinkModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="link-modal-title"
+          onClick={handleLinkModalCancel}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              handleLinkModalCancel();
+            }
+          }}
+        >
+          <div 
+            className="bg-[rgb(34,37,41)] rounded-lg w-full max-w-[440px] shadow-2xl border border-[rgb(60,56,54)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[rgb(60,56,54)]">
+              <h2 id="link-modal-title" className="text-white text-lg font-semibold">Add link</h2>
+              <button
+                onClick={handleLinkModalCancel}
+                className="w-8 h-8 rounded flex items-center justify-center hover:bg-white hover:bg-opacity-10 transition-colors"
+                aria-label="Close link modal"
+              >
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-5 space-y-5">
+              {/* Text Input */}
+              <div>
+                <label className="block text-white text-sm font-medium mb-2">
+                  Text
+                </label>
+                <input
+                  type="text"
+                  value={linkModalText}
+                  onChange={(e) => setLinkModalText(e.target.value)}
+                  className="w-full px-3 py-2 bg-[rgb(26,29,33)] border border-[rgb(134,134,134)] rounded text-white text-sm focus:outline-none focus:border-[rgb(29,155,209)] focus:ring-1 focus:ring-[rgb(29,155,209)]"
+                  placeholder="Enter link text"
+                  autoFocus={!linkModalSelectedText}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const linkInput = e.currentTarget.parentElement?.nextElementSibling?.querySelector('input') as HTMLInputElement;
+                      linkInput?.focus();
+                    } else if (e.key === 'Escape') {
+                      handleLinkModalCancel();
+                    }
+                  }}
+                />
+              </div>
+
+              {/* Link Input */}
+              <div>
+                <label className="block text-white text-sm font-medium mb-2">
+                  Link
+                </label>
+                <input
+                  type="text"
+                  value={linkModalUrl}
+                  onChange={(e) => setLinkModalUrl(e.target.value)}
+                  className="w-full px-3 py-2 bg-[rgb(26,29,33)] border border-[rgb(134,134,134)] rounded text-white text-sm focus:outline-none focus:border-[rgb(29,155,209)] focus:ring-1 focus:ring-[rgb(29,155,209)]"
+                  placeholder="Enter URL"
+                  autoFocus={!!linkModalSelectedText}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && linkModalUrl.trim()) {
+                      e.preventDefault();
+                      handleLinkModalSave();
+                    } else if (e.key === 'Escape') {
+                      handleLinkModalCancel();
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[rgb(60,56,54)]">
+              <button
+                onClick={handleLinkModalCancel}
+                className="px-4 py-2 border border-[rgb(134,134,134)] hover:border-[rgb(209,210,211)] text-white rounded transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLinkModalSave}
+                disabled={!linkModalUrl.trim()}
+                className={`px-4 py-2 rounded text-white text-sm transition-colors ${
+                  linkModalUrl.trim()
+                    ? 'bg-[#00553d] hover:bg-[#11624b] cursor-pointer'
+                    : 'border border-[rgb(60,56,54)] opacity-50 cursor-not-allowed bg-transparent'
+                }`}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Image Preview Modal */}
       {previewModalOpen && previewModalData && !showFileDetailsEdit && (
