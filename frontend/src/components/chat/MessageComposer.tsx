@@ -73,6 +73,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
   const addMenuRef = useRef<HTMLDivElement>(null);
   const stickyBarRef = useRef<HTMLDivElement>(null);
   const scheduleMenuRef = useRef<HTMLDivElement>(null);
+  const previewModalCloseButtonRef = useRef<HTMLButtonElement>(null);
 
   // Track active formatting states
   const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
@@ -655,6 +656,42 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
       };
     }
   }, [showScheduleMenu]);
+
+  // Focus management for preview modal (accessibility)
+  useEffect(() => {
+    if (previewModalOpen && previewModalCloseButtonRef.current) {
+      // Store previously focused element to restore later
+      const previouslyFocusedElement = document.activeElement as HTMLElement;
+      
+      // Focus the close button when modal opens
+      previewModalCloseButtonRef.current.focus();
+      
+      return () => {
+        // Restore focus when modal closes
+        if (previouslyFocusedElement) {
+          previouslyFocusedElement.focus();
+        }
+      };
+    }
+  }, [previewModalOpen]);
+
+  // Keyboard handling for preview modal (Escape key to close)
+  useEffect(() => {
+    if (!previewModalOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPreviewModalOpen(false);
+        setPreviewModalData(null);
+        setShowFileDetailsEdit(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [previewModalOpen]);
 
   const handleEmojiSelectFromSuggestions = (emojiCode: string) => {
     const textarea = textareaRef.current;
@@ -1790,7 +1827,10 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
       {/* Image Preview Modal */}
       {previewModalOpen && previewModalData && !showFileDetailsEdit && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-90 z-[9999] flex items-center justify-center p-8"
+          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-8"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image preview"
           onClick={() => {
             setPreviewModalOpen(false);
             setPreviewModalData(null);
@@ -1812,12 +1852,14 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
                 </button>
               </div>
               <button
+                ref={previewModalCloseButtonRef}
                 onClick={(e) => {
                   e.stopPropagation();
                   setPreviewModalOpen(false);
                   setPreviewModalData(null);
                 }}
                 className="w-8 h-8 rounded flex items-center justify-center hover:bg-white hover:bg-opacity-10 transition-colors"
+                aria-label="Close preview"
               >
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1861,17 +1903,16 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
                   }}
                   className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors text-sm"
                 >
-                  Cancel
+                  Close
                 </button>
                 <button
                   onClick={() => {
-                    // Close the modal - file is already uploaded
                     setPreviewModalOpen(false);
                     setPreviewModalData(null);
                   }}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition-colors text-sm font-medium"
+                  className="px-4 py-2 bg-[rgb(0,122,90)] hover:bg-[rgb(0,108,78)] text-white rounded transition-colors text-sm font-medium"
                 >
-                  Save changes
+                  Done
                 </button>
               </div>
             </div>
@@ -1882,7 +1923,10 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
       {/* File Details Edit Modal */}
       {previewModalOpen && previewModalData && showFileDetailsEdit && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-75 z-[10000] flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="file-details-title"
           onClick={() => handleCancelFileDetails()}
         >
           <div 
@@ -1891,10 +1935,11 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
           >
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-[rgb(60,56,54)]">
-              <h2 className="text-white text-lg font-semibold">File details</h2>
+              <h2 id="file-details-title" className="text-white text-lg font-semibold">File details</h2>
               <button
                 onClick={handleCancelFileDetails}
                 className="w-8 h-8 rounded flex items-center justify-center hover:bg-white hover:bg-opacity-10 transition-colors"
+                aria-label="Close file details"
               >
                 <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
