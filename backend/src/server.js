@@ -76,6 +76,7 @@ app.use('/api/organisation', organisationRoute);
 app.use('/api/channel', channelRoute);
 app.use('/api/conversation', conversationRoute);
 app.use('/api/sections', sectionRoute);
+app.use('/api/teammates', teammatesRoute);
 app.get('/files/:workspaceId/:id/:filename', protectRoute, streamFileByWorkspace);
 app.use('/api/files', fileRoute);
 
