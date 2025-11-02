@@ -7,12 +7,14 @@ interface LeftNavProps {
   onHomeClick?: () => void;
   onDMsClick?: () => void;
   onLaterClick?: () => void;
+  onFilesClick?: () => void;
   isActivityOpen?: boolean;
   isDMsOpen?: boolean;
   isLaterOpen?: boolean;
+  isFilesOpen?: boolean;
 }
 
-const LeftNav: React.FC<LeftNavProps> = ({ workspaceName, onActivityClick, onHomeClick, onDMsClick, onLaterClick, isActivityOpen, isDMsOpen, isLaterOpen }) => {
+const LeftNav: React.FC<LeftNavProps> = ({ workspaceName, onActivityClick, onHomeClick, onDMsClick, onLaterClick, onFilesClick, isActivityOpen, isDMsOpen, isLaterOpen, isFilesOpen }) => {
   // Get workspace initials (first 2 letters or first letter of each word)
   const getInitials = (name?: string) => {
     if (!name) return 'W';
@@ -37,7 +39,7 @@ const LeftNav: React.FC<LeftNavProps> = ({ workspaceName, onActivityClick, onHom
         <button 
           onClick={onHomeClick}
           className={`w-11 h-11 flex items-center justify-center rounded transition-colors ${
-            !isActivityOpen && !isDMsOpen && !isLaterOpen ? 'bg-[#7d3986]' : 'hover:bg-[#6f4d72]'
+            !isActivityOpen && !isDMsOpen && !isLaterOpen && !isFilesOpen ? 'bg-[#7d3986]' : 'hover:bg-[#6f4d72]'
           }`}
         >
           <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -79,7 +81,12 @@ const LeftNav: React.FC<LeftNavProps> = ({ workspaceName, onActivityClick, onHom
 
       {/* Files */}
       <div className="flex flex-col items-center gap-0.5">
-        <button className="w-11 h-11 flex items-center justify-center rounded hover:bg-[#6f4d72] transition-colors">
+        <button 
+          onClick={onFilesClick}
+          className={`w-11 h-11 flex items-center justify-center rounded transition-colors ${
+            isFilesOpen ? 'bg-[#7d3986]' : 'hover:bg-[#6f4d72]'
+          }`}
+        >
           <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
           </svg>

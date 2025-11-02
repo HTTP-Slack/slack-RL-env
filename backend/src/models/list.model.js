@@ -29,6 +29,43 @@ const listSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    columns: [
+      {
+        id: {
+          type: String,
+          required: true,
+        },
+        name: {
+          type: String,
+          required: true,
+        },
+        type: {
+          type: String,
+          enum: ['text', 'enum', 'date', 'bool', 'int'],
+          required: true,
+        },
+        options: [String], // For enum type
+        required: {
+          type: Boolean,
+          default: false,
+        },
+      },
+    ],
+    template: {
+      type: String,
+    },
+    lastViewedBy: [
+      {
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+        },
+        timestamp: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   {
     timestamps: true,

@@ -8,6 +8,7 @@ import ThreadPanel from '../components/chat/ThreadPanel';
 import { ActivityPanel } from '../components/chat/ActivityPanel';
 import { DMPanel } from '../components/chat/DMPanel';
 import { LaterPanel } from '../components/chat/LaterPanel';
+import { FilesPanel } from '../components/files/FilesPanel';
 import ChannelContextMenu from '../components/chat/ChannelContextMenu';
 import ChannelSettingsModal from '../components/chat/ChannelSettingsModal';
 import ChannelActionsMenu from '../components/chat/ChannelActionsMenu';
@@ -53,6 +54,7 @@ const Dashboard: React.FC = () => {
   const [isActivityOpen, setIsActivityOpen] = useState(false);
   const [isDMsOpen, setIsDMsOpen] = useState(false);
   const [isLaterOpen, setIsLaterOpen] = useState(false);
+  const [isFilesOpen, setIsFilesOpen] = useState(false);
   const [channelContextMenu, setChannelContextMenu] = useState<{
     channel: IChannel;
     position: { x: number; y: number };
@@ -482,25 +484,36 @@ const Dashboard: React.FC = () => {
             setIsActivityOpen(true);
             setIsDMsOpen(false);
             setIsLaterOpen(false);
+            setIsFilesOpen(false);
           }}
           onHomeClick={() => {
             setIsActivityOpen(false);
             setIsDMsOpen(false);
             setIsLaterOpen(false);
+            setIsFilesOpen(false);
           }}
           onDMsClick={() => {
             setIsDMsOpen(true);
             setIsActivityOpen(false);
             setIsLaterOpen(false);
+            setIsFilesOpen(false);
           }}
           onLaterClick={() => {
             setIsLaterOpen(true);
             setIsDMsOpen(false);
             setIsActivityOpen(false);
+            setIsFilesOpen(false);
+          }}
+          onFilesClick={() => {
+            setIsFilesOpen(true);
+            setIsDMsOpen(false);
+            setIsActivityOpen(false);
+            setIsLaterOpen(false);
           }}
           isActivityOpen={isActivityOpen}
           isDMsOpen={isDMsOpen}
           isLaterOpen={isLaterOpen}
+          isFilesOpen={isFilesOpen}
         />
         {isDMsOpen ? (
           <>
@@ -650,6 +663,11 @@ const Dashboard: React.FC = () => {
           <LaterPanel
             isOpen={isLaterOpen}
             onClose={() => setIsLaterOpen(false)}
+          />
+        ) : isFilesOpen ? (
+          <FilesPanel
+            isOpen={isFilesOpen}
+            onClose={() => setIsFilesOpen(false)}
           />
         ) : (
           <>

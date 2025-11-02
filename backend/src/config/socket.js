@@ -2,6 +2,8 @@ import Message from '../models/message.model.js';
 import Channels from '../models/channel.model.js';
 import Conversations from '../models/conversation.model.js';
 import Thread from '../models/thread.model.js';
+import List from '../models/list.model.js';
+import ListItem from '../models/listItem.model.js';
 import updateConversationStatus from '../helpers/updateConversationStatus.js';
 import createTodaysFirstMessage from '../helpers/createTodaysFirstUpdate.js';
 import { createNotifications } from '../helpers/createNotifications.js';
@@ -460,6 +462,100 @@ const initializeSocket = (io) => {
       // Broadcast the "room-leave" event to notify other users in the room
       socket.to(roomId).emit('room-leave', { roomId, leftUserId: userId })
       console.log(`User ${userId} left room ${roomId}`)
+    })
+
+    // ========== List-related socket events ==========
+
+    // Event handler for opening a list
+    socket.on('list-open', async ({ listId, userId }) => {
+      if (listId) {
+        socket.join(listId)
+        console.log(`📋 User ${userId} joined list room ${listId}`)
+        
+        // Update lastViewedBy
+        await List.findByIdAndUpdate(listId, {
+          $addToSet: {
+            lastViewedBy: {
+              userId,
+              timestamp: new Date(),
+            },
+          },
+        })
+      }
+    })
+
+    // Event handler for creating a list item
+    socket.on('list-item-create', async ({ listId, item }) => {
+      try {
+        console.log(`📝 Creating list item in list ${listId}`)
+        const newItem = await ListItem.create(item)
+        console.log(`✅ Broadcasting list-item-create to room ${listId}:`, newItem._id)
+        io.to(listId).emit('list-item-create', { newItem })
+      } catch (error) {
+        console.log('Error in list-item-create:', error)
+      }
+    })
+
+    // Event handler for updating a list item
+    socket.on('list-item-update', async ({ listId, itemId, data }) => {
+      try {
+        console.log(`✏️ Updating list item ${itemId} in list ${listId}`)
+        const updatedItem = await ListItem.findByIdAndUpdate(itemId, data, {
+          new: true,
+        })
+        if (updatedItem) {
+          io.to(listId).emit('list-item-update', { itemId, item: updatedItem })
+        }
+      } catch (error) {
+        console.log('Error in list-item-update:', error)
+      }
+    })
+
+    // Event handler for deleting a list item
+    socket.on('list-item-delete', async ({ listId, itemId }) => {
+      try {
+        console.log(`🗑️ Deleting list item ${itemId} from list ${listId}`)
+        await ListItem.findByIdAndDelete(itemId)
+        io.to(listId).emit('list-item-delete', { itemId })
+      } catch (error) {
+        console.log('Error in list-item-delete:', error)
+      }
+    })
+
+    // Event handler for updating list metadata (title, description, etc.)
+    socket.on('list-update', async ({ listId, data }) => {
+      try {
+        console.log(`📋 Updating list ${listId}`)
+        const updatedList = await List.findByIdAndUpdate(listId, data, {
+          new: true,
+        })
+          .populate('collaborators')
+          .populate('createdBy')
+        if (updatedList) {
+          io.to(listId).emit('list-update', { list: updatedList })
+        }
+      } catch (error) {
+        console.log('Error in list-update:', error)
+      }
+    })
+
+    // Event handler for updating list columns
+    socket.on('list-column-update', async ({ listId, columns }) => {
+      try {
+        console.log(`📊 Updating columns for list ${listId}`)
+        const updatedList = await List.findByIdAndUpdate(
+          listId,
+          { columns },
+          { new: true }
+        )
+          .populate('collaborators')
+          .populate('createdBy')
+        if (updatedList) {
+          io.to(listId).emit('list-column-update', { columns })
+        }
+      } catch (error) {
+        console.log('Error in list-column-update:', error)
+      }
     })
   })
 }

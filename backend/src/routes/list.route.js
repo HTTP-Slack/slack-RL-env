@@ -12,6 +12,8 @@ import {
   getListItems,
   updateListItem,
   deleteListItem,
+  reorderItems,
+  getTemplates,
 } from '../controllers/list.controller.js';
 
 const router = express.Router();
@@ -19,10 +21,14 @@ const router = express.Router();
 // List routes - exact matches and specific patterns first
 router.post('/', protectRoute, createList);
 
+// Template route
+router.get('/templates', protectRoute, getTemplates);
+
 // List item routes (must come before /org/:id and /:id to avoid route conflicts)
 // These match patterns like /anything/items, so they must come before parameterized routes
 router.post('/:listId/items', protectRoute, createListItem);
 router.get('/:listId/items', protectRoute, getListItems);
+router.patch('/:listId/items/reorder', protectRoute, reorderItems);
 router.patch('/:listId/items/:itemId', protectRoute, updateListItem);
 router.delete('/:listId/items/:itemId', protectRoute, deleteListItem);
 

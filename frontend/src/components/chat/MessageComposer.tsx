@@ -7,6 +7,7 @@ import EmojiPicker from './EmojiPicker';
 import FormattingHelpModal from './FormattingHelpModal';
 import EmojiSuggestions from './EmojiSuggestions';
 import MentionSuggestions from './MentionSuggestions';
+import AttachListModal from '../lists/AttachListModal';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
@@ -100,6 +101,8 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
   const [mentionSearchTerm, setMentionSearchTerm] = useState('');
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [mentionSuggestionsPosition, setMentionSuggestionsPosition] = useState({ bottom: 0, left: 0 });
+  const [showAttachListModal, setShowAttachListModal] = useState(false);
+  const [attachedLists, setAttachedLists] = useState<string[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -2084,16 +2087,19 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
 
                 {/* List */}
                 <button
+                  onClick={() => {
+                    setShowAttachListModal(true);
+                    setShowAddMenu(false);
+                  }}
                   className="w-full h-7 min-h-[28px] px-6 flex items-center hover:bg-[rgba(255,255,255,0.04)] transition-colors text-left"
                   role="menuitem"
-                  disabled
                 >
                   <div className="w-5 h-7 mr-2 flex items-center justify-center">
                     <svg data-qa="lists" aria-hidden="true" viewBox="0 0 20 20" className="w-5 h-5 text-[rgb(248,248,248)]">
                       <path fill="currentColor" fillRule="evenodd" d="M1.5 5.25A3.75 3.75 0 0 1 5.25 1.5h9.5a3.75 3.75 0 0 1 3.75 3.75v9.5a3.75 3.75 0 0 1-3.75 3.75h-9.5a3.75 3.75 0 0 1-3.75-3.75zM5.25 3A2.25 2.25 0 0 0 3 5.25v9.5A2.25 2.25 0 0 0 5.25 17h9.5A2.25 2.25 0 0 0 17 14.75v-9.5A2.25 2.25 0 0 0 14.75 3zm3.654 9.204a.75.75 0 1 0-1.044-1.078l-1.802 1.745-.654-.634a.75.75 0 1 0-1.044 1.077l1.177 1.14a.75.75 0 0 0 1.043 0zm1.714.782a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5zm0-3.687a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5zm-.75-2.938a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75m-3.28 2.482c.2 0 .402-.114.737-.343.85-.586 1.513-1.317 1.513-2.082 0-.595-.486-1.075-1.168-1.075-.832 0-1.082.757-1.082.757s-.258-.757-1.082-.757c-.68 0-1.168.48-1.168 1.075 0 .765.66 1.498 1.51 2.078.337.231.54.347.74.347" clipRule="evenodd"></path>
                     </svg>
                   </div>
-                  <div className="flex-1 overflow-hidden whitespace-nowrap text-ellipsis text-[rgb(248,248,248)] text-[15px] leading-7 opacity-50">
+                  <div className="flex-1 overflow-hidden whitespace-nowrap text-ellipsis text-[rgb(248,248,248)] text-[15px] leading-7">
                     List
                   </div>
                 </button>
@@ -2732,6 +2738,19 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
             </div>
           </div>
         </div>
+      )}
+
+      {/* Attach List Modal */}
+      {currentWorkspaceId && (
+        <AttachListModal
+          isOpen={showAttachListModal}
+          onClose={() => setShowAttachListModal(false)}
+          onSelect={(listId) => {
+            setAttachedLists([...attachedLists, listId]);
+            setShowAttachListModal(false);
+          }}
+          organisationId={currentWorkspaceId}
+        />
       )}
     </div>
     </>

@@ -10,6 +10,14 @@ import MessageContextMenu from './MessageContextMenu';
 import { convertEmojiShortcodes } from '../../constants/emojis';
 import './MessageComposer.css';
 
+// Check if content contains actual HTML tags (not just text starting with <)
+const containsHtmlTags = (content: string): boolean => {
+  // Match HTML tags like <p>, </p>, <strong>, etc.
+  // Pattern: < or </, followed by a letter, followed by tag name and attributes
+  const htmlTagRegex = /<\/?[a-z][^>]*>/i;
+  return htmlTagRegex.test(content);
+};
+
 // Sanitize HTML content with safe configuration
 const sanitizeHtml = (html: string): string => {
   try {
@@ -990,8 +998,8 @@ const MessageItem: React.FC<MessageItemProps> = ({
             <>
               <div className="text-[15px] text-white break-words leading-[1.46668]">
                 <div className="message-content">
-                  {/* Check if content is HTML (starts with <) or markdown */}
-                  {message.content.trim().startsWith('<') ? (() => {
+                  {/* Check if content contains HTML tags or is markdown */}
+                  {containsHtmlTags(message.content) ? (() => {
                     const sanitized = sanitizeHtml(convertEmojiShortcodes(message.content));
                     // If sanitization fails or removes all content, fall back to markdown
                     if (!sanitized || sanitized.trim() === '') {
