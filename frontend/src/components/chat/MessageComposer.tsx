@@ -1497,8 +1497,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
 
                   {/* Recent Files Submenu */}
                   {showRecentFilesSubmenu && (
-                    <div className="absolute left-[calc(100%+2px)] top-0 w-[440px] max-h-[500px] bg-[rgb(34,37,41)] rounded-lg shadow-lg border border-[rgb(60,56,54)] overflow-hidden z-50" style={{ transform: 'translateY(-12px)' }}>
-                      <div className="overflow-y-auto max-h-[500px] py-2 recent-files-submenu-scroll">
+                    <div className="absolute left-[calc(100%+2px)] bottom-0 w-[440px] max-h-[300px] bg-[rgb(34,37,41)] rounded-lg shadow-lg border border-[rgb(60,56,54)] overflow-hidden z-50" style={{ transform: 'translateY(130px)' }}>                      <div className="overflow-y-auto max-h-[500px] py-2 recent-files-submenu-scroll">
                       {(() => {
                         const recentFiles = getRecentFiles();
                         if (recentFiles.length === 0) {
