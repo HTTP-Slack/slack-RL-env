@@ -1,7 +1,7 @@
 import express from 'express';
 
-import { protectRoute } from '../middlewares/protectRoute';
-import { getThreads } from '../controllers/thread.controller';
+import { protectRoute } from '../middlewares/protectRoute.js';
+import { getThreads } from '../controllers/thread.controller.js';
 
 const router = express.Router();
 

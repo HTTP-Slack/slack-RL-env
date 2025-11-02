@@ -5,8 +5,8 @@ import {
   updateProfilePicture,
   getProfilePicture,
 } from '../controllers/user.controller.js';
-import { protectRoute } from '../middleware/protectRoute.js';
-import upload from '../middleware/upload.middleware.js';
+import { protectRoute } from '../middlewares/protectRoute.js';
+import upload from '../middlewares/upload.middleware.js';
 
 const router = express.Router();
 

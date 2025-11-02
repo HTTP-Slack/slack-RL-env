@@ -3,7 +3,7 @@ import Conversation from '../models/conversation.model.js';
 import Channel from '../models/channel.model.js';
 import User from '../models/user.model.js';
 import sendEmail from '../helpers/sendEmail.js';
-import { joinTeammatesEmail } from '../html/join-teammates-email.js';
+import  joinTeammatesEmail  from '../html/join-teammates-email.js';
 
 // @desc    add teammates to either organisation or a channel
 // @route   POST /api/teammates
