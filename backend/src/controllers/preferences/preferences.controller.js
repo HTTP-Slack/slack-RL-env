@@ -9,6 +9,7 @@ import LanguageRegionPreferences from '../../models/preferences/languageRegionPr
 import AccessibilityPreferences from '../../models/preferences/accessibilityPreferences.model.js';
 import MarkAsReadPreferences from '../../models/preferences/markAsReadPreferences.model.js';
 import AudioVideoPreferences from '../../models/preferences/audioVideoPreferences.model.js';
+import PrivacyVisibilityPreferences from '../../models/preferences/privacyVisibilityPreferences.model.js';
 
 // @desc    get user's complete preferences
 // @route   GET /api/preferences
@@ -28,7 +29,13 @@ export const getPreferences = async (req, res) => {
       .populate('accessibility')
       .populate('markAsRead')
       .populate('audioVideo')
-      .populate('privacyVisibility')
+      .populate({
+        path: 'privacyVisibility',
+        populate: [
+          { path: 'blockedInvitations', select: 'email username' },
+          { path: 'hiddenPeople', select: 'email username' },
+        ],
+      })
       .populate('slackAI')
       .populate('advanced');
 
@@ -46,7 +53,13 @@ export const getPreferences = async (req, res) => {
         .populate('accessibility')
         .populate('markAsRead')
         .populate('audioVideo')
-        .populate('privacyVisibility')
+        .populate({
+          path: 'privacyVisibility',
+          populate: [
+            { path: 'blockedInvitations', select: 'email username' },
+            { path: 'hiddenPeople', select: 'email username' },
+          ],
+        })
         .populate('slackAI')
         .populate('advanced');
     }
@@ -236,8 +249,28 @@ export const updatePreferences = async (req, res) => {
       }
     }
 
+    // Handle privacy & visibility update
+    if (updateData.privacyVisibility) {
+      if (preferences.privacyVisibility) {
+        await PrivacyVisibilityPreferences.findByIdAndUpdate(
+          preferences.privacyVisibility,
+          updateData.privacyVisibility,
+          { new: true }
+        );
+      } else {
+        const privacyVisibilityPrefs = await PrivacyVisibilityPreferences.create(updateData.privacyVisibility);
+        preferences.privacyVisibility = privacyVisibilityPrefs._id;
+        await preferences.save();
+      }
+    }
+
+    // Handle streamSummaryResults update (direct field on preferences)
+    if (updateData.streamSummaryResults !== undefined) {
+      preferences.streamSummaryResults = updateData.streamSummaryResults;
+    }
+
     // TODO: Handle other preference categories as they are implemented
-    // Similar pattern for privacyVisibility, slackAI, advanced, etc.
+    // Similar pattern for slackAI, advanced, etc.
 
     // Reload preferences with populated fields
     preferences = await Preferences.findById(preferences._id)
@@ -251,7 +284,13 @@ export const updatePreferences = async (req, res) => {
       .populate('accessibility')
       .populate('markAsRead')
       .populate('audioVideo')
-      .populate('privacyVisibility')
+      .populate({
+        path: 'privacyVisibility',
+        populate: [
+          { path: 'blockedInvitations', select: 'email username' },
+          { path: 'hiddenPeople', select: 'email username' },
+        ],
+      })
       .populate('slackAI')
       .populate('advanced');
 
@@ -298,7 +337,13 @@ export const createPreferences = async (req, res) => {
       .populate('accessibility')
       .populate('markAsRead')
       .populate('audioVideo')
-      .populate('privacyVisibility')
+      .populate({
+        path: 'privacyVisibility',
+        populate: [
+          { path: 'blockedInvitations', select: 'email username' },
+          { path: 'hiddenPeople', select: 'email username' },
+        ],
+      })
       .populate('slackAI')
       .populate('advanced');
 

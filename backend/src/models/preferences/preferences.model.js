@@ -73,6 +73,10 @@ const preferencesSchema = new mongoose.Schema(
       ref: 'AdvancedPreferences',
       default: null,
     },
+    streamSummaryResults: {
+      type: Boolean,
+      default: true,
+    },
   },
   {
     timestamps: true,

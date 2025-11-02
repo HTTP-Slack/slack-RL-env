@@ -153,6 +153,8 @@ export interface AudioVideoPreferences {
 export interface PrivacyVisibilityPreferences {
   slackConnectDiscoverable: boolean;
   contactSharing: 'all' | 'workspace_only' | 'none';
+  blockedInvitations: string[];
+  hiddenPeople: string[];
 }
 
 export interface SlackAIPreferences {
@@ -189,5 +191,6 @@ export interface UserPreferences {
   privacyVisibility: PrivacyVisibilityPreferences;
   slackAI: SlackAIPreferences;
   advanced: AdvancedPreferences;
+  streamSummaryResults: boolean;
 }
 
