@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   DndContext,
   KeyboardSensor,
@@ -27,7 +27,7 @@ import { CreateSectionModal } from './CreateSectionModal';
 import { CreateChannelModal } from './CreateChannelModal';
 
 interface SidebarProps {
-  currentUser: User;
+  currentUser: User | null;
   workspaceName?: string;
   conversations: Conversation[];
   users: User[];
@@ -196,16 +196,20 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [isCreateChannelOpen, setIsCreateChannelOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
+  const pointerSensor = useSensor(PointerSensor, {
+    activationConstraint: {
+      distance: 8,
+    },
+  });
+  const keyboardSensor = useSensor(KeyboardSensor, {
+    coordinateGetter: sortableKeyboardCoordinates,
+  });
+  const sensors = useSensors(pointerSensor, keyboardSensor);
+
+  // Return null if currentUser is not available (after all hooks are called)
+  if (!currentUser) {
+    return null;
+  }
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(String(event.active.id));
