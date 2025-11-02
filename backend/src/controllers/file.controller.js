@@ -1,4 +1,4 @@
-import { uploadStream, openDownloadStream, findFileById, MAX_FILE_SIZE } from '../services/gridfs.service.js';
+import { uploadStream, openDownloadStream, findFileById, updateFileMetadata, MAX_FILE_SIZE } from '../services/gridfs.service.js';
 import Channel from '../models/channel.model.js';
 import Conversation from '../models/conversation.model.js';
 import Organisation from '../models/organisation.model.js';
@@ -578,6 +578,130 @@ export const streamFileByWorkspace = async (req, res) => {
         error: error.message,
       });
     }
+  }
+};
+
+/**
+ * Update file metadata (filename and description)
+ * @route PATCH /api/files/:id
+ * @access Private
+ */
+export const updateFile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { filename, description } = req.body;
+    const userId = req.user.id;
+
+    // Find file metadata
+    const file = await findFileById(id);
+    if (!file) {
+      return res.status(404).json({
+        success: false,
+        message: 'File not found',
+      });
+    }
+
+    const { organisation, channel, conversation, uploader } = file.metadata || {};
+
+    // Verify organisation exists and user is member
+    if (!organisation) {
+      return res.status(403).json({
+        success: false,
+        message: 'File access denied',
+      });
+    }
+
+    const org = await Organisation.findById(organisation);
+    if (!org) {
+      return res.status(404).json({
+        success: false,
+        message: 'Organisation not found',
+      });
+    }
+
+    const isMember = org.owner.toString() === userId || 
+                     org.coWorkers.some(cw => cw.toString() === userId);
+    if (!isMember) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not a member of this organisation',
+      });
+    }
+
+    // Verify user has access to channel/conversation if specified
+    if (channel) {
+      const channelDoc = await Channel.findById(channel);
+      if (!channelDoc) {
+        return res.status(403).json({
+          success: false,
+          message: 'Channel not found',
+        });
+      }
+      const isCollaborator = channelDoc.collaborators.some(c => c.toString() === userId);
+      if (!isCollaborator) {
+        return res.status(403).json({
+          success: false,
+          message: 'Not a collaborator in this channel',
+        });
+      }
+    }
+
+    if (conversation) {
+      const conversationDoc = await Conversation.findById(conversation);
+      if (!conversationDoc) {
+        return res.status(403).json({
+          success: false,
+          message: 'Conversation not found',
+        });
+      }
+      const isCollaborator = conversationDoc.collaborators.some(c => c.toString() === userId);
+      if (!isCollaborator) {
+        return res.status(403).json({
+          success: false,
+          message: 'Not a collaborator in this conversation',
+        });
+      }
+    }
+
+    // Only allow the uploader to edit file details
+    if (uploader && uploader.toString() !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only the file uploader can edit file details',
+      });
+    }
+
+    // Prepare updates
+    const updates = {};
+    if (filename && filename.trim()) {
+      updates.filename = filename.trim();
+    }
+    if (description !== undefined) {
+      updates.metadata = {
+        description: description.trim(),
+      };
+    }
+
+    // Update file metadata
+    const updatedFile = await updateFileMetadata(id, updates);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: updatedFile._id.toString(),
+        filename: updatedFile.filename,
+        contentType: updatedFile.contentType,
+        length: updatedFile.length,
+        metadata: updatedFile.metadata,
+      },
+    });
+  } catch (error) {
+    console.error('Error in updateFile:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message,
+    });
   }
 };
 
