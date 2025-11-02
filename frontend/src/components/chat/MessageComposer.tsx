@@ -3,7 +3,6 @@ import { insertMarkdown, parseMarkdown } from '../../utils/markdown';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { uploadFiles, getFileUrl } from '../../services/fileApi';
 import { getRecentFiles, formatRelativeTime } from '../../services/recentFilesService';
-import RecentFilesModal from './RecentFilesModal';
 import EmojiPicker from './EmojiPicker';
 import FormattingHelpModal from './FormattingHelpModal';
 import EmojiSuggestions from './EmojiSuggestions';
@@ -16,21 +15,40 @@ interface User {
   avatar?: string;
 }
 
+interface SelectedFile {
+  id: string;
+  file: File;
+  originalSize?: number; // Store original size for placeholder files (e.g., from recent files)
+}
+
 interface MessageComposerProps {
-  onSend: (text: string) => void;
+  onSend: (text: string, attachments?: string[]) => void;
   placeholder?: string;
   userName?: string;
   users?: User[]; // Users available for @mentions
+  channelId?: string; // Channel ID for file uploads (when in channel context)
 }
 
-const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder = 'Message...', userName, users = [] }) => {
+// File size limit constant (25MB)
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
+
+const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder = 'Message...', userName, users = [], channelId }) => {
   const { sendMessage, activeConversation, currentWorkspaceId } = useWorkspace();
   const [text, setText] = useState('');
   const [isFocused, setIsFocused] = useState(false);
-  const [uploadingFiles, setUploadingFiles] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
+  
+  // New states for file upload tracking
+  const [uploadedFileIds, setUploadedFileIds] = useState<Map<string, string>>(new Map()); // Map of file id to uploaded file ID
+  const [uploadingFileIds, setUploadingFileIds] = useState<Set<string>>(new Set()); // Set of file ids currently uploading
+  const [filePreviewUrls, setFilePreviewUrls] = useState<Map<string, string>>(new Map()); // Map of file id to preview URL
+  const [uploadErrors, setUploadErrors] = useState<Map<string, string>>(new Map()); // Map of file id to error message
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewModalData, setPreviewModalData] = useState<{ file: File; previewUrl: string; id: string } | null>(null);
+  const [showFileDetailsEdit, setShowFileDetailsEdit] = useState(false);
+  const [editingFileName, setEditingFileName] = useState('');
+  const [editingFileDescription, setEditingFileDescription] = useState('');
   const [showAddMenu, setShowAddMenu] = useState(false);
-  const [showRecentFiles, setShowRecentFiles] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showStickyBar, setShowStickyBar] = useState(false);
   const [stickyBarPosition, setStickyBarPosition] = useState({ top: 0, left: 0 });
@@ -55,9 +73,22 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
   const addMenuRef = useRef<HTMLDivElement>(null);
   const stickyBarRef = useRef<HTMLDivElement>(null);
   const scheduleMenuRef = useRef<HTMLDivElement>(null);
+  const previewModalCloseButtonRef = useRef<HTMLButtonElement>(null);
 
   // Track active formatting states
   const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
+
+  // Cleanup preview URLs on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      // Revoke all object URLs on unmount
+      filePreviewUrls.forEach((url) => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, [filePreviewUrls]);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -305,43 +336,35 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
 
   const handleSend = async () => {
     const trimmedText = text.trim();
-    const hasFiles = selectedFiles.length > 0;
-    
-    if (!trimmedText && !hasFiles) return;
+    if (!trimmedText && selectedFiles.length === 0) return;
 
     try {
-      let attachmentIds: string[] = [];
+      const attachmentIds = Array.from(uploadedFileIds.values());
+      const attachments = attachmentIds.length > 0 ? attachmentIds : undefined;
 
-      // Upload files first if any
-      if (hasFiles && activeConversation && currentWorkspaceId) {
-        setUploadingFiles(true);
-        try {
-          const uploadedFiles = await uploadFiles(
-            selectedFiles,
-            currentWorkspaceId,
-            undefined,
-            activeConversation._id
-          );
-          attachmentIds = uploadedFiles.map(f => f.id);
-        } catch (error) {
-          console.error('Error uploading files:', error);
-          alert('Failed to upload files. Please try again.');
-          setUploadingFiles(false);
-          return;
-        }
-        setUploadingFiles(false);
-        setSelectedFiles([]);
-      }
-
-      // Send message with attachments via socket
-      if (activeConversation && currentWorkspaceId && (attachmentIds.length > 0 || trimmedText)) {
-        await sendMessage(trimmedText, attachmentIds.length > 0 ? attachmentIds : undefined);
+      // Send via channel or DM context
+      if (channelId && currentWorkspaceId) {
+        await onSend(trimmedText, attachments);
+      } else if (activeConversation?._id && currentWorkspaceId) {
+        await sendMessage(trimmedText, attachments);
       } else {
-        // Fallback to original onSend for backward compatibility
-        onSend(trimmedText);
+        await onSend(trimmedText, attachments);
       }
 
+      // Clear all states after successful send
+      // First, revoke all preview URLs to prevent memory leaks
+      filePreviewUrls.forEach((url) => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+      
       setText('');
+      setSelectedFiles([]);
+      setUploadedFileIds(new Map());
+      setUploadingFileIds(new Set());
+      setFilePreviewUrls(new Map());
+      setUploadErrors(new Map());
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
@@ -350,28 +373,168 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length > 0) {
-      // Filter files by size (25MB limit)
-      const MAX_SIZE = 25 * 1024 * 1024;
-      const validFiles = files.filter(file => {
-        if (file.size > MAX_SIZE) {
-          alert(`File ${file.name} is too large. Maximum size is 25MB.`);
-          return false;
-        }
-        return true;
-      });
-      setSelectedFiles(prev => [...prev, ...validFiles]);
+    if (files.length === 0) return;
+    
+    // Filter files by size and collect rejected files for aggregate error message
+    const validFiles: File[] = [];
+    const rejectedFiles: File[] = [];
+    
+    files.forEach(file => {
+      if (file.size > MAX_FILE_SIZE) {
+        rejectedFiles.push(file);
+      } else {
+        validFiles.push(file);
+      }
+    });
+    
+    // Show aggregate error message if any files were rejected
+    if (rejectedFiles.length > 0) {
+      const maxSizeMB = (MAX_FILE_SIZE / 1024 / 1024).toFixed(0);
+      if (rejectedFiles.length === 1) {
+        alert(`File "${rejectedFiles[0].name}" is too large. Maximum size is ${maxSizeMB}MB.`);
+      } else {
+        const fileList = rejectedFiles.map(f => `• ${f.name}`).join('\n');
+        alert(`${rejectedFiles.length} files are too large (maximum size is ${maxSizeMB}MB):\n\n${fileList}`);
+      }
     }
+    
+    if (validFiles.length === 0) return;
+    
+    // Create SelectedFile objects with unique IDs
+    const selectedFilesWithIds: SelectedFile[] = validFiles.map(file => ({
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      file
+    }));
+    
+    // Generate preview URLs for images immediately using createObjectURL
+    const newPreviewUrls = new Map<string, string>();
+    selectedFilesWithIds.forEach((selectedFile) => {
+      if (selectedFile.file.type.startsWith('image/')) {
+        const previewUrl = URL.createObjectURL(selectedFile.file);
+        newPreviewUrls.set(selectedFile.id, previewUrl);
+      }
+    });
+    
+    if (newPreviewUrls.size > 0) {
+      setFilePreviewUrls(prev => new Map([...prev, ...newPreviewUrls]));
+    }
+    
+    setSelectedFiles(prev => [...prev, ...selectedFilesWithIds]);
+    
+    // Upload files immediately if we have the required context
+    if (currentWorkspaceId && (channelId || activeConversation?._id)) {
+      selectedFilesWithIds.forEach((selectedFile) => {
+        handleFileUpload(selectedFile.file, selectedFile.id);
+      });
+    }
+    
     // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
+  
+  const handleFileUpload = async (file: File, fileId: string) => {
+    if (!currentWorkspaceId || (!channelId && !activeConversation?._id)) {
+      console.error('Cannot upload file: missing workspace context');
+      setUploadErrors(prev => new Map(prev).set(fileId, 'Missing workspace context'));
+      return;
+    }
+    
+    // Mark file as uploading
+    setUploadingFileIds(prev => new Set(prev).add(fileId));
+    setUploadErrors(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(fileId);
+      return newMap;
+    });
+    
+    try {
+      const uploadedFiles = await uploadFiles(
+        [file],
+        currentWorkspaceId,
+        channelId,
+        activeConversation?._id
+      );
+      
+      if (uploadedFiles && uploadedFiles.length > 0) {
+        setUploadedFileIds(prev => new Map(prev).set(fileId, uploadedFiles[0].id));
+      } else {
+        throw new Error('No file returned from upload');
+      }
+    } catch (error: any) {
+      console.error('Error uploading file:', error);
+      setUploadErrors(prev => new Map(prev).set(fileId, error.message || 'Failed to upload file'));
+    } finally {
+      setUploadingFileIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(fileId);
+        return newSet;
+      });
+    }
+  };
 
-  const handleRemoveFile = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  const handleRemoveFile = (fileId: string) => {
+    // Revoke the object URL before removing to prevent memory leak
+    const previewUrl = filePreviewUrls.get(fileId);
+    if (previewUrl && previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    
+    setSelectedFiles(prev => prev.filter(f => f.id !== fileId));
+    setUploadedFileIds(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(fileId);
+      return newMap;
+    });
+    setUploadingFileIds(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(fileId);
+      return newSet;
+    });
+    setFilePreviewUrls(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(fileId);
+      return newMap;
+    });
+    setUploadErrors(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(fileId);
+      return newMap;
+    });
+    // Close modal if this file is being previewed
+    if (previewModalData?.id === fileId) {
+      setPreviewModalOpen(false);
+      setPreviewModalData(null);
+    }
+  };
+
+  const handleImageClick = (file: File, previewUrl: string, id: string) => {
+    setPreviewModalData({ file, previewUrl, id });
+    setPreviewModalOpen(true);
+    setShowFileDetailsEdit(false);
+    setEditingFileName(file.name);
+    setEditingFileDescription('');
+  };
+
+  const handleEditFileDetails = () => {
+    setShowFileDetailsEdit(true);
+  };
+
+  const handleSaveFileDetails = () => {
+    // TODO: Implement file renaming and description storage
+    // For now, just close the edit modal
+    setShowFileDetailsEdit(false);
+  };
+
+  const handleCancelFileDetails = () => {
+    setShowFileDetailsEdit(false);
+    if (previewModalData) {
+      setEditingFileName(previewModalData.file.name);
+      setEditingFileDescription('');
+    }
   };
 
   const handleAttachClick = () => {
@@ -494,6 +657,42 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     }
   }, [showScheduleMenu]);
 
+  // Focus management for preview modal (accessibility)
+  useEffect(() => {
+    if (previewModalOpen && previewModalCloseButtonRef.current) {
+      // Store previously focused element to restore later
+      const previouslyFocusedElement = document.activeElement as HTMLElement;
+      
+      // Focus the close button when modal opens
+      previewModalCloseButtonRef.current.focus();
+      
+      return () => {
+        // Restore focus when modal closes
+        if (previouslyFocusedElement) {
+          previouslyFocusedElement.focus();
+        }
+      };
+    }
+  }, [previewModalOpen]);
+
+  // Keyboard handling for preview modal (Escape key to close)
+  useEffect(() => {
+    if (!previewModalOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPreviewModalOpen(false);
+        setPreviewModalData(null);
+        setShowFileDetailsEdit(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [previewModalOpen]);
+
   const handleEmojiSelectFromSuggestions = (emojiCode: string) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -561,13 +760,35 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
   };
 
   const handleSelectRecentFile = async (fileId: string) => {
-    // When a recent file is selected, send it as a message
-    if (activeConversation && currentWorkspaceId) {
-      try {
-        await sendMessage('', [fileId]);
-      } catch (error) {
-        console.error('Error sending recent file:', error);
-        alert('Failed to send file. Please try again.');
+    // When a recent file is selected, add it to the upload queue
+    const recentFiles = getRecentFiles();
+    const recentFile = recentFiles.find(f => f.id === fileId);
+    
+    if (!recentFile) {
+      console.error('Recent file not found');
+      return;
+    }
+    
+    // Generate a unique ID for this selected file
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Mark this file as already uploaded (it's from recent files)
+    setUploadedFileIds(prev => new Map(prev).set(uniqueId, fileId));
+    
+    // Create a placeholder File object with proper metadata
+    const placeholderFile: SelectedFile = {
+      id: uniqueId,
+      file: new File([], recentFile.filename, { type: recentFile.contentType }),
+      originalSize: recentFile.length // Store the original file size from metadata
+    };
+    
+    setSelectedFiles(prev => [...prev, placeholderFile]);
+    
+    // If it's an image, set the preview URL
+    if (recentFile.contentType.startsWith('image/')) {
+      const previewUrl = getFileUrl(fileId, true);
+      if (previewUrl) {
+        setFilePreviewUrls(prev => new Map(prev).set(uniqueId, previewUrl));
       }
     }
   };
@@ -746,14 +967,6 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
         </div>
       )}
 
-      {/* Recent Files Modal */}
-      {showRecentFiles && (
-        <RecentFilesModal
-          onClose={() => setShowRecentFiles(false)}
-          onSelectFile={handleSelectRecentFile}
-        />
-      )}
-      
       {/* Emoji Picker */}
       {showEmojiPicker && (
         <EmojiPicker
@@ -1005,6 +1218,112 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
           />
         </div>
 
+        {/* Selected Files Preview - Right below text input */}
+        {selectedFiles.length > 0 && (
+          <div className="px-3 pb-2">
+            <div className="flex flex-wrap gap-2">
+              {selectedFiles.map((selectedFile) => {
+                const isUploading = uploadingFileIds.has(selectedFile.id);
+                const hasError = uploadErrors.has(selectedFile.id);
+                const previewUrl = filePreviewUrls.get(selectedFile.id);
+                const isImage = selectedFile.file.type.startsWith('image/');
+                
+                return (
+                  <div
+                    key={selectedFile.id}
+                    className={`relative group ${isImage && previewUrl ? 'w-24 h-24' : 'w-auto'} rounded-lg overflow-hidden ${hasError ? 'ring-2 ring-red-500' : ''}`}
+                  >
+                    {isImage && previewUrl ? (
+                      // Image preview
+                      <div className="relative w-full h-full rounded-lg overflow-hidden bg-[rgb(34,37,41)]">
+                        {/* Progress bar at top - only show during upload */}
+                        {isUploading && (
+                          <div className="absolute top-0 left-0 right-0 h-1 bg-[rgba(255,255,255,0.2)] z-20 overflow-hidden">
+                            <div 
+                              className="h-full w-1/3 bg-gradient-to-r from-transparent via-white to-transparent"
+                              style={{
+                                animation: 'slideProgress 1.5s ease-in-out infinite'
+                              }}
+                            ></div>
+                          </div>
+                        )}
+                        
+                        <img
+                          src={previewUrl}
+                          alt={selectedFile.file.name}
+                          className="w-full h-full object-cover cursor-pointer"
+                          onClick={() => handleImageClick(selectedFile.file, previewUrl, selectedFile.id)}
+                        />
+                        
+                        {/* Remove button - only show on hover when not uploading */}
+                        {!isUploading && (
+                          <button
+                            onClick={() => handleRemoveFile(selectedFile.id)}
+                            className="absolute top-1 right-1 w-6 h-6 bg-[rgba(0,0,0,0.7)] hover:bg-[rgba(0,0,0,0.9)] rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+                            title="Remove file"
+                          >
+                            <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                        
+                        {/* Loading spinner overlay */}
+                        {isUploading && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      // Non-image file preview
+                      <div className="relative flex items-center gap-2 px-3 py-2 bg-[rgb(49,48,44)] rounded-lg text-sm text-[rgb(209,210,211)]">
+                        {/* Progress bar at top - only show during upload */}
+                        {isUploading && (
+                          <div className="absolute top-0 left-0 right-0 h-1 bg-[rgba(255,255,255,0.2)] rounded-t-lg overflow-hidden">
+                            <div 
+                              className="h-full w-1/3 bg-gradient-to-r from-transparent via-white to-transparent rounded-tl-lg"
+                              style={{
+                                animation: 'slideProgress 1.5s ease-in-out infinite'
+                              }}
+                            ></div>
+                          </div>
+                        )}
+                        
+                        <span className="truncate max-w-[200px]">{selectedFile.file.name}</span>
+                        <span className="text-xs text-[rgb(134,134,134)]">
+                          {((selectedFile.originalSize ?? selectedFile.file.size) / 1024 / 1024).toFixed(2)} MB
+                        </span>
+                        {hasError && (
+                          <span className="text-xs text-red-500">Error</span>
+                        )}
+                        
+                        {/* Loading spinner */}
+                        {isUploading && (
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin ml-2"></div>
+                        )}
+                        
+                        {/* Remove button - only show on hover when not uploading */}
+                        {!isUploading && (
+                          <button
+                            onClick={() => handleRemoveFile(selectedFile.id)}
+                            className="ml-2 w-5 h-5 rounded-full bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.2)] flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+                            title="Remove file"
+                          >
+                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Action Bar - Bottom - Slack Style */}
         <div className="px-1 py-1 flex items-center justify-between bg-[rgb(26,29,33)]">
           {/* Left side - Formatting & Action icons */}
@@ -1178,7 +1497,8 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
 
                   {/* Recent Files Submenu */}
                   {showRecentFilesSubmenu && (
-                    <div className="absolute left-full top-0 ml-1 w-[400px] max-h-[400px] bg-[rgb(34,37,41)] rounded-lg shadow-lg border border-[rgb(60,56,54)] py-3 overflow-y-auto z-50">
+                    <div className="absolute left-[calc(100%+2px)] top-0 w-[440px] max-h-[500px] bg-[rgb(34,37,41)] rounded-lg shadow-lg border border-[rgb(60,56,54)] overflow-hidden z-50" style={{ transform: 'translateY(-12px)' }}>
+                      <div className="overflow-y-auto max-h-[500px] py-2 recent-files-submenu-scroll">
                       {(() => {
                         const recentFiles = getRecentFiles();
                         if (recentFiles.length === 0) {
@@ -1198,7 +1518,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
 
                             if (file.contentType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif'].includes(extension)) {
                               return (
-                                <div className="w-[60px] h-[60px] flex items-center justify-center bg-gray-200 rounded overflow-hidden flex-shrink-0">
+                                <div className="w-[72px] h-[72px] flex items-center justify-center bg-gray-200 rounded overflow-hidden shrink-0">
                                   <img src={getFileUrl(file.id, true) || '/placeholder-image.png'} alt={file.filename} className="w-full h-full object-cover" />
                                 </div>
                               );
@@ -1206,7 +1526,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
 
                             if (file.contentType.startsWith('audio/') || ['mp3', 'wav', 'ogg'].includes(extension)) {
                               return (
-                                <div className="w-[60px] h-[60px] flex items-center justify-center bg-[rgb(76,133,226)] rounded flex-shrink-0">
+                                <div className="w-[72px] h-[72px] flex items-center justify-center bg-[rgb(76,133,226)] rounded shrink-0">
                                   <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                                   </svg>
@@ -1216,7 +1536,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
 
                             if (file.contentType.includes('pdf') || extension === 'pdf') {
                               return (
-                                <div className="w-[60px] h-[60px] flex items-center justify-center bg-[rgb(206,78,98)] rounded flex-shrink-0">
+                                <div className="w-[72px] h-[72px] flex items-center justify-center bg-[rgb(206,78,98)] rounded shrink-0">
                                   <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24">
                                     <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
                                     <path d="M14 2v6h6M9 13h6v1H9v-1zm0 3h6v1H9v-1z" fill="white" opacity="0.8" />
@@ -1227,7 +1547,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
 
                             if (file.contentType.includes('presentation') || ['ppt', 'pptx'].includes(extension)) {
                               return (
-                                <div className="w-[60px] h-[60px] flex items-center justify-center bg-[rgb(210,70,37)] rounded flex-shrink-0">
+                                <div className="w-[72px] h-[72px] flex items-center justify-center bg-[rgb(210,70,37)] rounded shrink-0">
                                   <span className="text-white text-2xl font-bold">P</span>
                                 </div>
                               );
@@ -1235,7 +1555,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
 
                             if (extension === 'epub') {
                               return (
-                                <div className="w-[60px] h-[60px] flex items-center justify-center bg-[rgb(76,133,226)] rounded flex-shrink-0">
+                                <div className="w-[72px] h-[72px] flex items-center justify-center bg-[rgb(76,133,226)] rounded shrink-0">
                                   <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
                                     <path d="M6 2h12a2 2 0 012 2v16a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2zm0 2v16h12V4H6zm2 2h8v2H8V6zm0 4h8v2H8v-2zm0 4h5v2H8v-2z" />
                                   </svg>
@@ -1246,17 +1566,27 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
                             // Canvas files
                             if (file.contentType.includes('canvas') || file.filename.toLowerCase().includes('canvas')) {
                               return (
-                                <div className="w-[60px] h-[60px] flex items-center justify-center bg-[rgb(76,133,226)] rounded flex-shrink-0">
-                                  <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/>
-                                    <path d="M7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/>
+                                <div className="w-[72px] h-[72px] flex items-center justify-center bg-[rgb(82,171,217)] rounded shrink-0">
+                                  <svg data-qa="canvas" aria-hidden="true" viewBox="0 0 20 20" className="w-8 h-8 text-white">
+                                    <path fill="currentColor" fillRule="evenodd" d="M3 5.25A2.25 2.25 0 0 1 5.25 3h9.5A2.25 2.25 0 0 1 17 5.25v5.5h-4.75a1.5 1.5 0 0 0-1.5 1.5V17h-5.5A2.25 2.25 0 0 1 3 14.75zm9.25 11.003 4.003-4.003H12.25zM5.25 1.5A3.75 3.75 0 0 0 1.5 5.25v9.5a3.75 3.75 0 0 0 3.75 3.75h5.736c.729 0 1.428-.29 1.944-.805l4.765-4.765a2.75 2.75 0 0 0 .805-1.944V5.25a3.75 3.75 0 0 0-3.75-3.75z" clipRule="evenodd"></path>
+                                  </svg>
+                                </div>
+                              );
+                            }
+
+                            // List files  
+                            if (file.contentType.includes('list')) {
+                              return (
+                                <div className="w-[72px] h-[72px] flex items-center justify-center bg-[rgb(205,147,44)] rounded shrink-0">
+                                  <svg data-qa="lists" aria-hidden="true" viewBox="0 0 20 20" className="w-8 h-8 text-white">
+                                    <path fill="currentColor" fillRule="evenodd" d="M1.5 5.25A3.75 3.75 0 0 1 5.25 1.5h9.5a3.75 3.75 0 0 1 3.75 3.75v9.5a3.75 3.75 0 0 1-3.75 3.75h-9.5a3.75 3.75 0 0 1-3.75-3.75zM5.25 3A2.25 2.25 0 0 0 3 5.25v9.5A2.25 2.25 0 0 0 5.25 17h9.5A2.25 2.25 0 0 0 17 14.75v-9.5A2.25 2.25 0 0 0 14.75 3zm3.654 9.204a.75.75 0 1 0-1.044-1.078l-1.802 1.745-.654-.634a.75.75 0 1 0-1.044 1.077l1.177 1.14a.75.75 0 0 0 1.043 0zm1.714.782a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5zm0-3.687a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5zm-.75-2.938a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75m-3.28 2.482c.2 0 .402-.114.737-.343.85-.586 1.513-1.317 1.513-2.082 0-.595-.486-1.075-1.168-1.075-.832 0-1.082.757-1.082.757s-.258-.757-1.082-.757c-.68 0-1.168.48-1.168 1.075 0 .765.66 1.498 1.51 2.078.337.231.54.347.74.347" clipRule="evenodd"></path>
                                   </svg>
                                 </div>
                               );
                             }
 
                             return (
-                              <div className="w-[60px] h-[60px] flex items-center justify-center bg-[rgb(97,97,97)] rounded flex-shrink-0">
+                              <div className="w-[72px] h-[72px] flex items-center justify-center bg-[rgb(97,97,97)] rounded shrink-0">
                                 <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                                 </svg>
@@ -1266,12 +1596,14 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
 
                           const getFileType = () => {
                             const extension = file.filename.split('.').pop()?.toLowerCase() || '';
-                            if (file.contentType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif'].includes(extension)) return 'JPEG';
+                            if (file.contentType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif'].includes(extension)) return 'PNG';
                             if (file.contentType.startsWith('audio/') || ['mp3', 'wav', 'ogg'].includes(extension)) return 'MP3';
                             if (file.contentType.includes('pdf') || extension === 'pdf') return 'PDF';
-                            if (file.contentType.includes('presentation') || ['ppt', 'pptx'].includes(extension)) return 'PowerPoint Presentation';
+                            if (file.contentType.includes('presentation') || ['ppt', 'pptx'].includes(extension)) return 'PowerPoint';
                             if (extension === 'epub') return 'EPUB';
+                            if (extension === 'jpeg' || extension === 'jpg') return 'JPEG';
                             if (file.contentType.includes('canvas')) return 'Canvas';
+                            if (file.contentType.includes('list')) return 'List';
                             return extension.toUpperCase();
                           };
 
@@ -1283,14 +1615,14 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
                                 setShowAddMenu(false);
                                 setShowRecentFilesSubmenu(false);
                               }}
-                              className="w-full px-4 py-2 flex items-center gap-3 hover:bg-[rgb(45,101,202)] transition-colors text-left"
+                              className="w-full px-4 py-3 flex items-center gap-3 hover:bg-[rgba(255,255,255,0.06)] transition-colors text-left"
                             >
                               {getFileIcon()}
                               <div className="flex-1 min-w-0">
-                                <div className="text-white text-[15px] font-normal truncate">
+                                <div className="text-white text-[15px] font-medium truncate mb-0.5">
                                   {file.filename}
                                 </div>
-                                <div className="text-[rgb(209,210,211)] text-[13px] mt-0.5">
+                                <div className="text-[rgb(185,186,189)] text-[13px]">
                                   {getFileType()} · {formatRelativeTime(file.uploadedAt)}
                                 </div>
                               </div>
@@ -1298,6 +1630,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
                           );
                         });
                       })()}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1370,17 +1703,17 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
             {/* Send now button */}
             <button
               onClick={handleSend}
-              disabled={(!text.trim() && selectedFiles.length === 0) || uploadingFiles}
+              disabled={(!text.trim() && selectedFiles.length === 0) || uploadingFileIds.size > 0}
               className={`relative flex items-center justify-center min-w-[28px] h-7 px-2 rounded-l transition-all ${
-                (!text.trim() && selectedFiles.length === 0) || uploadingFiles
+                (!text.trim() && selectedFiles.length === 0) || uploadingFileIds.size > 0
                   ? 'bg-[rgb(0,122,90)] opacity-30 cursor-default'
                   : 'bg-[rgb(0,122,90)] hover:bg-[rgb(0,108,78)] cursor-pointer'
               }`}
               title="Send now"
               aria-label="Send now"
-              aria-disabled={(!text.trim() && selectedFiles.length === 0) || uploadingFiles}
+              aria-disabled={(!text.trim() && selectedFiles.length === 0) || uploadingFileIds.size > 0}
             >
-              {uploadingFiles ? (
+              {uploadingFileIds.size > 0 ? (
                 <span className="text-white text-xs">...</span>
               ) : (
                 <svg data-qa="send-filled" aria-hidden="true" viewBox="0 0 20 20" className="w-4 h-4 text-white">
@@ -1394,16 +1727,16 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
             {/* Schedule/Options button */}
             <button
               onClick={() => setShowScheduleMenu(!showScheduleMenu)}
-              disabled={(!text.trim() && selectedFiles.length === 0) || uploadingFiles}
+              disabled={(!text.trim() && selectedFiles.length === 0) || uploadingFileIds.size > 0}
               className={`flex items-center justify-center min-w-[28px] h-7 px-1 rounded-r transition-all ${
-                (!text.trim() && selectedFiles.length === 0) || uploadingFiles
+                (!text.trim() && selectedFiles.length === 0) || uploadingFileIds.size > 0
                   ? 'bg-[rgb(0,122,90)] opacity-30 cursor-default'
                   : 'bg-[rgb(0,122,90)] hover:bg-[rgb(0,108,78)] cursor-pointer'
               }`}
               title="Schedule for later"
               aria-label="Schedule for later"
               aria-haspopup="menu"
-              aria-disabled={(!text.trim() && selectedFiles.length === 0) || uploadingFiles}
+              aria-disabled={(!text.trim() && selectedFiles.length === 0) || uploadingFileIds.size > 0}
             >
               <svg data-qa="caret-down" aria-hidden="true" viewBox="0 0 20 20" className="w-4 h-4 text-white">
                 <path fill="currentColor" fillRule="evenodd" d="M5.72 7.47a.75.75 0 0 1 1.06 0L10 10.69l3.22-3.22a.75.75 0 1 1 1.06 1.06l-3.75 3.75a.75.75 0 0 1-1.06 0L5.72 8.53a.75.75 0 0 1 0-1.06" clipRule="evenodd"></path>
@@ -1461,34 +1794,6 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
             )}
           </div>
         </div>
-
-        {/* Selected Files Preview */}
-        {selectedFiles.length > 0 && (
-          <div className="px-3 pt-2 pb-2 border-t border-[rgb(60,56,54)] bg-[rgb(30,30,30)]">
-            <div className="flex flex-wrap gap-2">
-              {selectedFiles.map((file, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-2 px-2 py-1 bg-[rgb(49,48,44)] rounded text-sm text-[rgb(209,210,211)]"
-                >
-                  <span className="truncate max-w-[200px]">{file.name}</span>
-                  <span className="text-xs text-[rgb(134,134,134)]">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB
-                  </span>
-                  <button
-                    onClick={() => handleRemoveFile(index)}
-                    className="ml-1 text-[rgb(209,210,211)] hover:text-white"
-                    title="Remove file"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Mention Suggestions */}
@@ -1518,6 +1823,182 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
         isOpen={showFormattingHelp}
         onClose={() => setShowFormattingHelp(false)}
       />
+
+      {/* Image Preview Modal */}
+      {previewModalOpen && previewModalData && !showFileDetailsEdit && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-8"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image preview"
+          onClick={() => {
+            setPreviewModalOpen(false);
+            setPreviewModalData(null);
+          }}
+        >
+          <div className="relative w-full h-full max-w-[90vw] max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-3 px-2 flex-shrink-0">
+              <div className="flex items-center gap-2 text-white">
+                <span className="text-sm font-medium">{editingFileName}</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditFileDetails();
+                  }}
+                  className="text-xs text-gray-400 hover:text-gray-300 cursor-pointer underline"
+                >
+                  Edit file details
+                </button>
+              </div>
+              <button
+                ref={previewModalCloseButtonRef}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPreviewModalOpen(false);
+                  setPreviewModalData(null);
+                }}
+                className="w-8 h-8 rounded flex items-center justify-center hover:bg-white hover:bg-opacity-10 transition-colors"
+                aria-label="Close preview"
+              >
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Image Container - takes remaining space */}
+            <div 
+              className="flex-1 flex items-center justify-center mb-3 min-h-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={previewModalData.previewUrl}
+                alt={previewModalData.file.name}
+                className="max-w-full max-h-full object-contain"
+                style={{ maxHeight: 'calc(90vh - 120px)' }}
+              />
+            </div>
+
+            {/* Bottom Actions */}
+            <div 
+              className="flex items-center justify-between px-2 flex-shrink-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    handleRemoveFile(previewModalData.id);
+                  }}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors text-sm"
+                >
+                  Delete
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setPreviewModalOpen(false);
+                    setPreviewModalData(null);
+                  }}
+                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors text-sm"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    setPreviewModalOpen(false);
+                    setPreviewModalData(null);
+                  }}
+                  className="px-4 py-2 bg-[rgb(0,122,90)] hover:bg-[rgb(0,108,78)] text-white rounded transition-colors text-sm font-medium"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* File Details Edit Modal */}
+      {previewModalOpen && previewModalData && showFileDetailsEdit && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="file-details-title"
+          onClick={() => handleCancelFileDetails()}
+        >
+          <div 
+            className="bg-[rgb(34,37,41)] rounded-lg w-full max-w-[520px] shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[rgb(60,56,54)]">
+              <h2 id="file-details-title" className="text-white text-lg font-semibold">File details</h2>
+              <button
+                onClick={handleCancelFileDetails}
+                className="w-8 h-8 rounded flex items-center justify-center hover:bg-white hover:bg-opacity-10 transition-colors"
+                aria-label="Close file details"
+              >
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-5 space-y-5">
+              {/* File name */}
+              <div>
+                <label className="block text-white text-sm font-medium mb-2">
+                  File name
+                </label>
+                <input
+                  type="text"
+                  value={editingFileName}
+                  onChange={(e) => setEditingFileName(e.target.value)}
+                  className="w-full px-3 py-2 bg-[rgb(26,29,33)] border border-[rgb(134,134,134)] rounded text-white text-sm focus:outline-none focus:border-[rgb(29,155,209)] focus:ring-1 focus:ring-[rgb(29,155,209)]"
+                  placeholder="Enter file name"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-white text-sm font-medium mb-2">
+                  Description
+                </label>
+                <p className="text-gray-400 text-xs mb-2">
+                  A description (or alt text) helps people to understand what you're sharing if they cannot see or parse this image. Consider the information in the image, and convey it as concisely as possible.
+                </p>
+                <textarea
+                  value={editingFileDescription}
+                  onChange={(e) => setEditingFileDescription(e.target.value)}
+                  rows={4}
+                  className="w-full px-3 py-2 bg-[rgb(26,29,33)] border border-[rgb(134,134,134)] rounded text-white text-sm focus:outline-none focus:border-[rgb(29,155,209)] focus:ring-1 focus:ring-[rgb(29,155,209)] resize-none"
+                  placeholder="Add a description..."
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[rgb(60,56,54)]">
+              <button
+                onClick={handleCancelFileDetails}
+                className="px-4 py-2 border border-gray-500 hover:border-gray-400 text-white rounded transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveFileDetails}
+                className="px-4 py-2 bg-[rgb(0,122,90)] hover:bg-[rgb(0,108,78)] text-white rounded transition-colors text-sm font-medium"
+              >
+                Save changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
     </>
   );

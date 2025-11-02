@@ -349,6 +349,7 @@ const ChannelChatPane: React.FC<ChannelChatPaneProps> = ({
           onSend={onSendMessage}
           placeholder={`Message #${channel.name}`}
           userName={channel.name}
+          channelId={channel._id}
           users={(channel.collaborators || []).filter(u => u.username).map(u => ({
             _id: u._id,
             username: u.username!,
