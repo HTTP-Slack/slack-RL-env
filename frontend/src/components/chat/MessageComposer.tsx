@@ -4,6 +4,8 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { uploadFiles } from '../../services/fileApi';
 import RecentFilesModal from './RecentFilesModal';
 import EmojiPicker from './EmojiPicker';
+import FormattingHelpModal from './FormattingHelpModal';
+import EmojiSuggestions from './EmojiSuggestions';
 
 interface MessageComposerProps {
   onSend: (text: string, attachments?: string[]) => void;
@@ -20,6 +22,12 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showRecentFiles, setShowRecentFiles] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showFormattingHelp, setShowFormattingHelp] = useState(false);
+  const [showEmojiSuggestions, setShowEmojiSuggestions] = useState(false);
+  const [emojiSearchTerm, setEmojiSearchTerm] = useState('');
+  const [emojiSearchStartPos, setEmojiSearchStartPos] = useState(0);
+  const [selectedEmojiIndex, setSelectedEmojiIndex] = useState(0);
+  const [emojiSuggestionsPosition, setEmojiSuggestionsPosition] = useState({ bottom: 0, left: 0 });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -93,7 +101,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
       formats.add('code');
     }
     
-    // Check for lists
+    // Check for lists and blockquote
     const lines = text.split('\n');
     const lineIndex = text.slice(0, start).split('\n').length - 1;
     const currentLine = lines[lineIndex] || '';
@@ -103,11 +111,66 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     if (currentLine.match(/^\s*[-*]\s/)) {
       formats.add('bulletList');
     }
+    if (currentLine.match(/^>\s/)) {
+      formats.add('blockquote');
+    }
     
     setActiveFormats(formats);
   }, [text]);
 
+  // Helper to get filtered emojis (same logic as in EmojiSuggestions component)
+  const getFilteredEmojis = () => {
+    const commonEmojis = [
+      { code: 'smile', emoji: '😊' }, { code: 'smiley', emoji: '😃' }, { code: 'grin', emoji: '😁' },
+      { code: 'laughing', emoji: '😆' }, { code: 'joy', emoji: '😂' }, { code: 'rofl', emoji: '🤣' },
+      { code: 'wink', emoji: '😉' }, { code: 'heart_eyes', emoji: '😍' }, { code: 'kissing_heart', emoji: '😘' },
+      { code: 'thinking', emoji: '🤔' }, { code: 'sunglasses', emoji: '😎' }, { code: '+1', emoji: '👍' },
+      { code: 'thumbsup', emoji: '👍' }, { code: '-1', emoji: '👎' }, { code: 'clap', emoji: '👏' },
+      { code: 'wave', emoji: '👋' }, { code: 'pray', emoji: '🙏' }, { code: 'muscle', emoji: '💪' },
+      { code: 'heart', emoji: '❤️' }, { code: 'fire', emoji: '🔥' }, { code: 'rocket', emoji: '🚀' },
+      { code: 'star', emoji: '⭐' }, { code: 'sparkles', emoji: '✨' }, { code: 'tada', emoji: '🎉' },
+      { code: 'trophy', emoji: '🏆' }, { code: 'gift', emoji: '🎁' }, { code: 'coffee', emoji: '☕' },
+      { code: 'pizza', emoji: '🍕' }, { code: 'cake', emoji: '🍰' }, { code: 'dog', emoji: '🐶' },
+      { code: 'cat', emoji: '🐱' },
+    ];
+    
+    return emojiSearchTerm
+      ? commonEmojis.filter((emoji) =>
+          emoji.code.toLowerCase().includes(emojiSearchTerm.toLowerCase())
+        )
+      : commonEmojis.slice(0, 20);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Handle emoji suggestions navigation
+    if (showEmojiSuggestions) {
+      const filteredEmojis = getFilteredEmojis();
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedEmojiIndex(prev => Math.min(filteredEmojis.length - 1, prev + 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedEmojiIndex(prev => Math.max(0, prev - 1));
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        // Get the currently selected emoji from filtered list
+        const filteredEmojis = getFilteredEmojis();
+        if (filteredEmojis.length > 0 && selectedEmojiIndex < filteredEmojis.length) {
+          handleEmojiSelectFromSuggestions(filteredEmojis[selectedEmojiIndex].code);
+        }
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowEmojiSuggestions(false);
+        return;
+      }
+    }
+    
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -185,8 +248,56 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     setShowAddMenu(false);
   };
 
+  const getCursorCoordinates = () => {
+    const container = containerRef.current;
+    if (!container) return { bottom: 60, left: 200 };
+
+    // Position it just above the input area, more to the right
+    const containerHeight = container.offsetHeight;
+    return { 
+      bottom: containerHeight + 10, // 10px gap above the container
+      left: 200 // Move it to the right
+    };
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setText(e.target.value);
+    const newText = e.target.value;
+    setText(newText);
+    
+    // Check if user is typing an emoji shortcode
+    const textarea = e.target;
+    const cursorPos = textarea.selectionStart;
+    const textBeforeCursor = newText.slice(0, cursorPos);
+    
+    // Find the last colon before cursor
+    const lastColonIndex = textBeforeCursor.lastIndexOf(':');
+    
+    if (lastColonIndex !== -1) {
+      // Check if there's a space or start of string before the colon
+      const charBeforeColon = lastColonIndex > 0 ? textBeforeCursor[lastColonIndex - 1] : ' ';
+      const isValidStart = charBeforeColon === ' ' || charBeforeColon === '\n' || lastColonIndex === 0;
+      
+      if (isValidStart) {
+        const searchTerm = textBeforeCursor.slice(lastColonIndex + 1);
+        
+        // Only show suggestions if search term doesn't contain spaces or newlines
+        if (!searchTerm.includes(' ') && !searchTerm.includes('\n') && !searchTerm.includes(':')) {
+          setEmojiSearchTerm(searchTerm);
+          setEmojiSearchStartPos(lastColonIndex);
+          
+          // Calculate cursor position for suggestions box
+          const position = getCursorCoordinates();
+          setEmojiSuggestionsPosition(position);
+          
+          setShowEmojiSuggestions(true);
+          setSelectedEmojiIndex(0);
+          return;
+        }
+      }
+    }
+    
+    // Hide suggestions if conditions aren't met
+    setShowEmojiSuggestions(false);
   };
 
   // Close menu when clicking outside
@@ -204,6 +315,26 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
       };
     }
   }, [showAddMenu]);
+
+  const handleEmojiSelectFromSuggestions = (emojiCode: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    // Replace :search with :emojiCode:
+    const beforeEmoji = text.slice(0, emojiSearchStartPos);
+    const afterEmoji = text.slice(textarea.selectionStart);
+    const newText = beforeEmoji + `:${emojiCode}:` + afterEmoji;
+    const newCursorPos = beforeEmoji.length + emojiCode.length + 2; // +2 for the two colons
+
+    setText(newText);
+    setShowEmojiSuggestions(false);
+
+    // Set cursor position after emoji
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  };
 
   const handleFormat = (formatType: string) => {
     const textarea = textareaRef.current;
@@ -379,6 +510,19 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
               <rect x="7" y="15" width="11" height="2" rx="1" />
             </svg>
           </button>
+          <button 
+            onClick={(e) => handleFormatClick(e, 'blockquote')}
+            className={`w-8 h-7 flex items-center justify-center rounded text-[rgb(209,210,211)] transition-colors ${
+              activeFormats.has('blockquote') 
+                ? 'bg-[rgb(60,56,54)]' 
+                : 'hover:bg-[rgb(49,48,44)]'
+            }`} 
+            title="Quote"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" />
+            </svg>
+          </button>
           <div className="w-px h-5 bg-[rgb(60,56,54)] mx-2"></div>
           <button 
             onClick={(e) => handleFormatClick(e, 'codeBlock')}
@@ -404,6 +548,19 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
           >
             <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
               <path d="M5.854 4.854a.5.5 0 10-.708-.708l-3.5 3.5a.5.5 0 000 .708l3.5 3.5a.5.5 0 00.708-.708L2.707 8l3.147-3.146zm4.292 0a.5.5 0 01.708-.708l3.5 3.5a.5.5 0 010 .708l-3.5 3.5a.5.5 0 01-.708-.708L13.293 8l-3.147-3.146z"/>
+            </svg>
+          </button>
+          <div className="flex-1"></div>
+          <button 
+            onClick={(e) => {
+              e.preventDefault();
+              setShowFormattingHelp(true);
+            }}
+            className="w-8 h-7 flex items-center justify-center rounded hover:bg-[rgb(49,48,44)] text-[rgb(134,134,134)] transition-colors" 
+            title="Formatting help"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </button>
         </div>
@@ -670,6 +827,22 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
           </div>
         )}
       </div>
+
+      {/* Emoji Suggestions */}
+      {showEmojiSuggestions && containerRef.current && (
+        <EmojiSuggestions
+          searchTerm={emojiSearchTerm}
+          onSelect={handleEmojiSelectFromSuggestions}
+          position={emojiSuggestionsPosition}
+          selectedIndex={selectedEmojiIndex}
+        />
+      )}
+
+      {/* Modals */}
+      <FormattingHelpModal 
+        isOpen={showFormattingHelp} 
+        onClose={() => setShowFormattingHelp(false)} 
+      />
     </div>
     </>
   );
