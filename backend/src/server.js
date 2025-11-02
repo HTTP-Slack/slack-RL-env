@@ -25,6 +25,7 @@ import userRoute from './routes/user.route.js';
 import fileRoute from './routes/file.route.js';
 import sectionRoute from './routes/section.route.js';
 import listRoute from './routes/list.route.js';
+import canvasRoute from './routes/canvas.route.js';
 
 //setup
 dotenv.config();
@@ -77,6 +78,7 @@ app.use('/api/conversation', conversationRoute);
 app.use('/api/threads', threadRoute);
 app.use('/api/sections', sectionRoute);
 app.use('/api/list', listRoute);
+app.use('/api/canvas', canvasRoute);
 app.use('/api/teammates', teammatesRoute);
 app.use('/api/users', userRoute);
 app.use('/api/files', fileRoute);
