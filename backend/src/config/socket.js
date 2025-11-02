@@ -4,6 +4,7 @@ import Conversations from '../models/conversation.model.js';
 import Thread from '../models/thread.model.js';
 import updateConversationStatus from '../helpers/updateConversationStatus.js';
 import createTodaysFirstMessage from '../helpers/createTodaysFirstUpdate.js';
+import { createNotifications } from '../helpers/createNotifications.js';
 
 // Store users' sockets by their user IDs
 const users = {}
@@ -81,6 +82,7 @@ const initializeSocket = (io) => {
         io.in(messageId).emit('message-updated', {
           id: messageId,
           message: updatedMessage,
+          isThread: false, // This is updating the parent message
         })
       } catch (error) {
         console.log(error)
@@ -131,6 +133,15 @@ const initializeSocket = (io) => {
             )
 
             io.to(channelId).emit('channel-updated', updatedChannel)
+            
+            // Create notifications for mentions
+            await createNotifications({
+              message: newMessage,
+              organisationId: organisation,
+              senderId: message.sender,
+              io,
+            })
+            
             socket.broadcast.emit('notification', {
               channelName,
               channelId,
@@ -181,6 +192,15 @@ const initializeSocket = (io) => {
               { new: true }
             ).populate('collaborators')
             io.to(conversationId).emit('convo-updated', updatedConversation)
+            
+            // Create notifications for mentions
+            await createNotifications({
+              message: newMessage,
+              organisationId: organisation,
+              senderId: message.sender,
+              io,
+            })
+            
             socket.broadcast.emit('notification', {
               collaborators,
               organisation,
@@ -264,6 +284,26 @@ const initializeSocket = (io) => {
         // Delete the message
         if (isThread) {
           await Thread.findByIdAndDelete(messageId)
+          
+          // Update parent message thread count when thread message is deleted
+          const parentMessage = await Message.findById(message.message)
+          if (parentMessage) {
+            const updatedMessage = await Message.findByIdAndUpdate(
+              message.message,
+              {
+                $inc: { threadRepliesCount: -1 },
+                $pull: { threadReplies: message.sender },
+              },
+              { new: true }
+            ).populate(['threadReplies', 'sender', 'reactions.reactedToBy'])
+            
+            // Broadcast parent message update
+            io.to(message.message.toString()).emit('message-updated', {
+              id: message.message.toString(),
+              message: updatedMessage,
+              isThread: false, // This is updating the parent, not the thread itself
+            })
+          }
         } else {
           await Message.findByIdAndDelete(messageId)
         }
