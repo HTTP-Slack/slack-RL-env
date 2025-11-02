@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { insertMarkdown, parseMarkdown } from '../../utils/markdown';
+// import { insertMarkdown, parseMarkdown } from '../../utils/markdown'; // No longer needed - using Lexical HTML
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { uploadFiles, getFileUrl, updateFileMetadata } from '../../services/fileApi';
 import { getRecentFiles, formatRelativeTime } from '../../services/recentFilesService';
@@ -7,6 +7,38 @@ import EmojiPicker from './EmojiPicker';
 import FormattingHelpModal from './FormattingHelpModal';
 import EmojiSuggestions from './EmojiSuggestions';
 import MentionSuggestions from './MentionSuggestions';
+import { LexicalComposer } from '@lexical/react/LexicalComposer';
+import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
+import { ContentEditable } from '@lexical/react/LexicalContentEditable';
+import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
+import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
+import { HeadingNode, QuoteNode } from '@lexical/rich-text';
+import { ListItemNode, ListNode } from '@lexical/list';
+import { CodeNode, CodeHighlightNode } from '@lexical/code';
+import { LinkNode } from '@lexical/link';
+import { ListPlugin } from '@lexical/react/LexicalListPlugin';
+import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
+import { 
+  $getRoot, 
+  $getSelection,
+  $isRangeSelection,
+  $createParagraphNode,
+  $createTextNode,
+  COMMAND_PRIORITY_HIGH,
+  COMMAND_PRIORITY_CRITICAL,
+  COMMAND_PRIORITY_EDITOR,
+  KEY_ENTER_COMMAND,
+  KEY_BACKSPACE_COMMAND,
+  FORMAT_TEXT_COMMAND,
+} from 'lexical';
+import { $isListNode, $isListItemNode } from '@lexical/list';
+import { INSERT_UNORDERED_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND } from '@lexical/list';
+import { $createQuoteNode } from '@lexical/rich-text';
+import { $createCodeNode } from '@lexical/code';
+import { $createLinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
+import { $generateHtmlFromNodes } from '@lexical/html';
+import { getEmojiByName } from '../../constants/emojis';
+import './MessageComposer.css';
 
 interface User {
   _id: string;
@@ -56,19 +88,20 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
   const [showRecentFilesSubmenu, setShowRecentFilesSubmenu] = useState(false);
   const [showScheduleMenu, setShowScheduleMenu] = useState(false);
   const [showFormattingHelp, setShowFormattingHelp] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkModalText, setLinkModalText] = useState('');
+  const [linkModalUrl, setLinkModalUrl] = useState('');
+  const [linkModalSelectedText, setLinkModalSelectedText] = useState('');
   const [showEmojiSuggestions, setShowEmojiSuggestions] = useState(false);
   const [emojiSearchTerm, setEmojiSearchTerm] = useState('');
-  const [emojiSearchStartPos, setEmojiSearchStartPos] = useState(0);
   const [selectedEmojiIndex, setSelectedEmojiIndex] = useState(0);
   const [emojiSuggestionsPosition, setEmojiSuggestionsPosition] = useState({ bottom: 0, left: 0 });
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const [mentionSearchTerm, setMentionSearchTerm] = useState('');
-  const [mentionSearchStartPos, setMentionSearchStartPos] = useState(0);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [mentionSuggestionsPosition, setMentionSuggestionsPosition] = useState({ bottom: 0, left: 0 });
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addMenuRef = useRef<HTMLDivElement>(null);
   const stickyBarRef = useRef<HTMLDivElement>(null);
@@ -77,6 +110,49 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
 
   // Track active formatting states
   const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
+
+  // Lexical editor configuration
+  const lexicalConfig = {
+    namespace: 'MessageComposer',
+    theme: {
+      text: {
+        bold: 'editor-text-bold',
+        italic: 'editor-text-italic',
+        underline: 'editor-text-underline',
+        strikethrough: 'editor-text-strikethrough',
+        code: 'editor-text-code',
+      },
+      paragraph: 'editor-paragraph',
+      quote: 'editor-quote',
+      code: 'editor-code',
+      list: {
+        nested: {
+          listitem: 'editor-nested-listitem',
+        },
+        ol: 'editor-list-ol',
+        ul: 'editor-list-ul',
+        listitem: 'editor-listitem',
+      },
+    },
+    onError: (error: Error) => {
+      console.error('Lexical error:', error);
+    },
+    editorState: () => {
+      const root = $getRoot();
+      if (root.getTextContent() === '') {
+        root.append($createParagraphNode());
+      }
+    },
+    nodes: [
+      HeadingNode,
+      QuoteNode,
+      ListNode,
+      ListItemNode,
+      CodeNode,
+      CodeHighlightNode,
+      LinkNode,
+    ],
+  };
 
   // Cleanup preview URLs on unmount to prevent memory leaks
   useEffect(() => {
@@ -90,139 +166,528 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     };
   }, [filePreviewUrls]);
 
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    const overlay = overlayRef.current;
-    if (!textarea || !overlay) return;
+  // Lexical plugins
+  function EnterKeyPlugin() {
+    const [editor] = useLexicalComposerContext();
 
-    // Sync scroll between textarea and overlay
-    const handleScroll = () => {
-      overlay.scrollTop = textarea.scrollTop;
-    };
-    textarea.addEventListener('scroll', handleScroll);
-    
-    // Sync height and scroll
-    textarea.style.height = 'auto';
-    const height = Math.min(textarea.scrollHeight, 150);
-    textarea.style.height = `${height}px`;
-    overlay.style.height = `${height}px`;
-    overlay.scrollTop = textarea.scrollTop;
-    
-    return () => {
-      textarea.removeEventListener('scroll', handleScroll);
-    };
-  }, [text]);
-
-  useEffect(() => {
-    // Check active formatting at cursor position
-    const textarea = textareaRef.current;
-    if (!textarea || !text) {
-      setActiveFormats(new Set());
-      return;
-    }
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const beforeCursor = text.slice(0, start);
-    const afterCursor = text.slice(end);
-
-    const formats = new Set<string>();
-
-    // Check for bold
-    if (beforeCursor.match(/\*\*[^*]*$/) && afterCursor.match(/^[^*]*\*\*/)) {
-      formats.add('bold');
-    }
-
-    // Check for italic
-    if ((beforeCursor.match(/\*[^*]*$/) && afterCursor.match(/^[^*]*\*/)) ||
-        (beforeCursor.match(/_[^_]*$/) && !beforeCursor.match(/__[^_]*$/) && afterCursor.match(/^[^_]*_/) && !afterCursor.match(/^[^_]*__/))) {
-      formats.add('italic');
-    }
-
-    // Check for underline
-    if (beforeCursor.match(/__[^_]*$/) && afterCursor.match(/^[^_]*__/)) {
-      formats.add('underline');
-    }
-
-    // Check for strikethrough
-    if (beforeCursor.match(/~~[^~]*$/) && afterCursor.match(/^[^~]*~~/)) {
-      formats.add('strikethrough');
-    }
-
-    // Check for code
-    if (beforeCursor.match(/`[^`]*$/) && afterCursor.match(/^[^`]*`/)) {
-      formats.add('code');
-    }
-
-    // Check for lists and blockquote
-    const lines = text.split('\n');
-    const lineIndex = text.slice(0, start).split('\n').length - 1;
-    const currentLine = lines[lineIndex] || '';
-    if (currentLine.match(/^\s*\d+\.\s/) || currentLine.match(/^\s*[a-z]\.\s/i)) {
-      formats.add('orderedList');
-    }
-    if (currentLine.match(/^\s*[-*]\s/)) {
-      formats.add('bulletList');
-    }
-    if (currentLine.match(/^>\s/)) {
-      formats.add('blockquote');
-    }
-
-    setActiveFormats(formats);
-  }, [text]);
-
-  // Handle text selection for sticky formatting bar
-  useEffect(() => {
-    const handleSelectionChange = () => {
-      const textarea = textareaRef.current;
-      const container = containerRef.current;
-
-      if (!textarea || !container) return;
-
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const hasSelection = start !== end;
-
-      if (hasSelection) {
-        // Small delay to ensure selection is finalized
-        setTimeout(() => {
-          const containerRect = container.getBoundingClientRect();
-          const parentRect = container.parentElement?.getBoundingClientRect();
-
-          if (!parentRect) return;
-
-          // Position the bar above the container, centered
-          setStickyBarPosition({
-            top: containerRect.top - parentRect.top - 45,
-            left: 20
+    useEffect(() => {
+      return editor.registerCommand(
+        KEY_ENTER_COMMAND,
+        (event) => {
+          if (!event) return false;
+          
+          // First, check if suggestions are open - if so, let SuggestionKeyboardPlugin handle it
+          if (showEmojiSuggestions || showMentionSuggestions) {
+            return false; // Let SuggestionKeyboardPlugin handle Enter for selecting suggestions
+          }
+          
+          // Handle Shift+Enter
+          if (event.shiftKey) {
+            // Check if we're in a list
+            let isInList = false;
+            editor.getEditorState().read(() => {
+              const selection = $getSelection();
+              if ($isRangeSelection(selection)) {
+                const anchor = selection.anchor;
+                const node = anchor.getNode();
+                
+                let currentNode: any = node;
+                while (currentNode) {
+                  if ($isListItemNode(currentNode)) {
+                    isInList = true;
+                    break;
+                  }
+                  const parent = currentNode.getParent();
+                  if (!parent) break;
+                  currentNode = parent;
+                }
+              }
+            });
+            
+            if (isInList) {
+              // In a list with Shift+Enter: insert a line break within the current list item
+              editor.update(() => {
+                const selection = $getSelection();
+                if ($isRangeSelection(selection)) {
+                  selection.insertText('\n');
+                }
+              });
+              event.preventDefault();
+              return true;
+            }
+            
+            // Not in a list - Shift+Enter just inserts newline (standard behavior)
+            return false; // Let Lexical handle it normally
+          }
+          
+          // Normal Enter key
+          // Check if we're in a list - if so, let ListPlugin handle Enter to create new list items
+          let isInList = false;
+          editor.getEditorState().read(() => {
+            const selection = $getSelection();
+            if ($isRangeSelection(selection)) {
+              const anchor = selection.anchor;
+              const node = anchor.getNode();
+              
+              // Check if we're inside a list item
+              let currentNode: any = node;
+              while (currentNode) {
+                if ($isListItemNode(currentNode)) {
+                  isInList = true;
+                  break;
+                }
+                if ($isListNode(currentNode)) {
+                  isInList = true;
+                  break;
+                }
+                const parent = currentNode.getParent();
+                if (!parent) break;
+                currentNode = parent;
+              }
+            }
           });
-          setShowStickyBar(true);
-        }, 10);
-      } else {
-        setShowStickyBar(false);
-      }
+          
+          if (isInList) {
+            // We're in a list - let ListPlugin handle Enter to create new list items
+            return false;
+          }
+          
+          // Not in a list and no suggestions - Enter should send the message
+          event.preventDefault();
+          handleSend();
+          return true;
+        },
+        COMMAND_PRIORITY_HIGH
+      );
+    }, [editor, showEmojiSuggestions, showMentionSuggestions]);
+
+    return null;
+  }
+
+  function BackspaceKeyPlugin() {
+    const [editor] = useLexicalComposerContext();
+
+    useEffect(() => {
+      return editor.registerCommand(
+        KEY_BACKSPACE_COMMAND,
+        (event) => {
+          if (!event) return false;
+
+          let shouldExitList = false;
+          let listItemNode: any = null;
+
+          editor.getEditorState().read(() => {
+            const selection = $getSelection();
+            if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
+              return;
+            }
+
+            const anchor = selection.anchor;
+            const node = anchor.getNode();
+
+            // Check if we're in a list item
+            let currentNode: any = node;
+            while (currentNode) {
+              if ($isListItemNode(currentNode)) {
+                listItemNode = currentNode;
+                break;
+              }
+              const parent = currentNode.getParent();
+              if (!parent) break;
+              currentNode = parent;
+            }
+
+            if (!listItemNode) return;
+
+            // Check if list item is empty (no text content or only whitespace)
+            const textContent = listItemNode.getTextContent().trim();
+            const isEmpty = textContent === '';
+
+            if (!isEmpty) return;
+
+            // Check if cursor is at the start of the list item
+            // We need to check if we're at position 0 in the first child node
+            const children = listItemNode.getChildren();
+            
+            if (children.length === 0) {
+              // Completely empty list item
+              shouldExitList = true;
+            } else {
+              // Check if we're at the start of the first child
+              const firstChild = children[0];
+              if (firstChild) {
+                // If the current node is the first child and offset is 0, we're at the start
+                if (node === firstChild && anchor.offset === 0) {
+                  shouldExitList = true;
+                } else if (firstChild.getType() === 'paragraph') {
+                  // List items often contain paragraph nodes
+                  const paragraphChildren = firstChild.getChildren();
+                  if (paragraphChildren.length === 0) {
+                    // Empty paragraph in list item
+                    shouldExitList = true;
+                  } else if (paragraphChildren.length === 1 && paragraphChildren[0].getType() === 'text') {
+                    // Single text node in paragraph
+                    if (node === paragraphChildren[0] && anchor.offset === 0) {
+                      shouldExitList = true;
+                    }
+                  }
+                }
+              }
+            }
+          });
+
+          if (shouldExitList && listItemNode) {
+            event.preventDefault();
+            editor.update(() => {
+              // Create a new paragraph node
+              const paragraph = $createParagraphNode();
+              
+              // Replace the list item with the paragraph
+              listItemNode.replace(paragraph);
+              
+              // Select the paragraph
+              paragraph.selectStart();
+            });
+            return true;
+          }
+
+          return false;
+        },
+        COMMAND_PRIORITY_EDITOR
+      );
+    }, [editor]);
+
+    return null;
+  }
+
+  function FormatTrackingPlugin() {
+    const [editor] = useLexicalComposerContext();
+
+    useEffect(() => {
+      return editor.registerUpdateListener(({ editorState }) => {
+        editorState.read(() => {
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) {
+            const formats = new Set<string>();
+            
+            if (selection.hasFormat('bold')) formats.add('bold');
+            if (selection.hasFormat('italic')) formats.add('italic');
+            if (selection.hasFormat('underline')) formats.add('underline');
+            if (selection.hasFormat('strikethrough')) formats.add('strikethrough');
+            if (selection.hasFormat('code')) formats.add('code');
+            
+            // Check for lists and blockquote
+            const anchor = selection.anchor;
+            const node = anchor.getNode();
+            const parent = node.getParent();
+            
+            if (parent && parent.getType() === 'listitem') {
+              const listParent = parent.getParent();
+              if (listParent && listParent instanceof ListNode) {
+                const listType = listParent.getListType();
+                if (listType === 'number') {
+                  formats.add('orderedList');
+                } else if (listType === 'bullet') {
+                  formats.add('bulletList');
+                }
+              }
+            }
+            
+            // Check for quote
+            let current: any = node;
+            while (current) {
+              if (current.getType() === 'quote') {
+                formats.add('blockquote');
+                break;
+              }
+              current = current.getParent();
+            }
+            
+            setActiveFormats(formats);
+          }
+        });
+      });
+    }, [editor]);
+
+    return null;
+  }
+
+  function OnChangeSyncPlugin() {
+    const [editor] = useLexicalComposerContext();
+
+    useEffect(() => {
+      editorRef.current = editor;
+      
+      return editor.registerUpdateListener(({ editorState }) => {
+        editorState.read(() => {
+          // Generate HTML with proper formatting for lists
+          const htmlString = $generateHtmlFromNodes(editor, null);
+          setText(htmlString);
+        });
+      });
+    }, [editor]);
+
+    return null;
+  }
+
+  // Mention and Emoji Suggestion Plugin
+  function MentionEmojiSuggestionPlugin() {
+    const [editor] = useLexicalComposerContext();
+
+    useEffect(() => {
+      return editor.registerUpdateListener(({ editorState }) => {
+        editorState.read(() => {
+          const selection = $getSelection();
+          if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
+            setShowMentionSuggestions(false);
+            setShowEmojiSuggestions(false);
+            return;
+          }
+
+          // Get text from current node up to cursor position
+          const anchor = selection.anchor;
+          const node = anchor.getNode();
+          const offset = anchor.offset;
+          
+          // Get text content from current node (simplified - works for most cases)
+          const nodeText = node.getTextContent();
+          const textBeforeCursor = nodeText.slice(0, offset);
+
+          // Check for @ mentions first
+          const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+          if (lastAtIndex !== -1) {
+            const charBeforeAt = lastAtIndex > 0 ? textBeforeCursor[lastAtIndex - 1] : ' ';
+            const isValidStart = charBeforeAt === ' ' || charBeforeAt === '\n' || lastAtIndex === 0;
+
+            if (isValidStart) {
+              const searchTerm = textBeforeCursor.slice(lastAtIndex + 1);
+              if (!searchTerm.includes(' ') && !searchTerm.includes('\n') && !searchTerm.includes('@')) {
+                setMentionSearchTerm(searchTerm);
+                const position = getCursorCoordinates();
+                setMentionSuggestionsPosition(position);
+                setShowMentionSuggestions(true);
+                setSelectedMentionIndex(0);
+                setShowEmojiSuggestions(false);
+                return;
+              }
+            }
+          }
+
+          // Check for :emoji: shortcodes
+          const lastColonIndex = textBeforeCursor.lastIndexOf(':');
+          if (lastColonIndex !== -1) {
+            const charBeforeColon = lastColonIndex > 0 ? textBeforeCursor[lastColonIndex - 1] : ' ';
+            const isValidStart = charBeforeColon === ' ' || charBeforeColon === '\n' || lastColonIndex === 0;
+
+            if (isValidStart) {
+              const searchTerm = textBeforeCursor.slice(lastColonIndex + 1);
+              if (!searchTerm.includes(' ') && !searchTerm.includes('\n') && !searchTerm.includes(':')) {
+                setEmojiSearchTerm(searchTerm);
+                const position = getCursorCoordinates();
+                setEmojiSuggestionsPosition(position);
+                setShowEmojiSuggestions(true);
+                setSelectedEmojiIndex(0);
+                setShowMentionSuggestions(false);
+                return;
+              }
+            }
+          }
+
+          // Hide suggestions if conditions aren't met
+          setShowEmojiSuggestions(false);
+          setShowMentionSuggestions(false);
+        });
+      });
+    }, [editor]);
+
+    return null;
+  }
+
+  // Keyboard navigation for suggestions
+  function SuggestionKeyboardPlugin() {
+    const [editor] = useLexicalComposerContext();
+
+    // Handle Enter key for suggestions (higher priority)
+    useEffect(() => {
+      return editor.registerCommand(
+        KEY_ENTER_COMMAND,
+        (event) => {
+          if (!event || event.shiftKey) return false;
+          
+          // Handle mention suggestions
+          if (showMentionSuggestions) {
+            const filteredUsers = users.filter(user =>
+              user.username.toLowerCase().includes(mentionSearchTerm.toLowerCase())
+            );
+            const specialMentions = [
+              { username: 'channel' },
+              { username: 'here' },
+              { username: 'everyone' },
+            ].filter(mention =>
+              mention.username.toLowerCase().includes(mentionSearchTerm.toLowerCase())
+            );
+            const allSuggestions = [...specialMentions, ...filteredUsers];
+            
+            if (allSuggestions.length > 0 && selectedMentionIndex < allSuggestions.length) {
+              event.preventDefault();
+              handleMentionSelect(allSuggestions[selectedMentionIndex].username);
+              return true;
+            }
+          }
+
+          // Handle emoji suggestions
+          if (showEmojiSuggestions) {
+            const filteredEmojis = getFilteredEmojis();
+            if (filteredEmojis.length > 0 && selectedEmojiIndex < filteredEmojis.length) {
+              event.preventDefault();
+              handleEmojiSelectFromSuggestions(filteredEmojis[selectedEmojiIndex].code);
+              return true;
+            }
+          }
+          
+          return false;
+        },
+        COMMAND_PRIORITY_CRITICAL // Higher priority than EnterKeyPlugin
+      );
+    }, [editor, showMentionSuggestions, showEmojiSuggestions, mentionSearchTerm, selectedMentionIndex, selectedEmojiIndex, users]);
+
+    // Handle other keys for suggestions navigation
+    useEffect(() => {
+      const handleKeyDown = (event: KeyboardEvent) => {
+        // Handle mention suggestions navigation (non-Enter keys)
+        if (showMentionSuggestions) {
+          const filteredUsers = users.filter(user =>
+            user.username.toLowerCase().includes(mentionSearchTerm.toLowerCase())
+          );
+          const specialMentions = [
+            { username: 'channel' },
+            { username: 'here' },
+            { username: 'everyone' },
+          ].filter(mention =>
+            mention.username.toLowerCase().includes(mentionSearchTerm.toLowerCase())
+          );
+          const allSuggestions = [...specialMentions, ...filteredUsers];
+
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setSelectedMentionIndex(prev => Math.min(allSuggestions.length - 1, prev + 1));
+            return;
+          }
+          if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setSelectedMentionIndex(prev => Math.max(0, prev - 1));
+            return;
+          }
+          if (event.key === 'Tab') {
+            event.preventDefault();
+            if (allSuggestions.length > 0 && selectedMentionIndex < allSuggestions.length) {
+              handleMentionSelect(allSuggestions[selectedMentionIndex].username);
+            }
+            return;
+          }
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            setShowMentionSuggestions(false);
+            return;
+          }
+        }
+
+        // Handle emoji suggestions navigation (non-Enter keys)
+        if (showEmojiSuggestions) {
+          const filteredEmojis = getFilteredEmojis();
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setSelectedEmojiIndex(prev => Math.min(filteredEmojis.length - 1, prev + 1));
+            return;
+          }
+          if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setSelectedEmojiIndex(prev => Math.max(0, prev - 1));
+            return;
+          }
+          if (event.key === 'Tab') {
+            event.preventDefault();
+            if (filteredEmojis.length > 0 && selectedEmojiIndex < filteredEmojis.length) {
+              handleEmojiSelectFromSuggestions(filteredEmojis[selectedEmojiIndex].code);
+            }
+            return;
+          }
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            setShowEmojiSuggestions(false);
+            return;
+          }
+        }
+      };
+
+      document.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown);
+      };
+    }, [editor, showMentionSuggestions, showEmojiSuggestions, mentionSearchTerm, selectedMentionIndex, selectedEmojiIndex, users]);
+
+    return null;
+  }
+
+  // Handle text selection for sticky formatting bar - Lexical version
+  useEffect(() => {
+    const editor = editorRef.current;
+    const container = containerRef.current;
+    
+    if (!editor || !container) return;
+
+    const handleSelectionChange = () => {
+      editor.getEditorState().read(() => {
+        const selection = $getSelection();
+        const hasSelection = $isRangeSelection(selection) && !selection.isCollapsed();
+
+        if (hasSelection) {
+          // Small delay to ensure selection is finalized
+          setTimeout(() => {
+            const containerRect = container.getBoundingClientRect();
+            const parentRect = container.parentElement?.getBoundingClientRect();
+
+            if (!parentRect) return;
+
+            // Position the bar above the container, centered
+            setStickyBarPosition({
+              top: containerRect.top - parentRect.top - 45,
+              left: 20
+            });
+            setShowStickyBar(true);
+          }, 10);
+        } else {
+          setShowStickyBar(false);
+        }
+      });
     };
 
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.addEventListener('mouseup', handleSelectionChange);
-      textarea.addEventListener('keyup', handleSelectionChange);
-      textarea.addEventListener('select', handleSelectionChange);
+    // Listen to selection changes via Lexical
+    const removeListener = editor.registerUpdateListener(({ editorState }: { editorState: any }) => {
+      editorState.read(() => {
+        handleSelectionChange();
+      });
+    });
 
-      return () => {
-        textarea.removeEventListener('mouseup', handleSelectionChange);
-        textarea.removeEventListener('keyup', handleSelectionChange);
-        textarea.removeEventListener('select', handleSelectionChange);
-      };
-    }
+    // Also listen to DOM selection events as fallback
+    document.addEventListener('selectionchange', handleSelectionChange);
+    container.addEventListener('mouseup', handleSelectionChange);
+    container.addEventListener('keyup', handleSelectionChange);
+
+    return () => {
+      removeListener();
+      document.removeEventListener('selectionchange', handleSelectionChange);
+      container.removeEventListener('mouseup', handleSelectionChange);
+      container.removeEventListener('keyup', handleSelectionChange);
+    };
   }, []);
 
   // Close sticky bar when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (stickyBarRef.current && !stickyBarRef.current.contains(event.target as Node)) {
-        // Check if click is not in textarea (to allow selection)
-        if (textareaRef.current && !textareaRef.current.contains(event.target as Node)) {
+        // Check if click is not in editor container (to allow selection)
+        if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
           setShowStickyBar(false);
         }
       }
@@ -259,6 +724,10 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
       : commonEmojis.slice(0, 20);
   };
 
+  // Note: handleKeyDown and handleChange are for mention/emoji suggestions
+  // These need to be integrated into Lexical plugins later
+  // For now, keeping them commented out as they won't work with Lexical's ContentEditable
+  /*
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Handle mention suggestions navigation
     if (showMentionSuggestions) {
@@ -333,22 +802,28 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
       handleSend();
     }
   };
+  */
 
   const handleSend = async () => {
-    const trimmedText = text.trim();
-    if (!trimmedText && selectedFiles.length === 0) return;
+    // Check if HTML content is actually empty (Lexical can return <p><br></p> for empty content)
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = text;
+    const textContent = tempDiv.textContent || tempDiv.innerText || '';
+    const hasContent = textContent.trim().length > 0;
+    
+    if (!hasContent && selectedFiles.length === 0) return;
 
     try {
       const attachmentIds = Array.from(uploadedFileIds.values());
       const attachments = attachmentIds.length > 0 ? attachmentIds : undefined;
 
-      // Send via channel or DM context
+      // Send via channel or DM context - send HTML content
       if (channelId && currentWorkspaceId) {
-        await onSend(trimmedText, attachments);
+        await onSend(text, attachments);
       } else if (activeConversation?._id && currentWorkspaceId) {
-        await sendMessage(trimmedText, attachments);
+        await sendMessage(text, attachments);
       } else {
-        await onSend(trimmedText, attachments);
+        await onSend(text, attachments);
       }
 
       // Clear all states after successful send
@@ -359,15 +834,19 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
         }
       });
       
+      // Clear Lexical editor
+      if (editorRef.current) {
+        editorRef.current.update(() => {
+          const root = $getRoot();
+          root.clear();
+        });
+      }
       setText('');
       setSelectedFiles([]);
       setUploadedFileIds(new Map());
       setUploadingFileIds(new Set());
       setFilePreviewUrls(new Map());
       setUploadErrors(new Map());
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-      }
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -595,6 +1074,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     };
   };
 
+  /*
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value;
     setText(newText);
@@ -665,6 +1145,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     setShowEmojiSuggestions(false);
     setShowMentionSuggestions(false);
   };
+  */
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -735,60 +1216,143 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
   }, [previewModalOpen]);
 
   const handleEmojiSelectFromSuggestions = (emojiCode: string) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
+    const editor = editorRef.current;
+    if (!editor) return;
 
-    // Replace :search with :emojiCode:
-    const beforeEmoji = text.slice(0, emojiSearchStartPos);
-    const afterEmoji = text.slice(textarea.selectionStart);
-    const newText = beforeEmoji + `:${emojiCode}:` + afterEmoji;
-    const newCursorPos = beforeEmoji.length + emojiCode.length + 2; // +2 for the two colons
+    // Get the actual emoji character from the code
+    const emojiChar = getEmojiByName(emojiCode);
+    const emojiToInsert = emojiChar || `:${emojiCode}:`;
 
-    setText(newText);
+    editor.update(() => {
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) {
+        const anchor = selection.anchor;
+        const node = anchor.getNode();
+        const offset = anchor.offset;
+        const textBeforeCursor = node.getTextContent().slice(0, offset);
+        const lastColonIndex = textBeforeCursor.lastIndexOf(':');
+        
+        if (lastColonIndex !== -1 && node.getType() === 'text') {
+          // Select from : to cursor and replace with actual emoji
+          selection.setTextNodeRange(node as any, lastColonIndex, node as any, offset);
+          selection.insertText(emojiToInsert + ' ');
+        } else {
+          // Fallback: just insert emoji
+          selection.insertText(emojiToInsert + ' ');
+        }
+      }
+    });
+
     setShowEmojiSuggestions(false);
-
-    // Set cursor position after emoji
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-    }, 0);
   };
 
   const handleMentionSelect = (username: string) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
+    const editor = editorRef.current;
+    if (!editor) return;
 
-    // Replace @search with @username 
-    const beforeMention = text.slice(0, mentionSearchStartPos);
-    const afterMention = text.slice(textarea.selectionStart);
-    const newText = beforeMention + `@${username} ` + afterMention;
-    const newCursorPos = beforeMention.length + username.length + 2; // +1 for @ and +1 for space
+    editor.update(() => {
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) {
+        const anchor = selection.anchor;
+        const node = anchor.getNode();
+        const offset = anchor.offset;
+        const textBeforeCursor = node.getTextContent().slice(0, offset);
+        const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+        
+        if (lastAtIndex !== -1 && node.getType() === 'text') {
+          // Select from @ to cursor and replace
+          selection.setTextNodeRange(node as any, lastAtIndex + 1, node as any, offset);
+          // Replace with username
+          selection.insertText(username + ' ');
+        } else {
+          // Fallback: just insert
+          selection.insertText(`@${username} `);
+        }
+      }
+    });
 
-    setText(newText);
     setShowMentionSuggestions(false);
-
-    // Set cursor position after mention
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-    }, 0);
   };
 
   const handleFormat = (formatType: string) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
+    const editor = editorRef.current;
+    if (!editor) return;
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
+    editor.update(() => {
+      const selection = $getSelection();
+      if (!$isRangeSelection(selection)) return;
 
-    const { newText, newCursorPosition } = insertMarkdown(text, start, end, formatType);
-    setText(newText);
-
-    // Set cursor position after markdown insertion
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(newCursorPosition, newCursorPosition);
-    }, 0);
+      switch (formatType) {
+        case 'bold':
+          editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold');
+          break;
+        case 'italic':
+          editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic');
+          break;
+        case 'underline':
+          editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline');
+          break;
+        case 'strikethrough':
+          editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough');
+          break;
+        case 'code':
+          editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code');
+          break;
+        case 'orderedList':
+          editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
+          break;
+        case 'bulletList':
+          editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
+          break;
+        case 'blockquote': {
+          // Toggle blockquote - wrap selected text in quote or remove if already in quote
+          const anchor = selection.anchor;
+          const node = anchor.getNode();
+          
+          // Check if already in a quote
+          let inQuote = false;
+          let quoteNode: any = null;
+          let current: any = node;
+          while (current) {
+            if (current.getType() === 'quote') {
+              inQuote = true;
+              quoteNode = current;
+              break;
+            }
+            current = current.getParent();
+          }
+          
+          if (inQuote && quoteNode) {
+            // Remove quote by converting children to paragraphs
+            const children = quoteNode.getChildren();
+            quoteNode.replace(...children);
+          } else {
+            // Wrap selection in quote
+            const nodes = selection.getNodes();
+            if (nodes.length > 0) {
+              const quote = $createQuoteNode();
+              nodes.forEach(n => quote.append(n));
+              selection.insertNodes([quote]);
+            }
+          }
+          break;
+        }
+        case 'codeBlock': {
+          const codeNode = $createCodeNode('javascript');
+          selection.insertNodes([codeNode]);
+          break;
+        }
+        case 'link': {
+          // Get selected text and open link modal
+          const selectedText = selection.getTextContent();
+          setLinkModalSelectedText(selectedText);
+          setLinkModalText(selectedText || '');
+          setLinkModalUrl('');
+          setShowLinkModal(true);
+          break;
+        }
+      }
+    });
   };
 
   const handleFormatClick = (e: React.MouseEvent, formatType: string) => {
@@ -796,8 +1360,51 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     handleFormat(formatType);
   };
 
+  const handleLinkModalSave = () => {
+    if (!linkModalUrl.trim()) return;
+
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    editor.update(() => {
+      const selection = $getSelection();
+      if (!$isRangeSelection(selection)) return;
+
+      if (linkModalSelectedText) {
+        // If text was selected, wrap it in a link
+        editor.dispatchCommand(TOGGLE_LINK_COMMAND, linkModalUrl.trim());
+      } else {
+        // No selection - create link with text
+        const linkText = linkModalText.trim() || linkModalUrl.trim();
+        const textNode = $createTextNode(linkText);
+        const linkNode = $createLinkNode(linkModalUrl.trim());
+        linkNode.append(textNode);
+        selection.insertNodes([linkNode]);
+      }
+    });
+
+    setShowLinkModal(false);
+    setLinkModalText('');
+    setLinkModalUrl('');
+    setLinkModalSelectedText('');
+  };
+
+  const handleLinkModalCancel = () => {
+    setShowLinkModal(false);
+    setLinkModalText('');
+    setLinkModalUrl('');
+    setLinkModalSelectedText('');
+  };
+
   const handleContainerClick = () => {
-    textareaRef.current?.focus();
+    // Focus Lexical editor by focusing the contentEditable element
+    const container = containerRef.current;
+    if (container) {
+      const contentEditable = container.querySelector('[contenteditable="true"]') as HTMLElement;
+      if (contentEditable) {
+        contentEditable.focus();
+      }
+    }
   };
 
   const handleSelectRecentFile = async (fileId: string) => {
@@ -835,23 +1442,15 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
   };
 
   const handleEmojiSelect = (emoji: string) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
+    const editor = editorRef.current;
+    if (!editor) return;
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const before = text.slice(0, start);
-    const after = text.slice(end);
-    
-    const newText = `${before}${emoji}${after}`;
-    setText(newText);
-    
-    // Set cursor position after emoji
-    setTimeout(() => {
-      textarea.focus();
-      const newPosition = start + emoji.length;
-      textarea.setSelectionRange(newPosition, newPosition);
-    }, 0);
+    editor.update(() => {
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) {
+        selection.insertText(emoji);
+      }
+    });
   };
 
   return (
@@ -1216,47 +1815,36 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
         </div>
         )}
 
-        {/* Message Input Area - Dual Layer for Live Rendering */}
-        <div className="relative px-3 pt-2 pb-1">
-          {/* Overlay div for live markdown rendering */}
-          <div
-            ref={overlayRef}
-            className="markdown-overlay absolute left-3 right-3 top-2 bottom-1 pointer-events-none overflow-y-auto"
-            style={{ 
-              maxHeight: '150px',
-              wordWrap: 'break-word',
-              whiteSpace: 'pre-wrap'
-            }}
-          >
-            {text ? (
-              <div className="text-[15px] text-white leading-[1.46668] min-h-[22px]">
-                {parseMarkdown(text).map((part, idx) => (
-                  <React.Fragment key={idx}>{part}</React.Fragment>
-                ))}
-              </div>
-            ) : (
-              <div className="text-[15px] text-[rgb(209,210,211)] leading-[1.46668] min-h-[22px]">
-                {placeholder}
-              </div>
-            )}
-          </div>
-          
-          {/* Textarea for input (transparent, but functional) */}
-          <textarea
-            ref={textareaRef}
-            value={text}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            // Placeholder is intentionally empty to avoid double placeholders (overlay shows placeholder)
-            placeholder=""
-            className="textarea-overlay w-full resize-none outline-none bg-transparent text-[15px] min-h-[22px] max-h-[150px] overflow-y-auto leading-[1.46668] relative z-10 caret-white"
-            rows={1}
-            style={{ 
-              color: 'transparent'
-            }}
-          />
+        {/* Message Input Area - Lexical Rich Text Editor */}
+        <div className="relative px-3 pt-2 pb-1" ref={containerRef}>
+          <LexicalComposer initialConfig={lexicalConfig}>
+            <div className="relative">
+              <RichTextPlugin
+                contentEditable={
+                  <ContentEditable 
+                    className="editor-input-message-composer"
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={() => setIsFocused(false)}
+                  />
+                }
+                placeholder={
+                  <div className="editor-placeholder-message-composer">
+                    {placeholder}
+                  </div>
+                }
+                ErrorBoundary={(props: any) => <div>{props.children}</div>}
+              />
+              <HistoryPlugin />
+              <ListPlugin />
+              <LinkPlugin />
+              <EnterKeyPlugin />
+              <BackspaceKeyPlugin />
+              <FormatTrackingPlugin />
+              <OnChangeSyncPlugin />
+              <MentionEmojiSuggestionPlugin />
+              <SuggestionKeyboardPlugin />
+            </div>
+          </LexicalComposer>
         </div>
 
         {/* Selected Files Preview - Right below text input */}
@@ -1863,6 +2451,112 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
         isOpen={showFormattingHelp}
         onClose={() => setShowFormattingHelp(false)}
       />
+
+      {/* Link Modal */}
+      {showLinkModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="link-modal-title"
+          onClick={handleLinkModalCancel}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              handleLinkModalCancel();
+            }
+          }}
+        >
+          <div 
+            className="bg-[rgb(34,37,41)] rounded-lg w-full max-w-[440px] shadow-2xl border border-[rgb(60,56,54)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[rgb(60,56,54)]">
+              <h2 id="link-modal-title" className="text-white text-lg font-semibold">Add link</h2>
+              <button
+                onClick={handleLinkModalCancel}
+                className="w-8 h-8 rounded flex items-center justify-center hover:bg-white hover:bg-opacity-10 transition-colors"
+                aria-label="Close link modal"
+              >
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-5 space-y-5">
+              {/* Text Input */}
+              <div>
+                <label className="block text-white text-sm font-medium mb-2">
+                  Text
+                </label>
+                <input
+                  type="text"
+                  value={linkModalText}
+                  onChange={(e) => setLinkModalText(e.target.value)}
+                  className="w-full px-3 py-2 bg-[rgb(26,29,33)] border border-[rgb(134,134,134)] rounded text-white text-sm focus:outline-none focus:border-[rgb(29,155,209)] focus:ring-1 focus:ring-[rgb(29,155,209)]"
+                  placeholder="Enter link text"
+                  autoFocus={!linkModalSelectedText}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const linkInput = e.currentTarget.parentElement?.nextElementSibling?.querySelector('input') as HTMLInputElement;
+                      linkInput?.focus();
+                    } else if (e.key === 'Escape') {
+                      handleLinkModalCancel();
+                    }
+                  }}
+                />
+              </div>
+
+              {/* Link Input */}
+              <div>
+                <label className="block text-white text-sm font-medium mb-2">
+                  Link
+                </label>
+                <input
+                  type="text"
+                  value={linkModalUrl}
+                  onChange={(e) => setLinkModalUrl(e.target.value)}
+                  className="w-full px-3 py-2 bg-[rgb(26,29,33)] border border-[rgb(134,134,134)] rounded text-white text-sm focus:outline-none focus:border-[rgb(29,155,209)] focus:ring-1 focus:ring-[rgb(29,155,209)]"
+                  placeholder="Enter URL"
+                  autoFocus={!!linkModalSelectedText}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && linkModalUrl.trim()) {
+                      e.preventDefault();
+                      handleLinkModalSave();
+                    } else if (e.key === 'Escape') {
+                      handleLinkModalCancel();
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[rgb(60,56,54)]">
+              <button
+                onClick={handleLinkModalCancel}
+                className="px-4 py-2 border border-[rgb(134,134,134)] hover:border-[rgb(209,210,211)] text-white rounded transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLinkModalSave}
+                disabled={!linkModalUrl.trim()}
+                className={`px-4 py-2 rounded text-white text-sm transition-colors ${
+                  linkModalUrl.trim()
+                    ? 'bg-[#00553d] hover:bg-[#11624b] cursor-pointer'
+                    : 'border border-[rgb(60,56,54)] opacity-50 cursor-not-allowed bg-transparent'
+                }`}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Image Preview Modal */}
       {previewModalOpen && previewModalData && !showFileDetailsEdit && (

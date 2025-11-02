@@ -1,7 +1,32 @@
 import React, { useState, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import axios from '../../config/axios';
 import { parseMarkdown } from '../../utils/markdown';
+import { convertEmojiShortcodes } from '../../constants/emojis';
+
+// Sanitize HTML content with safe configuration
+const sanitizeHtml = (html: string): string => {
+  try {
+    return DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: [
+        'p', 'br', 'strong', 'em', 'u', 's', 'strike', 'code', 'pre',
+        'ul', 'ol', 'li', 'a', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'span', 'div'
+      ],
+      ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
+      ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+      KEEP_CONTENT: true,
+      RETURN_DOM: false,
+      RETURN_DOM_FRAGMENT: false,
+      RETURN_TRUSTED_TYPE: false,
+    });
+  } catch (error) {
+    console.error('HTML sanitization failed:', error);
+    // Return empty string on error - will fall back to markdown rendering
+    return '';
+  }
+};
 
 interface ActivityItem {
   _id: string;
@@ -303,9 +328,22 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({ isOpen, onNavigate
                       <div className="mb-1">
                         <span className="text-[#d1d2d3] text-[15px] font-bold">{activity.sender?.username}</span>
                         <span className="text-[#ababad] text-[15px] ml-1">
-                          {activity.message?.content && parseMarkdown(activity.message.content).map((part, idx) => (
-                            <React.Fragment key={idx}>{part}</React.Fragment>
-                          ))}
+                          {activity.message?.content && (() => {
+                            const content = activity.message.content;
+                            if (content.trim().startsWith('<')) {
+                              const sanitized = sanitizeHtml(convertEmojiShortcodes(content));
+                              // If sanitization fails or removes all content, fall back to markdown
+                              if (!sanitized || sanitized.trim() === '') {
+                                return parseMarkdown(content).map((part, idx) => (
+                                  <React.Fragment key={idx}>{part}</React.Fragment>
+                                ));
+                              }
+                              return <span dangerouslySetInnerHTML={{ __html: sanitized }} />;
+                            }
+                            return parseMarkdown(content).map((part, idx) => (
+                              <React.Fragment key={idx}>{part}</React.Fragment>
+                            ));
+                          })()}
                         </span>
                       </div>
                       <div className="text-[#ababad] text-[13px]">{formatTime(activity.createdAt)}</div>
@@ -336,9 +374,22 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({ isOpen, onNavigate
                       <div className="mb-1">
                         <span className="text-[#d1d2d3] text-[15px] font-bold">{activity.sender?.username}</span>
                         <span className="text-[#ababad] text-[15px] ml-1">
-                          {activity.message?.content && parseMarkdown(activity.message.content).map((part, idx) => (
-                            <React.Fragment key={idx}>{part}</React.Fragment>
-                          ))}
+                          {activity.message?.content && (() => {
+                            const content = activity.message.content;
+                            if (content.trim().startsWith('<')) {
+                              const sanitized = sanitizeHtml(convertEmojiShortcodes(content));
+                              // If sanitization fails or removes all content, fall back to markdown
+                              if (!sanitized || sanitized.trim() === '') {
+                                return parseMarkdown(content).map((part, idx) => (
+                                  <React.Fragment key={idx}>{part}</React.Fragment>
+                                ));
+                              }
+                              return <span dangerouslySetInnerHTML={{ __html: sanitized }} />;
+                            }
+                            return parseMarkdown(content).map((part, idx) => (
+                              <React.Fragment key={idx}>{part}</React.Fragment>
+                            ));
+                          })()}
                         </span>
                       </div>
                       <div className="text-[#ababad] text-[13px]">{formatTime(activity.createdAt)}</div>

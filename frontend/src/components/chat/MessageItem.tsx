@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import type { Message as ApiMessage, User as ApiUser } from '../../services/messageApi';
 import { parseMarkdown } from '../../utils/markdown';
 import { getFileUrl, getFileInfo, type FileMetadata } from '../../services/fileApi';
@@ -6,6 +7,31 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import EmojiPicker from './EmojiPicker';
 import FileContextMenu from './FileContextMenu';
 import MessageContextMenu from './MessageContextMenu';
+import { convertEmojiShortcodes } from '../../constants/emojis';
+import './MessageComposer.css';
+
+// Sanitize HTML content with safe configuration
+const sanitizeHtml = (html: string): string => {
+  try {
+    return DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: [
+        'p', 'br', 'strong', 'em', 'u', 's', 'strike', 'code', 'pre',
+        'ul', 'ol', 'li', 'a', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'span', 'div'
+      ],
+      ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
+      ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+      KEEP_CONTENT: true,
+      RETURN_DOM: false,
+      RETURN_DOM_FRAGMENT: false,
+      RETURN_TRUSTED_TYPE: false,
+    });
+  } catch (error) {
+    console.error('HTML sanitization failed:', error);
+    // Return empty string on error - will fall back to markdown rendering
+    return '';
+  }
+};
 
 interface MessageItemProps {
   message: ApiMessage;
@@ -963,10 +989,28 @@ const MessageItem: React.FC<MessageItemProps> = ({
           ) : (
             <>
               <div className="text-[15px] text-white break-words leading-[1.46668]">
-                <div>
-                  {parseMarkdown(message.content).map((part, idx) => (
-                    <React.Fragment key={idx}>{part}</React.Fragment>
-                  ))}
+                <div className="message-content">
+                  {/* Check if content is HTML (starts with <) or markdown */}
+                  {message.content.trim().startsWith('<') ? (() => {
+                    const sanitized = sanitizeHtml(convertEmojiShortcodes(message.content));
+                    // If sanitization fails or removes all content, fall back to markdown
+                    if (!sanitized || sanitized.trim() === '') {
+                      return (
+                        <>
+                          {parseMarkdown(message.content).map((part, idx) => (
+                            <React.Fragment key={idx}>{part}</React.Fragment>
+                          ))}
+                        </>
+                      );
+                    }
+                    return <div dangerouslySetInnerHTML={{ __html: sanitized }} />;
+                  })() : (
+                    <>
+                      {parseMarkdown(message.content).map((part, idx) => (
+                        <React.Fragment key={idx}>{part}</React.Fragment>
+                      ))}
+                    </>
+                  )}
                 </div>
                 {message.updatedAt && message.updatedAt !== message.createdAt && (
                   <span className="text-[12px] text-[rgb(209,210,211)] ml-1">(edited)</span>

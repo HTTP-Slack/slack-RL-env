@@ -1,0 +1,154 @@
+/* Lexical Editor Styles for Message Composer - Matches existing textarea appearance */
+
+.editor-input-message-composer {
+  min-height: 22px !important;
+  max-height: 150px !important;
+  overflow-y: auto !important;
+  padding: 0 !important;
+  outline: none !important;
+  color: white !important;
+  font-size: 15px !important;
+  line-height: 1.46668 !important;
+  font-family: inherit !important;
+  caret-color: white !important;
+  background: transparent !important;
+  width: 100% !important;
+  resize: none !important;
+}
+
+.editor-input-message-composer::-webkit-scrollbar {
+  width: 8px;
+}
+
+.editor-input-message-composer::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.editor-input-message-composer::-webkit-scrollbar-thumb {
+  background: rgb(60, 56, 54);
+  border-radius: 4px;
+}
+
+.editor-input-message-composer::-webkit-scrollbar-thumb:hover {
+  background: rgb(82, 78, 76);
+}
+
+.editor-placeholder-message-composer {
+  position: absolute;
+  top: 2px;
+  left: 12px;
+  color: rgb(209, 210, 211);
+  font-size: 15px;
+  line-height: 1.46668;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Text Formatting Styles */
+.editor-text-bold {
+  font-weight: bold;
+}
+
+.editor-text-italic {
+  font-style: italic;
+}
+
+.editor-text-underline {
+  text-decoration: underline;
+}
+
+.editor-text-strikethrough {
+  text-decoration: line-through;
+}
+
+.editor-text-code {
+  background-color: rgba(232, 232, 232, 0.13);
+  color: rgb(232, 147, 123);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: Monaco, Menlo, monospace;
+  font-size: 0.85em;
+}
+
+.editor-paragraph {
+  margin: 0;
+  padding: 0;
+}
+
+.editor-quote {
+  border-left: 4px solid rgb(134, 134, 134);
+  padding-left: 12px;
+  margin: 8px 0;
+  color: rgb(209, 210, 211);
+}
+
+.editor-code {
+  background-color: rgba(232, 232, 232, 0.13);
+  color: rgb(232, 147, 123);
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid rgb(60, 56, 54);
+  overflow-x: auto;
+  font-family: Monaco, Menlo, monospace;
+  font-size: 0.9em;
+  margin: 8px 0;
+}
+
+.editor-list-ol,
+.editor-list-ul {
+  padding-left: 24px !important;
+  margin: 4px 0 !important;
+  list-style-position: outside !important;
+  display: block !important;
+}
+
+.editor-list-ol {
+  list-style-type: decimal !important;
+}
+
+.editor-list-ul {
+  list-style-type: disc !important;
+}
+
+.editor-listitem {
+  margin: 2px 0 !important;
+  color: white !important;
+  display: list-item !important;
+}
+
+.editor-nested-listitem {
+  list-style-type: none;
+}
+
+/* Links */
+.editor-input-message-composer a {
+  color: rgb(18, 100, 163);
+  text-decoration: none;
+}
+
+.editor-input-message-composer a:hover {
+  text-decoration: underline;
+}
+
+/* Ensure proper rendering of lists in HTML output */
+.message-content ol,
+.message-content ul {
+  padding-left: 24px !important;
+  margin: 4px 0 !important;
+  list-style-position: outside !important;
+  display: block !important;
+}
+
+.message-content ol {
+  list-style-type: decimal !important;
+}
+
+.message-content ul {
+  list-style-type: disc !important;
+}
+
+.message-content li {
+  margin: 2px 0 !important;
+  color: white !important;
+  display: list-item !important;
+}
