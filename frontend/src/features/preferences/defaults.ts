@@ -106,6 +106,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
     whenTypingCodeEnterShouldNotSend: false,
     formatMessagesWithMarkup: false,
     enterBehavior: 'send',
+    ctrlFStartsSearch: false,
     searchShortcut: 'cmd_k',
     excludeChannelsFromSearch: [],
     searchSortDefault: SearchSortDefault.MOST_RELEVANT,

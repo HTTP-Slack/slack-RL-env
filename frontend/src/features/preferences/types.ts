@@ -165,6 +165,7 @@ export interface AdvancedPreferences {
   whenTypingCodeEnterShouldNotSend: boolean;
   formatMessagesWithMarkup: boolean;
   enterBehavior: 'send' | 'newline';
+  ctrlFStartsSearch: boolean;
   searchShortcut: 'cmd_f' | 'cmd_k';
   excludeChannelsFromSearch: string[];
   searchSortDefault: SearchSortDefault;

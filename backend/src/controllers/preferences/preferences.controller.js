@@ -10,6 +10,7 @@ import AccessibilityPreferences from '../../models/preferences/accessibilityPref
 import MarkAsReadPreferences from '../../models/preferences/markAsReadPreferences.model.js';
 import AudioVideoPreferences from '../../models/preferences/audioVideoPreferences.model.js';
 import PrivacyVisibilityPreferences from '../../models/preferences/privacyVisibilityPreferences.model.js';
+import AdvancedPreferences from '../../models/preferences/advancedPreferences.model.js';
 
 // @desc    get user's complete preferences
 // @route   GET /api/preferences
@@ -269,8 +270,20 @@ export const updatePreferences = async (req, res) => {
       preferences.streamSummaryResults = updateData.streamSummaryResults;
     }
 
-    // TODO: Handle other preference categories as they are implemented
-    // Similar pattern for slackAI, advanced, etc.
+    // Handle advanced update
+    if (updateData.advanced) {
+      if (preferences.advanced) {
+        await AdvancedPreferences.findByIdAndUpdate(
+          preferences.advanced,
+          updateData.advanced,
+          { new: true }
+        );
+      } else {
+        const advancedPrefs = await AdvancedPreferences.create(updateData.advanced);
+        preferences.advanced = advancedPrefs._id;
+        await preferences.save();
+      }
+    }
 
     // Reload preferences with populated fields
     preferences = await Preferences.findById(preferences._id)

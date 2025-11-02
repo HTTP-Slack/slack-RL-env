@@ -17,6 +17,7 @@ import accessibilityPreferencesRoute from './accessibilityPreferences.route.js';
 import markAsReadPreferencesRoute from './markAsReadPreferences.route.js';
 import audioVideoPreferencesRoute from './audioVideoPreferences.route.js';
 import privacyVisibilityPreferencesRoute from './privacyVisibilityPreferences.route.js';
+import advancedPreferencesRoute from './advancedPreferences.route.js';
 import themeRoute from './theme.route.js';
 
 const router = express.Router();
@@ -38,6 +39,7 @@ router.use('/accessibility', accessibilityPreferencesRoute);
 router.use('/mark-as-read', markAsReadPreferencesRoute);
 router.use('/audio-video', audioVideoPreferencesRoute);
 router.use('/privacy-visibility', privacyVisibilityPreferencesRoute);
+router.use('/advanced', advancedPreferencesRoute);
 router.use('/themes', themeRoute);
 
 export default router;
