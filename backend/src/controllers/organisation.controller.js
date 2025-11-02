@@ -2,6 +2,7 @@ import Organisation from '../models/organisation.model.js';
 import Channel from '../models/channel.model.js';
 import Conversation from '../models/conversation.model.js';
 import User from '../models/user.model.js';
+import { Section } from '../models/section.model.js';
 import { sendBulkInvitations } from '../services/email.service.js';
 
 // @desc    get organisation
@@ -113,6 +114,18 @@ export const createOrganisation = async (req, res) => {
 
     // generateJoinLink is a method on your model
     organisation.generateJoinLink();
+    await organisation.save();
+
+    // Create default "Channels" section
+    const defaultSection = await Section.create({
+      name: 'Channels',
+      organisation: organisation._id,
+      createdBy: ownerId,
+      order: 0,
+    });
+
+    // Add section to organisation
+    organisation.sections = [defaultSection._id];
     await organisation.save();
 
     // Populate the fields before sending back

@@ -1,6 +1,6 @@
 import express from 'express';
 
-import { protectRoute } from '../middlewares/protectRoute';
+import { protectRoute } from '../middlewares/protectRoute.js';
 import { createTeammates, getTeammate } from '../controllers/teammates.controller.js';
 
 const router = express.Router();

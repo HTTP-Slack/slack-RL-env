@@ -3,13 +3,17 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import LeftNav from '../components/chat/LeftNav';
 import Sidebar from '../components/chat/Sidebar';
 import ChatPane from '../components/chat/ChatPane';
+import ChannelChatPane from '../components/chat/ChannelChatPane';
 import ThreadPanel from '../components/chat/ThreadPanel';
 import { PreferencesModal } from '../features/preferences/PreferencesModal';
 import { ProfilePanel } from '../features/profile/ProfilePanel';
 import { useAuth } from '../context/AuthContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { getWorkspaces } from '../services/workspaceApi';
+import { getChannel } from '../services/channelApi';
+import { getMessages } from '../services/messageApi';
 import type { Workspace } from '../types/workspace';
+import type { IChannel } from '../types/channel';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -31,6 +35,8 @@ const Dashboard: React.FC = () => {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [activeThread, setActiveThread] = useState<any | null>(null);
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
+  const [activeChannel, setActiveChannel] = useState<IChannel | null>(null);
+  const [channelMessages, setChannelMessages] = useState<any[]>([]);
 
   // Initialize workspace from URL or fetch workspaces
   useEffect(() => {
@@ -112,7 +118,9 @@ const Dashboard: React.FC = () => {
 
   const handleOpenThread = (messageId: string) => {
     console.log('Open thread for message:', messageId);
-    const message = messages.find((m) => m._id === messageId);
+    // Check if we're in a channel or conversation
+    const messagesToSearch = activeChannel ? channelMessages : messages;
+    const message = messagesToSearch.find((m) => m._id === messageId);
     if (message) {
       setActiveThread(message);
     }
@@ -134,6 +142,127 @@ const Dashboard: React.FC = () => {
       userId: user._id,
     });
   };
+
+  const handleChannelSelect = async (channelId: string) => {
+    console.log('Channel selected:', channelId);
+    try {
+      const channelData = await getChannel(channelId);
+      setActiveChannel(channelData.data);
+      setActiveConversation(null); // Clear conversation when selecting channel
+      setChannelMessages([]); // Clear previous messages
+      
+      // Join the channel room and open it
+      if (socket && currentWorkspaceId && user) {
+        socket.emit('channel-open', { 
+          id: channelId,
+          userId: user._id 
+        });
+        
+        // Fetch channel messages via REST API
+        const messages = await getMessages({
+          channelId,
+          organisation: currentWorkspaceId,
+        });
+        console.log('📥 Fetched channel messages:', messages.length);
+        setChannelMessages(messages);
+      }
+    } catch (error) {
+      console.error('Failed to load channel:', error);
+    }
+  };
+
+  const handleRefreshChannel = async () => {
+    if (activeChannel) {
+      try {
+        const channelData = await getChannel(activeChannel._id);
+        setActiveChannel(channelData.data);
+      } catch (error) {
+        console.error('Failed to refresh channel:', error);
+      }
+    }
+  };
+
+  const handleSendChannelMessage = async (text: string, attachments?: string[]) => {
+    if (!activeChannel || !socket || !user || !currentWorkspaceId) return;
+    
+    const messageData = {
+      sender: user._id,
+      content: text,
+      attachments: attachments || [],
+    };
+
+    // Get list of users who haven't opened this channel (all collaborators except sender)
+    const hasNotOpen = activeChannel.collaborators
+      .filter((collab) => collab._id !== user._id)
+      .map((collab) => collab._id);
+
+    socket.emit('message', {
+      channelId: activeChannel._id,
+      channelName: activeChannel.name,
+      message: messageData,
+      organisation: currentWorkspaceId,
+      collaborators: activeChannel.collaborators.map((c) => c._id),
+      hasNotOpen,
+    });
+  };
+
+  // Listen for channel messages and updates
+  useEffect(() => {
+    if (!socket || !activeChannel) return;
+
+    const handleChannelMessage = (data: any) => {
+      console.log('📨 Received message event:', data);
+      if (data.newMessage && data.newMessage.channel === activeChannel._id) {
+        console.log('✅ Adding message to channel:', data.newMessage);
+        setChannelMessages((prev) => [...prev, data.newMessage]);
+      }
+    };
+
+    const handleMessageUpdated = ({ id, message, isThread }: { id: string; message: any; isThread?: boolean }) => {
+      if (!isThread && message.channel === activeChannel._id) {
+        console.log('✏️ Channel message updated:', id);
+        setChannelMessages((prev) =>
+          prev.map((msg) => (msg._id === id ? message : msg))
+        );
+      }
+    };
+
+    const handleMessageDeleted = ({ id, isThread }: { id: string; isThread?: boolean }) => {
+      if (!isThread) {
+        console.log('🗑️ Channel message deleted:', id);
+        setChannelMessages((prev) => prev.filter((msg) => msg._id !== id));
+      }
+    };
+
+    // Handle thread message updates to update parent message thread count
+    const handleThreadMessage = () => {
+      // When a thread message is added, we'll get a message-updated event for the parent
+      // which will update the threadRepliesCount
+      console.log('🧵 Thread message received');
+    };
+
+    // Handle channel updates (like hasNotOpen changes)
+    const handleChannelUpdated = (updatedChannel: any) => {
+      if (updatedChannel._id === activeChannel._id) {
+        console.log('📢 Channel updated:', updatedChannel);
+        setActiveChannel(updatedChannel);
+      }
+    };
+
+    socket.on('message', handleChannelMessage);
+    socket.on('message-updated', handleMessageUpdated);
+    socket.on('message-deleted', handleMessageDeleted);
+    socket.on('thread-message', handleThreadMessage);
+    socket.on('channel-updated', handleChannelUpdated);
+
+    return () => {
+      socket.off('message', handleChannelMessage);
+      socket.off('message-updated', handleMessageUpdated);
+      socket.off('message-deleted', handleMessageDeleted);
+      socket.off('thread-message', handleThreadMessage);
+      socket.off('channel-updated', handleChannelUpdated);
+    };
+  }, [socket, activeChannel]);
 
   if (!user || !currentWorkspaceId) {
     return (
@@ -211,10 +340,37 @@ const Dashboard: React.FC = () => {
           conversations={conversations}
           users={users}
           activeConversation={activeConversation}
-          onConversationSelect={setActiveConversation}
+          onConversationSelect={(conv) => {
+            setActiveConversation(conv);
+            setActiveChannel(null); // Clear channel when selecting conversation
+          }}
           onUserSelect={handleUserSelect}
+          onChannelSelect={handleChannelSelect}
         />
-        {activeConversation && activeUser ? (
+        {activeChannel ? (
+          <>
+            <ChannelChatPane
+              currentUser={user}
+              channel={activeChannel}
+              messages={channelMessages}
+              threads={{}}
+              editingMessageId={editingMessageId}
+              onSendMessage={handleSendChannelMessage}
+              onEditMessage={handleEditMessage}
+              onDeleteMessage={handleDeleteMessage}
+              onOpenThread={handleOpenThread}
+              onReaction={handleReaction}
+              onRefreshChannel={handleRefreshChannel}
+            />
+            {activeThread && (
+              <ThreadPanel
+                parentMessage={activeThread}
+                currentUser={user}
+                onClose={handleCloseThread}
+              />
+            )}
+          </>
+        ) : activeConversation && activeUser ? (
           <>
             <ChatPane
               currentUser={user}
@@ -239,8 +395,8 @@ const Dashboard: React.FC = () => {
         ) : (
           <div className="flex-1 flex items-center justify-center bg-[#1a1d21]">
             <div className="text-center">
-              <p className="text-[#d1d2d3] text-lg mb-4">Select a conversation to start chatting</p>
-              <p className="text-[#616061] text-sm">or choose a user from the sidebar</p>
+              <p className="text-[#d1d2d3] text-lg mb-4">Select a conversation or channel to start chatting</p>
+              <p className="text-[#616061] text-sm">Choose a user or channel from the sidebar</p>
             </div>
           </div>
         )}

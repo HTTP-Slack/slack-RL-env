@@ -1,4 +1,5 @@
 import Channel from '../models/channel.model.js';
+import { Section } from '../models/section.model.js';
 import User from '../models/user.model.js';
 
 // @desc    create channel
@@ -7,16 +8,17 @@ import User from '../models/user.model.js';
 /*
   body {
     name,
-    organisationId
+    organisationId,
+    sectionId
   }
 */
 export const createChannel = async (req, res) => {
   try {
-    const {name, organisationId} = req.body;
-    if(!name || !organisationId) {
+    const { name, organisationId, sectionId } = req.body;
+    if (!name || !organisationId || !sectionId) {
       return res.status(400).json({
         success: false,
-        message: "name and org id are required"
+        message: "name, org id, and section id are required",
       });
     }
 
@@ -24,21 +26,26 @@ export const createChannel = async (req, res) => {
       name,
       collaborators: [req.user.id],
       organisation: organisationId,
+      section: sectionId,
+    });
+
+    await Section.findByIdAndUpdate(sectionId, {
+      $push: { channels: channel._id },
     });
 
     res.status(201).json({
       success: true,
-      data: channel
-    })
+      data: channel,
+    });
   } catch (error) {
     console.log('Error in createChannel:', error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
-      error
+      error,
     });
   }
-}
+};
 
 // @desc    get channel by organisation id
 // @route   GET /api/channel/org/:id
