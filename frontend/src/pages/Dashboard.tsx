@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import LeftNav from '../components/chat/LeftNav';
 import Sidebar from '../components/chat/Sidebar';
 import ChatPane from '../components/chat/ChatPane';
+import ThreadPanel from '../components/chat/ThreadPanel';
 import { PreferencesModal } from '../features/preferences/PreferencesModal';
 import { ProfilePanel } from '../features/profile/ProfilePanel';
 import { useAuth } from '../context/AuthContext';
@@ -27,6 +28,7 @@ const Dashboard: React.FC = () => {
   } = useWorkspace();
   
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [activeThread, setActiveThread] = useState<any | null>(null);
 
   // Initialize workspace from URL or fetch workspaces
   useEffect(() => {
@@ -72,9 +74,9 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleSendMessage = async (text: string) => {
+  const handleSendMessage = async (text: string, attachments?: string[]) => {
     if (!activeConversation) return;
-    await sendMessage(text);
+    await sendMessage(text, attachments);
   };
 
   const handleEditMessage = (messageId: string, newText: string) => {
@@ -100,8 +102,15 @@ const Dashboard: React.FC = () => {
   };
 
   const handleOpenThread = (messageId: string) => {
-    // TODO: Implement thread functionality
     console.log('Open thread for message:', messageId);
+    const message = messages.find((m) => m._id === messageId);
+    if (message) {
+      setActiveThread(message);
+    }
+  };
+
+  const handleCloseThread = () => {
+    setActiveThread(null);
   };
 
   const handleReaction = (messageId: string, emoji: string) => {
@@ -196,18 +205,27 @@ const Dashboard: React.FC = () => {
           onUserSelect={handleUserSelect}
         />
         {activeConversation && activeUser ? (
-          <ChatPane
-            currentUser={user}
-            activeUser={activeUser}
-            messages={messages}
-            threads={{}}
-            editingMessageId={editingMessageId}
-            onSendMessage={handleSendMessage}
-            onEditMessage={handleEditMessage}
-            onDeleteMessage={handleDeleteMessage}
-            onOpenThread={handleOpenThread}
-            onReaction={handleReaction}
-          />
+          <>
+            <ChatPane
+              currentUser={user}
+              activeUser={activeUser}
+              messages={messages}
+              threads={{}}
+              editingMessageId={editingMessageId}
+              onSendMessage={handleSendMessage}
+              onEditMessage={handleEditMessage}
+              onDeleteMessage={handleDeleteMessage}
+              onOpenThread={handleOpenThread}
+              onReaction={handleReaction}
+            />
+            {activeThread && (
+              <ThreadPanel
+                parentMessage={activeThread}
+                currentUser={user}
+                onClose={handleCloseThread}
+              />
+            )}
+          </>
         ) : (
           <div className="flex-1 flex items-center justify-center bg-[#1a1d21]">
             <div className="text-center">

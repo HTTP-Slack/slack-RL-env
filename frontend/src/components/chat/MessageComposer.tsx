@@ -6,7 +6,7 @@ import RecentFilesModal from './RecentFilesModal';
 import EmojiPicker from './EmojiPicker';
 
 interface MessageComposerProps {
-  onSend: (text: string) => void;
+  onSend: (text: string, attachments?: string[]) => void;
   placeholder?: string;
   userName?: string;
 }
@@ -144,13 +144,8 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
         setSelectedFiles([]);
       }
 
-      // Send message with attachments via socket
-      if (activeConversation && currentWorkspaceId && (attachmentIds.length > 0 || trimmedText)) {
-        await sendMessage(trimmedText, attachmentIds.length > 0 ? attachmentIds : undefined);
-      } else {
-        // Fallback to original onSend for backward compatibility
-        onSend(trimmedText);
-      }
+      // Send message - always use onSend prop which handles both regular messages and thread replies
+      onSend(trimmedText, attachmentIds.length > 0 ? attachmentIds : undefined);
 
       setText('');
       if (textareaRef.current) {

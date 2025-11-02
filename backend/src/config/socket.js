@@ -45,8 +45,17 @@ const initializeSocket = (io) => {
       }
     })
 
+    socket.on('thread-open', async ({ messageId, userId }) => {
+      if (messageId) {
+        console.log(`🧵 User ${userId} joined thread room ${messageId}`)
+        socket.join(messageId)
+        console.log(`✅ User successfully joined thread room ${messageId}`)
+      }
+    })
+
     socket.on('thread-message', async ({ userId, messageId, message }) => {
       try {
+        console.log(`📤 Received thread-message event from user ${userId} for message ${messageId}`)
         socket.join(messageId)
         let newMessage = await Thread.create({
           sender: message.sender,
@@ -55,7 +64,9 @@ const initializeSocket = (io) => {
           hasRead: false,
         })
         newMessage = await newMessage.populate('sender')
-        io.to(messageId).emit('thread-message', { newMessage })
+        console.log(`✅ Broadcasting thread-message to room ${messageId}:`, newMessage._id)
+        // Use io.in() to broadcast to ALL sockets in the room, including sender
+        io.in(messageId).emit('thread-message', { newMessage })
         const updatedMessage = await Message.findByIdAndUpdate(
           messageId,
           {
@@ -66,7 +77,8 @@ const initializeSocket = (io) => {
           { new: true }
         ).populate(['threadReplies', 'sender', 'reactions.reactedToBy'])
 
-        io.to(messageId).emit('message-updated', {
+        // Broadcast parent message update to ALL sockets in thread room
+        io.in(messageId).emit('message-updated', {
           id: messageId,
           message: updatedMessage,
         })

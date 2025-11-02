@@ -11,7 +11,7 @@ interface ChatPaneProps {
   messages: Message[];
   threads: Record<string, Thread[]>;
   editingMessageId: string | null;
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string, attachments?: string[]) => void;
   onEditMessage: (messageId: string, newText: string) => void;
   onDeleteMessage: (messageId: string) => void;
   onOpenThread: (messageId: string) => void;
@@ -22,7 +22,6 @@ const ChatPane: React.FC<ChatPaneProps> = ({
   currentUser,
   activeUser,
   messages,
-  threads,
   editingMessageId,
   onSendMessage,
   onEditMessage,
@@ -45,9 +44,9 @@ const ChatPane: React.FC<ChatPaneProps> = ({
     return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
 
-  const getThreadCount = (messageId: string) => {
-    const thread = Object.values(threads).find((t) => t[0]?.messageId === messageId);
-    return thread?.[0]?.messages.length || 0;
+  const getThreadCount = (message: Message) => {
+    // Get thread count from message.threadRepliesCount
+    return message.threadRepliesCount || 0;
   };
 
   return (
@@ -128,7 +127,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({
               const isCurrentUser = message.sender._id === currentUser._id;
               const messageUser = isCurrentUser ? currentUser : activeUser;
               const showAvatar = index === 0 || !validMessages[index - 1].sender || validMessages[index - 1].sender._id !== message.sender._id;
-              const threadCount = getThreadCount(message._id);
+              const threadCount = getThreadCount(message);
               const shouldShowTimestamp = index === 0 || 
                 new Date(message.createdAt).getTime() - new Date(validMessages[index - 1].createdAt).getTime() > 600000; // 10 minutes
 
