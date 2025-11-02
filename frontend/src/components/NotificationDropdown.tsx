@@ -6,9 +6,10 @@ interface NotificationDropdownProps {
   isOpen: boolean;
   onClose: () => void;
   workspaceId?: string | null;
+  onUnreadCountChange?: (count: number) => void;
 }
 
-export function NotificationDropdown({ isOpen, onClose, workspaceId }: NotificationDropdownProps) {
+export function NotificationDropdown({ isOpen, onClose, workspaceId, onUnreadCountChange }: NotificationDropdownProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -51,7 +52,11 @@ export function NotificationDropdown({ isOpen, onClose, workspaceId }: Notificat
         setNotifications(prev =>
           prev.map(n => n._id === notification._id ? { ...n, isRead: true } : n)
         );
-        setUnreadCount(prev => Math.max(0, prev - 1));
+        const newCount = Math.max(0, unreadCount - 1);
+        setUnreadCount(newCount);
+        
+        // Notify parent component of count change
+        onUnreadCountChange?.(newCount);
       } catch (error) {
         console.error('Error marking notification as read:', error);
       }
@@ -80,6 +85,9 @@ export function NotificationDropdown({ isOpen, onClose, workspaceId }: Notificat
       await markAllAsRead(workspaceId);
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
+      
+      // Notify parent component of count change
+      onUnreadCountChange?.(0);
     } catch (error) {
       console.error('Error marking all as read:', error);
     }
@@ -197,7 +205,7 @@ function NotificationItem({ notification, onClick, getText }: NotificationItemPr
       }`}
     >
       <div className="flex items-start gap-3">
-        <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
+        <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${
           !notification.isRead ? 'bg-blue-500' : 'bg-transparent'
         }`} />
         <div className="flex-1 min-w-0">

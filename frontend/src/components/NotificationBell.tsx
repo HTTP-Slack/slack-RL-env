@@ -74,6 +74,7 @@ export function NotificationBell() {
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         workspaceId={currentWorkspaceId}
+        onUnreadCountChange={setUnreadCount}
       />
     </div>
   );
