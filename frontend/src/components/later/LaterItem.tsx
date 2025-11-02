@@ -91,12 +91,12 @@ const LaterItem: React.FC<LaterItemProps> = ({ item, onUpdate, onDelete, onEdit 
         <div className="flex items-center text-[13px]">
           <div className="flex items-center">
             {item.dueDate && (
-              <button
+              <span
                 className="font-semibold rounded-full px-0 text-[#cfa1de] hover:text-[#d8b0e6]"
                 style={{ fontWeight: 600 }}
               >
                 {formatDueDate(item.dueDate)}
-              </button>
+              </span>
             )}
             {item.dueDate && (
               <div className="mx-2 text-[rgba(227,206,235,0.8)]">•</div>
