@@ -30,6 +30,7 @@ import preferencesRoute from './routes/preferences/preferences.route.js';
 import pinnedMessageRoute from './routes/pinnedMessage.route.js';
 import searchRoute from './routes/search.route.js';
 import notificationRoute from './routes/notification.route.js';
+import laterRoute from './routes/later.route.js';
 
 //setup
 dotenv.config();
@@ -90,6 +91,7 @@ app.use('/api/preferences', preferencesRoute);
 app.use('/api/pinned-messages', pinnedMessageRoute);
 app.use('/api/search', searchRoute);
 app.use('/api/notifications', notificationRoute);
+app.use('/api/later', laterRoute);
 
 server.listen(PORT, ()=> {
   console.log(`Server is running on port ${PORT}`);

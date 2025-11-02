@@ -17,7 +17,7 @@ import ProfileStep3 from './pages/ProfileStep3';
 import ProfileStep4 from './pages/ProfileStep4';
 import JoinWorkspace from './pages/JoinWorkspace';
 import Dashboard from './pages/Dashboard';
-import DMView from './pages/DMView';
+import LaterView from './pages/LaterView';
 import { SearchResults } from './pages/search/SearchResults';
 
 const App = () => {
@@ -92,18 +92,10 @@ const App = () => {
             }
           />
           <Route
-            path="/dms"
+            path="/later"
             element={
               <ProtectedRoute>
-                <DMView />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dms/:conversationId"
-            element={
-              <ProtectedRoute>
-                <DMView />
+                <LaterView />
               </ProtectedRoute>
             }
           />

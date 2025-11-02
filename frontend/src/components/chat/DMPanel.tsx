@@ -122,7 +122,7 @@ export const DMPanel: React.FC<DMPanelProps> = ({ isOpen, onClose, onConversatio
                       </span>
                     </div>
                     <span className="text-sm text-[#868686] truncate block mt-0.5">
-                      {otherUser.email}
+                      Click to open conversation
                     </span>
                   </div>
                 </button>
