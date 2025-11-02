@@ -18,8 +18,10 @@ import { useWorkspace } from '../context/WorkspaceContext';
 import { getWorkspaces } from '../services/workspaceApi';
 import { getChannel, leaveChannel, starChannel, unstarChannel } from '../services/channelApi';
 import { getMessages } from '../services/messageApi';
+import { SearchModal } from '../components/search/SearchModal';
 import type { Workspace } from '../types/workspace';
 import type { IChannel } from '../types/channel';
+import type { SearchResult } from '../types/search';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -58,6 +60,24 @@ const Dashboard: React.FC = () => {
     message: string;
     onConfirm: () => void;
   } | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchChannelFilter, setSearchChannelFilter] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+
+  // Keyboard shortcut for search (Cmd/Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Initialize workspace from URL or fetch workspaces
   useEffect(() => {
@@ -203,6 +223,57 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const handleSearchResultSelect = async (result: SearchResult) => {
+    console.log('Search result selected:', result);
+
+    switch (result.type) {
+      case 'user':
+        // Navigate to/create conversation with user
+        await handleUserSelect(result._id);
+        break;
+      case 'channel':
+        // Navigate to channel
+        await handleChannelSelect(result._id);
+        break;
+      case 'message':
+        // Navigate to channel/conversation and highlight message
+        if (result.channel) {
+          await handleChannelSelect(result.channel._id);
+        } else if (result.conversation) {
+          const conversation = conversations.find(c => c._id === result.conversation._id);
+          if (conversation) {
+            setActiveConversation(conversation);
+            setActiveChannel(null);
+          }
+        }
+        break;
+      case 'file':
+        // Open file preview/download
+        if (result.channel) {
+          await handleChannelSelect(result.channel._id);
+        } else if (result.conversation) {
+          const conversation = conversations.find(c => c._id === result.conversation._id);
+          if (conversation) {
+            setActiveConversation(conversation);
+            setActiveChannel(null);
+          }
+        }
+        break;
+      case 'canvas':
+        // Navigate to canvas view
+        console.log('Canvas navigation not implemented yet');
+        break;
+      case 'conversation':
+        // Set as active conversation
+        const conversation = conversations.find(c => c._id === result._id);
+        if (conversation) {
+          setActiveConversation(conversation);
+          setActiveChannel(null);
+        }
+        break;
+    }
+  };
+
   const handleSendChannelMessage = async (text: string, attachments?: string[]) => {
     if (!activeChannel || !socket || !user || !currentWorkspaceId) return;
     
@@ -329,16 +400,20 @@ const Dashboard: React.FC = () => {
 
           {/* Search Bar */}
           <div className="w-[600px]">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search workspace"
-                className="w-full bg-[#6f4d72] text-white placeholder-[#d1d2d3] px-3 py-1.5 rounded border border-transparent focus:border-white focus:outline-none text-[13px]"
-              />
-              <svg className="w-4 h-4 text-white absolute right-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
+            <button
+              onClick={() => setIsSearchOpen(true)}
+              className="w-full bg-[#6f4d72] text-white placeholder-[#d1d2d3] px-3 py-1.5 rounded border border-transparent hover:border-white transition-colors text-[13px] flex items-center justify-between"
+            >
+              <span className="text-[#d1d2d3]">Search workspace</span>
+              <div className="flex items-center gap-2">
+                <kbd className="px-1.5 py-0.5 bg-[#5a3b5d] rounded text-xs">
+                  {navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}K
+                </kbd>
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -500,8 +575,12 @@ const Dashboard: React.FC = () => {
             console.log('Copy', type, 'from channel:', channelContextMenu.channel._id);
           }}
           onSearchInChannel={() => {
-            // TODO: Implement search in channel
-            console.log('Search in channel:', channelContextMenu.channel._id);
+            setSearchChannelFilter({
+              id: channelContextMenu.channel._id,
+              name: channelContextMenu.channel.name,
+            });
+            setIsSearchOpen(true);
+            setChannelContextMenu(null);
           }}
           onLeaveChannel={() => {
             setConfirmDialog({
@@ -607,8 +686,11 @@ const Dashboard: React.FC = () => {
             setMoreOptionsMenu(null);
           }}
           onSearchInChannel={() => {
-            // TODO: Implement search in channel
-            console.log('Search in channel:', activeChannel._id);
+            setSearchChannelFilter({
+              id: activeChannel._id,
+              name: activeChannel.name,
+            });
+            setIsSearchOpen(true);
             setMoreOptionsMenu(null);
           }}
           onLeaveChannel={() => {
@@ -651,6 +733,20 @@ const Dashboard: React.FC = () => {
       <PreferencesModal />
       <ProfilePanel />
       {selectedUser && <UserProfileModal user={selectedUser} />}
+
+      {/* Search Modal */}
+      {currentWorkspaceId && (
+        <SearchModal
+          isOpen={isSearchOpen}
+          onClose={() => {
+            setIsSearchOpen(false);
+            setSearchChannelFilter(null);
+          }}
+          organisationId={currentWorkspaceId}
+          channelFilter={searchChannelFilter || undefined}
+          onResultSelect={handleSearchResultSelect}
+        />
+      )}
     </div>
   );
 };
