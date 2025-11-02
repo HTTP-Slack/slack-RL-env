@@ -27,7 +27,7 @@ export const ChannelSearchDropdown: React.FC<ChannelSearchDropdownProps> = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const debounceTimerRef = useRef<NodeJS.Timeout>();
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   // Flatten results for keyboard navigation
   const flatResults = results
