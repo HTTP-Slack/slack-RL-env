@@ -30,7 +30,7 @@ interface ChannelChatPaneProps {
   messages: Message[];
   threads: Record<string, Thread[]>;
   editingMessageId: string | null;
-  onSendMessage: (text: string, attachments?: string[]) => void;
+  onSendMessage: (text: string, attachments?: string[], listAttachments?: string[]) => void;
   onEditMessage: (messageId: string, newText: string) => void;
   onDeleteMessage: (messageId: string) => void;
   onOpenThread: (messageId: string) => void;

@@ -24,7 +24,7 @@ interface WorkspaceContextType {
   socket: Socket | null;
   sections: ISection[];
   setSections: React.Dispatch<React.SetStateAction<ISection[]>>;
-  sendMessage: (content: string, attachments?: string[]) => Promise<void>;
+  sendMessage: (content: string, attachments?: string[], listAttachments?: string[]) => Promise<void>;
   fetchConversations: () => Promise<void>;
   startConversation: (otherUserId: string) => Promise<void>;
   refreshMessages: () => Promise<void>;
@@ -388,20 +388,21 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
     }
   };
 
-  const sendMessage = async (content: string, attachments?: string[]) => {
+  const sendMessage = async (content: string, attachments?: string[], listAttachments?: string[]) => {
     if (!activeConversation || !currentWorkspaceId || !user || !socket) return;
 
     try {
       console.log('📤 Sending message via socket:', content);
       console.log('📍 ConversationId:', activeConversation._id);
       console.log('👥 Collaborators:', activeConversation.collaborators.map(c => c._id));
+      console.log('📋 listAttachments in sendMessage:', listAttachments);
       
       // Emit via socket - backend will create the message and broadcast to the room
       const hasNotOpen = activeConversation.collaborators
         .filter((c) => c._id !== user._id)
         .map((c) => c._id);
 
-      socket.emit('message', {
+      const messagePayload = {
         conversationId: activeConversation._id,
         collaborators: activeConversation.collaborators.map((c) => c._id),
         isSelf: false,
@@ -409,10 +410,15 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
           sender: user._id,
           content: content || '',
           attachments: attachments || [],
+          listAttachments: listAttachments || [],
         },
         organisation: currentWorkspaceId,
         hasNotOpen,
-      });
+      };
+
+      console.log('📦 Full message payload:', messagePayload);
+
+      socket.emit('message', messagePayload);
       
       console.log('🚀 Socket message event emitted');
     } catch (error) {

@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useAuth } from '../../context/AuthContext';
 import { getList, updateList, createListItem, updateListItem, deleteListItem } from '../../services/listApi';
-import type { ListData, ListItemData } from '../../types/list';
+import type { ListData, ListItemData, Column } from '../../types/list';
+import ColumnMenu from './ColumnMenu';
+import EditColumnModal from './EditColumnModal';
+import InsertFieldModal from './InsertFieldModal';
+import ConfirmDialog from '../common/ConfirmDialog';
 
 interface ListViewProps {
   list: ListData;
@@ -13,10 +17,18 @@ const ListView: React.FC<ListViewProps> = ({ list, onClose }) => {
   const { socket, currentWorkspaceId } = useWorkspace();
   const { user } = useAuth();
   const [items, setItems] = useState<ListItemData[]>(list.items || []);
+  const [columns, setColumns] = useState<Column[]>(list.columns || []);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [title, setTitle] = useState(list.title);
   const [description, setDescription] = useState(list.description || '');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Column management state
+  const [menuPosition, setMenuPosition] = useState<{ x: number; y: number; columnId: string } | null>(null);
+  const [editingColumn, setEditingColumn] = useState<Column | null>(null);
+  const [insertPosition, setInsertPosition] = useState<'left' | 'right' | null>(null);
+  const [insertColumnId, setInsertColumnId] = useState<string | null>(null);
+  const [deleteColumnId, setDeleteColumnId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchListDetails();
@@ -41,10 +53,15 @@ const ListView: React.FC<ListViewProps> = ({ list, onClose }) => {
       setItems((prev) => prev.filter((item) => item._id !== data.itemId));
     };
 
+    const handleColumnUpdate = (data: any) => {
+      setColumns(data.columns);
+    };
+
     if (socket) {
       socket.on('list-item-create', handleItemCreate);
       socket.on('list-item-update', handleItemUpdate);
       socket.on('list-item-delete', handleItemDelete);
+      socket.on('list-column-update', handleColumnUpdate);
     }
 
     return () => {
@@ -52,6 +69,7 @@ const ListView: React.FC<ListViewProps> = ({ list, onClose }) => {
         socket.off('list-item-create', handleItemCreate);
         socket.off('list-item-update', handleItemUpdate);
         socket.off('list-item-delete', handleItemDelete);
+        socket.off('list-column-update', handleColumnUpdate);
       }
     };
   }, [list._id, socket]);
@@ -61,6 +79,7 @@ const ListView: React.FC<ListViewProps> = ({ list, onClose }) => {
     try {
       const data = await getList(list._id);
       setItems(data.items || []);
+      setColumns(data.columns || []);
       setTitle(data.title);
       setDescription(data.description || '');
     } catch (error) {
@@ -163,6 +182,99 @@ const ListView: React.FC<ListViewProps> = ({ list, onClose }) => {
     }
   };
 
+  const handleColumnHeaderClick = (columnId: string, e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMenuPosition({
+      x: rect.right - 10,
+      y: rect.bottom,
+      columnId,
+    });
+  };
+
+  const handleEditColumn = (column: Column) => {
+    setEditingColumn(column);
+  };
+
+  const handleSaveColumn = async (updatedColumn: Column) => {
+    try {
+      const updatedColumns = columns.map((col) =>
+        col.id === updatedColumn.id ? updatedColumn : col
+      );
+      
+      await updateList(list._id, { columns: updatedColumns });
+      setColumns(updatedColumns);
+      setEditingColumn(null);
+      
+      if (socket) {
+        socket.emit('list-column-update', {
+          listId: list._id,
+          columns: updatedColumns,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to update column:', error);
+    }
+  };
+
+  const handleInsertColumn = (position: 'left' | 'right') => {
+    setInsertPosition(position);
+  };
+
+  const handleSaveInsertColumn = async (newColumn: Column) => {
+    try {
+      const currentColumnIndex = columns.findIndex((col) => col.id === insertColumnId);
+      let updatedColumns: Column[];
+      
+      if (currentColumnIndex === -1) {
+        updatedColumns = [...columns, newColumn];
+      } else {
+        const insertIndex = insertPosition === 'left' ? currentColumnIndex : currentColumnIndex + 1;
+        updatedColumns = [
+          ...columns.slice(0, insertIndex),
+          newColumn,
+          ...columns.slice(insertIndex),
+        ];
+      }
+      
+      await updateList(list._id, { columns: updatedColumns });
+      setColumns(updatedColumns);
+      setInsertPosition(null);
+      setInsertColumnId(null);
+      
+      if (socket) {
+        socket.emit('list-column-update', {
+          listId: list._id,
+          columns: updatedColumns,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to insert column:', error);
+    }
+  };
+
+  const handleDeleteColumn = async () => {
+    if (!deleteColumnId) return;
+    
+    try {
+      // Check if column has data
+      const hasData = items.some((item) => item.data[deleteColumnId]);
+      
+      const updatedColumns = columns.filter((col) => col.id !== deleteColumnId);
+      await updateList(list._id, { columns: updatedColumns });
+      setColumns(updatedColumns);
+      setDeleteColumnId(null);
+      
+      if (socket) {
+        socket.emit('list-column-update', {
+          listId: list._id,
+          columns: updatedColumns,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to delete column:', error);
+    }
+  };
+
   const renderCell = (item: ListItemData, column: any) => {
     const value = item.data[column.id];
     
@@ -171,9 +283,10 @@ const ListView: React.FC<ListViewProps> = ({ list, onClose }) => {
         <input
           type="text"
           value={value || ''}
+          placeholder={column.name}
           onChange={(e) => handleUpdateItem(item._id, column.id, e.target.value)}
           onBlur={() => {}}
-          className="w-full px-2 py-1 bg-transparent text-white border-none focus:outline-none focus:ring-0"
+          className="w-full px-2 py-1 bg-transparent text-white border-none focus:outline-none focus:ring-0 placeholder-gray-500"
         />
       );
     }
@@ -313,20 +426,44 @@ const ListView: React.FC<ListViewProps> = ({ list, onClose }) => {
       {/* Table */}
       <div className="flex-1 overflow-auto px-8 py-4">
         <div className="border border-gray-700 rounded-lg overflow-hidden">
-          {list.columns.length === 0 ? (
+          {columns.length === 0 ? (
             <div className="p-8 text-center text-gray-400">
-              <p>No columns defined. Add columns to start adding items.</p>
+              <p className="mb-4">No columns defined. Add columns to start adding items.</p>
+              <button
+                onClick={() => setInsertPosition('right')}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Add Column</span>
+              </button>
             </div>
           ) : (
             <table className="w-full">
               <thead>
                 <tr className="bg-[#2c2d31] border-b border-gray-700">
-                  {list.columns.map((column) => (
+                  {columns.map((column) => (
                     <th
                       key={column.id}
-                      className="px-4 py-3 text-left text-sm font-semibold text-gray-300"
+                      className="px-4 py-3 text-left text-sm font-semibold text-gray-300 relative group"
                     >
-                      {column.name}
+                      <div className="flex items-center justify-between">
+                        <span>{column.name}</span>
+                        <button
+                          onClick={(e) => handleColumnHeaderClick(column.id, e)}
+                          className="text-gray-500 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                            />
+                          </svg>
+                        </button>
+                      </div>
                     </th>
                   ))}
                   <th className="w-[40px]"></th>
@@ -335,14 +472,14 @@ const ListView: React.FC<ListViewProps> = ({ list, onClose }) => {
               <tbody>
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={list.columns.length + 1} className="p-8 text-center text-gray-400">
+                    <td colSpan={columns.length + 1} className="p-8 text-center text-gray-400">
                       No items yet. Click "Add item" to get started.
                     </td>
                   </tr>
                 ) : (
                   items.map((item) => (
                     <tr key={item._id} className="border-b border-gray-700 hover:bg-[#2c2d31]">
-                      {list.columns.map((column) => (
+                      {columns.map((column) => (
                         <td key={column.id} className="px-4 py-2">
                           {renderCell(item, column)}
                         </td>
@@ -376,6 +513,67 @@ const ListView: React.FC<ListViewProps> = ({ list, onClose }) => {
           <span>Add item</span>
         </button>
       </div>
+
+      {/* Column Menu */}
+      {menuPosition && (
+        <ColumnMenu
+          x={menuPosition.x}
+          y={menuPosition.y}
+          onEdit={() => {
+            const column = columns.find((col) => col.id === menuPosition.columnId);
+            if (column) {
+              setEditingColumn(column);
+            }
+          }}
+          onInsertLeft={() => {
+            setInsertColumnId(menuPosition.columnId);
+            setInsertPosition('left');
+          }}
+          onInsertRight={() => {
+            setInsertColumnId(menuPosition.columnId);
+            setInsertPosition('right');
+          }}
+          onDelete={() => {
+            setDeleteColumnId(menuPosition.columnId);
+          }}
+          onClose={() => setMenuPosition(null)}
+        />
+      )}
+
+      {/* Edit Column Modal */}
+      <EditColumnModal
+        isOpen={!!editingColumn}
+        column={editingColumn}
+        onClose={() => setEditingColumn(null)}
+        onSave={handleSaveColumn}
+      />
+
+      {/* Insert Field Modal */}
+      <InsertFieldModal
+        isOpen={!!insertPosition}
+        position={insertPosition}
+        onClose={() => {
+          setInsertPosition(null);
+          setInsertColumnId(null);
+        }}
+        onSave={handleSaveInsertColumn}
+      />
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        isOpen={!!deleteColumnId}
+        title="Delete Field"
+        message="Are you sure you want to delete this field? This will remove all data in this column."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={async () => {
+          await handleDeleteColumn();
+        }}
+        onCancel={() => {
+          setDeleteColumnId(null);
+        }}
+        variant="danger"
+      />
     </div>
   );
 };

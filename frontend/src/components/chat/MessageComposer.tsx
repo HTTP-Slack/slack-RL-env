@@ -8,6 +8,8 @@ import FormattingHelpModal from './FormattingHelpModal';
 import EmojiSuggestions from './EmojiSuggestions';
 import MentionSuggestions from './MentionSuggestions';
 import AttachListModal from '../lists/AttachListModal';
+import { getList } from '../../services/listApi';
+import type { ListData } from '../../types/list';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
@@ -55,7 +57,7 @@ interface SelectedFile {
 }
 
 interface MessageComposerProps {
-  onSend: (text: string, attachments?: string[]) => void;
+  onSend: (text: string, attachments?: string[], listAttachments?: string[]) => void;
   placeholder?: string;
   userName?: string;
   users?: User[]; // Users available for @mentions
@@ -103,6 +105,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
   const [mentionSuggestionsPosition, setMentionSuggestionsPosition] = useState({ bottom: 0, left: 0 });
   const [showAttachListModal, setShowAttachListModal] = useState(false);
   const [attachedLists, setAttachedLists] = useState<string[]>([]);
+  const [attachedListsData, setAttachedListsData] = useState<Map<string, ListData>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -814,19 +817,24 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     const textContent = tempDiv.textContent || tempDiv.innerText || '';
     const hasContent = textContent.trim().length > 0;
     
-    if (!hasContent && selectedFiles.length === 0) return;
+    if (!hasContent && selectedFiles.length === 0 && attachedLists.length === 0) return;
 
     try {
       const attachmentIds = Array.from(uploadedFileIds.values());
       const attachments = attachmentIds.length > 0 ? attachmentIds : undefined;
+      const listAttachments = attachedLists.length > 0 ? attachedLists : undefined;
+
+      console.log('📤 Sending message with attachments:', attachments);
+      console.log('📋 Sending message with listAttachments:', listAttachments);
+      console.log('📝 attachedLists state:', attachedLists);
 
       // Send via channel or DM context - send HTML content
       if (channelId && currentWorkspaceId) {
-        await onSend(text, attachments);
+        await onSend(text, attachments, listAttachments);
       } else if (activeConversation?._id && currentWorkspaceId) {
-        await sendMessage(text, attachments);
+        await sendMessage(text, attachments, listAttachments);
       } else {
-        await onSend(text, attachments);
+        await onSend(text, attachments, listAttachments);
       }
 
       // Clear all states after successful send
@@ -850,6 +858,8 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
       setUploadingFileIds(new Set());
       setFilePreviewUrls(new Map());
       setUploadErrors(new Map());
+      setAttachedLists([]);
+      setAttachedListsData(new Map());
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -1956,6 +1966,50 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
           </div>
         )}
 
+        {/* Attached Lists Preview */}
+        {attachedLists.length > 0 && (
+          <div className="px-3 pb-2">
+            <div className="flex flex-wrap gap-2">
+              {attachedLists.map((listId) => {
+                const listData = attachedListsData.get(listId);
+                return (
+                  <div
+                    key={listId}
+                    className="relative group w-auto rounded-lg overflow-hidden"
+                  >
+                    <div className="relative flex items-center gap-2 px-3 py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-sm text-[rgb(209,210,211)]">
+                      <div className="w-5 h-5 bg-yellow-500 rounded flex items-center justify-center flex-shrink-0">
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                      </div>
+                      <span className="truncate max-w-[200px] text-white">
+                        {listData?.title || 'Loading...'}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setAttachedLists((prev) => prev.filter((id) => id !== listId));
+                          setAttachedListsData((prev) => {
+                            const newMap = new Map(prev);
+                            newMap.delete(listId);
+                            return newMap;
+                          });
+                        }}
+                        className="ml-2 w-5 h-5 rounded-full bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.2)] flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+                        title="Remove list"
+                      >
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Action Bar - Bottom - Slack Style */}
         <div className="px-1 py-1 flex items-center justify-between bg-[rgb(26,29,33)]">
           {/* Left side - Formatting & Action icons */}
@@ -2745,8 +2799,15 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
         <AttachListModal
           isOpen={showAttachListModal}
           onClose={() => setShowAttachListModal(false)}
-          onSelect={(listId) => {
+          onSelect={async (listId) => {
             setAttachedLists([...attachedLists, listId]);
+            // Fetch list details
+            try {
+              const listData = await getList(listId);
+              setAttachedListsData((prev) => new Map(prev).set(listId, listData));
+            } catch (error) {
+              console.error('Failed to fetch list details:', error);
+            }
             setShowAttachListModal(false);
           }}
           organisationId={currentWorkspaceId}

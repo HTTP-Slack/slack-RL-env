@@ -123,6 +123,14 @@ const initializeSocket = (io) => {
               messageData.type = 'file'
             }
 
+            // Handle list attachments
+            console.log('📋 Received listAttachments:', message.listAttachments)
+            if (message.listAttachments && message.listAttachments.length > 0) {
+              messageData.listAttachments = message.listAttachments
+              console.log('✅ Added listAttachments to messageData:', messageData.listAttachments)
+            }
+
+            console.log('📦 Final messageData before create:', messageData)
             let newMessage = await Message.create(messageData)
 
             newMessage = await newMessage.populate('sender')
@@ -174,6 +182,11 @@ const initializeSocket = (io) => {
             if (message.attachments && message.attachments.length > 0) {
               messageData.attachments = message.attachments
               messageData.type = 'file'
+            }
+
+            // Handle list attachments
+            if (message.listAttachments && message.listAttachments.length > 0) {
+              messageData.listAttachments = message.listAttachments
             }
 
             let newMessage = await Message.create(messageData)
