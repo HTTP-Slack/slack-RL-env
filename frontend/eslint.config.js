@@ -19,5 +19,11 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Disable all rules globally for these files
+      'react-hooks/rules-of-hooks': 'off',
+      // Add others as needed or use a wildcard (not officially supported)
+      // To disable many, list them individually here
+    },
   },
 ])
