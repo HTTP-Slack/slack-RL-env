@@ -443,3 +443,126 @@ export const streamFile = async (req, res) => {
   }
 };
 
+/**
+ * Stream/download a file using workspace-based shareable link
+ * @route GET /files/:workspaceId/:id/:filename
+ * @access Private (requires authentication)
+ */
+export const streamFileByWorkspace = async (req, res) => {
+  try {
+    const { workspaceId, id } = req.params;
+    const { download } = req.query;
+    const userId = req.user.id;
+
+    // Find file metadata
+    const file = await findFileById(id);
+    if (!file) {
+      return res.status(404).json({
+        success: false,
+        message: 'File not found',
+      });
+    }
+
+    const { organisation, channel, conversation } = file.metadata || {};
+
+    if (!organisation) {
+      return res.status(403).json({
+        success: false,
+        message: 'File access denied',
+      });
+    }
+
+    // Ensure file belongs to the requested workspace/organisation
+    if (organisation.toString() !== workspaceId) {
+      return res.status(403).json({
+        success: false,
+        message: 'File does not belong to this workspace',
+      });
+    }
+
+    const org = await Organisation.findById(organisation);
+    if (!org) {
+      return res.status(404).json({
+        success: false,
+        message: 'Organisation not found',
+      });
+    }
+
+    const isMember = org.owner.toString() === userId ||
+      org.coWorkers.some(cw => cw.toString() === userId);
+    if (!isMember) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not a member of this organisation',
+      });
+    }
+
+    if (channel) {
+      const channelDoc = await Channel.findById(channel);
+      if (!channelDoc) {
+        return res.status(403).json({
+          success: false,
+          message: 'Channel not found',
+        });
+      }
+      const isCollaborator = channelDoc.collaborators.some(c => c.toString() === userId);
+      if (!isCollaborator) {
+        return res.status(403).json({
+          success: false,
+          message: 'Not a collaborator in this channel',
+        });
+      }
+    }
+
+    if (conversation) {
+      const conversationDoc = await Conversation.findById(conversation);
+      if (!conversationDoc) {
+        return res.status(403).json({
+          success: false,
+          message: 'Conversation not found',
+        });
+      }
+      const isCollaborator = conversationDoc.collaborators.some(c => c.toString() === userId);
+      if (!isCollaborator) {
+        return res.status(403).json({
+          success: false,
+          message: 'Not a collaborator in this conversation',
+        });
+      }
+    }
+
+    res.setHeader('Content-Type', file.contentType || 'application/octet-stream');
+
+    if (download === '1') {
+      res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+    } else {
+      res.setHeader('Content-Disposition', `inline; filename="${file.filename}"`);
+    }
+
+    res.setHeader('Content-Length', file.length);
+
+    const downloadStream = openDownloadStream(file._id);
+
+    downloadStream.on('error', (error) => {
+      console.error('Error streaming file:', error);
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          message: 'Error streaming file',
+        });
+      }
+    });
+
+    downloadStream.pipe(res);
+  } catch (error) {
+    console.error('Error in streamFileByWorkspace:', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: error.message,
+      });
+    }
+  }
+};
+

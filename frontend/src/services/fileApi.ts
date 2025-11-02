@@ -87,3 +87,48 @@ export const getFileUrl = (fileId: string, inline: boolean = false): string => {
   return `${origin}/api/files/${fileId}${inline ? '?inline=1' : ''}`;
 };
 
+/**
+ * Get shareable file link in Slack format: {baseUrl}/files/{workspaceId}/{fileId}/{filename}
+ */
+export const getShareableFileLink = (fileId: string, workspaceId: string, filename: string): string => {
+  const rawBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+  const normalizedBaseUrl = rawBaseUrl.replace(/\/?api\/?$/, '');
+  const origin = normalizedBaseUrl || rawBaseUrl;
+  
+  // Format filename: replace spaces with underscores and sanitize
+  const sanitizedFilename = filename
+    .replace(/\s+/g, '_')
+    .replace(/[^a-zA-Z0-9._-]/g, '')
+    .replace(/_+/g, '_');
+  
+  return `${origin}/files/${workspaceId}/${fileId}/${sanitizedFilename}`;
+};
+
+/**
+ * Copy text to clipboard
+ */
+export const copyToClipboard = async (text: string): Promise<boolean> => {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } else {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      return successful;
+    }
+  } catch (error) {
+    console.error('Failed to copy to clipboard:', error);
+    return false;
+  }
+};
+

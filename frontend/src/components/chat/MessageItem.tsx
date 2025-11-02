@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import type { Message as ApiMessage, User as ApiUser } from '../../services/messageApi';
 import { parseMarkdown } from '../../utils/markdown';
 import { getFileUrl, getFileInfo, type FileMetadata } from '../../services/fileApi';
+import { useWorkspace } from '../../context/WorkspaceContext';
 import EmojiPicker from './EmojiPicker';
+import FileContextMenu from './FileContextMenu';
 
 interface MessageItemProps {
   message: ApiMessage;
@@ -174,7 +176,7 @@ const FileViewer: React.FC<FileViewerProps> = ({ fileId, fileInfo, onClose }) =>
   );
 };
 
-const FileAttachment: React.FC<{ fileId: string; onClick: () => void }> = ({ fileId, onClick }) => {
+const FileAttachment: React.FC<{ fileId: string; onClick: () => void; workspaceId: string }> = ({ fileId, onClick, workspaceId }) => {
   const [fileInfo, setFileInfo] = useState<FileMetadata | null>(null);
   const [isImage, setIsImage] = useState(false);
   const [isVideo, setIsVideo] = useState(false);
@@ -185,6 +187,8 @@ const FileAttachment: React.FC<{ fileId: string; onClick: () => void }> = ({ fil
   const [videoThumbnail, setVideoThumbnail] = useState<string>('');
   const [videoDuration, setVideoDuration] = useState<string>('');
   const [audioDuration, setAudioDuration] = useState<string>('');
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const fileUrl = getFileUrl(fileId, true);
   const downloadUrl = getFileUrl(fileId, false);
 
@@ -215,6 +219,16 @@ const FileAttachment: React.FC<{ fileId: string; onClick: () => void }> = ({ fil
       }
     });
   }, [fileId]);
+
+  const handleMoreActionsClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMenuPosition({
+      x: rect.right - 200, // Position menu to the left of button
+      y: rect.bottom + 5,  // Position menu below button
+    });
+    setShowContextMenu(true);
+  };
 
   // Generate video thumbnail
   useEffect(() => {
@@ -347,77 +361,120 @@ const FileAttachment: React.FC<{ fileId: string; onClick: () => void }> = ({ fil
   // Render video with thumbnail and duration
   if (isVideo && fileInfo) {
     return (
-      <div 
-        className="relative rounded-lg overflow-hidden cursor-pointer group max-w-[400px] bg-black"
-        onClick={onClick}
-      >
-        {videoThumbnail ? (
-          <>
-            <img
-              src={videoThumbnail}
-              alt={fileInfo.filename}
-              className="w-full h-auto max-h-[300px] object-cover"
-            />
-            {/* Play button overlay */}
-            <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-colors">
-              <div className="w-16 h-16 rounded-full bg-white/90 group-hover:bg-white flex items-center justify-center shadow-lg">
-                <svg className="w-8 h-8 text-black ml-1" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z" />
+      <>
+        <div 
+          className="relative rounded-lg overflow-hidden cursor-pointer group max-w-[400px] bg-black"
+          onClick={onClick}
+        >
+          {videoThumbnail ? (
+            <>
+              <img
+                src={videoThumbnail}
+                alt={fileInfo.filename}
+                className="w-full h-auto max-h-[300px] object-cover"
+              />
+              {/* Play button overlay */}
+              <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-colors">
+                <div className="w-16 h-16 rounded-full bg-white/90 group-hover:bg-white flex items-center justify-center shadow-lg">
+                  <svg className="w-8 h-8 text-black ml-1" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </div>
+              </div>
+              {/* Duration badge */}
+              {videoDuration && (
+                <div className="absolute bottom-2 right-2 px-2 py-1 rounded bg-black/80 text-white text-xs font-medium">
+                  {videoDuration}
+                </div>
+              )}
+              {/* More actions button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleMoreActionsClick(e);
+                }}
+                className="absolute top-2 right-2 w-8 h-8 rounded bg-black/80 hover:bg-black flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                title="More actions"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <circle cx="12" cy="5" r="2" />
+                  <circle cx="12" cy="12" r="2" />
+                  <circle cx="12" cy="19" r="2" />
                 </svg>
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Fallback: Use video element as thumbnail */}
+              <video
+                src={fileUrl}
+                className="w-full h-auto max-h-[300px] object-cover"
+                preload="metadata"
+                muted
+                playsInline
+                crossOrigin="use-credentials"
+                onLoadedMetadata={(e) => {
+                  const video = e.currentTarget;
+                  const duration = video.duration;
+                  const minutes = Math.floor(duration / 60);
+                  const seconds = Math.floor(duration % 60);
+                  setVideoDuration(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+                }}
+              />
+              {/* Play button overlay */}
+              <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-colors pointer-events-none">
+                <div className="w-16 h-16 rounded-full bg-white/90 group-hover:bg-white flex items-center justify-center shadow-lg">
+                  <svg className="w-8 h-8 text-black ml-1" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </div>
               </div>
-            </div>
-            {/* Duration badge */}
-            {videoDuration && (
-              <div className="absolute bottom-2 right-2 px-2 py-1 rounded bg-black/80 text-white text-xs font-medium">
-                {videoDuration}
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            {/* Fallback: Use video element as thumbnail */}
-            <video
-              src={fileUrl}
-              className="w-full h-auto max-h-[300px] object-cover"
-              preload="metadata"
-              muted
-              playsInline
-              crossOrigin="use-credentials"
-              onLoadedMetadata={(e) => {
-                const video = e.currentTarget;
-                const duration = video.duration;
-                const minutes = Math.floor(duration / 60);
-                const seconds = Math.floor(duration % 60);
-                setVideoDuration(`${minutes}:${seconds.toString().padStart(2, '0')}`);
-              }}
-            />
-            {/* Play button overlay */}
-            <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-colors pointer-events-none">
-              <div className="w-16 h-16 rounded-full bg-white/90 group-hover:bg-white flex items-center justify-center shadow-lg">
-                <svg className="w-8 h-8 text-black ml-1" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z" />
+              {/* Duration badge */}
+              {videoDuration && (
+                <div className="absolute bottom-2 right-2 px-2 py-1 rounded bg-black/80 text-white text-xs font-medium">
+                  {videoDuration}
+                </div>
+              )}
+              {/* More actions button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleMoreActionsClick(e);
+                }}
+                className="absolute top-2 right-2 w-8 h-8 rounded bg-black/80 hover:bg-black flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                title="More actions"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <circle cx="12" cy="5" r="2" />
+                  <circle cx="12" cy="12" r="2" />
+                  <circle cx="12" cy="19" r="2" />
                 </svg>
-              </div>
-            </div>
-            {/* Duration badge */}
-            {videoDuration && (
-              <div className="absolute bottom-2 right-2 px-2 py-1 rounded bg-black/80 text-white text-xs font-medium">
-                {videoDuration}
-              </div>
-            )}
-          </>
+              </button>
+            </>
+          )}
+        </div>
+        
+        {/* Context Menu */}
+        {showContextMenu && fileInfo && (
+          <FileContextMenu
+            file={fileInfo}
+            workspaceId={workspaceId}
+            onClose={() => setShowContextMenu(false)}
+            position={menuPosition}
+          />
         )}
-      </div>
+      </>
     );
   }
 
   // Render PDF preview card
   if (isPdf && fileInfo) {
     return (
-      <div
-        onClick={onClick}
-        className="w-full max-w-[600px] bg-[rgb(30,30,30)] hover:bg-[rgb(35,35,35)] rounded-lg overflow-hidden cursor-pointer transition-colors shadow-lg"
-      >
+      <>
+        <div
+          onClick={onClick}
+          className="w-full max-w-[600px] bg-[rgb(30,30,30)] hover:bg-[rgb(35,35,35)] rounded-lg overflow-hidden cursor-pointer transition-colors shadow-lg"
+        >
         {/* Header */}
         <div className="flex items-start justify-between px-4 py-3 bg-[rgb(40,40,40)]">
           <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -462,9 +519,9 @@ const FileAttachment: React.FC<{ fileId: string; onClick: () => void }> = ({ fil
               </svg>
             </button>
             <button
+              onClick={handleMoreActionsClick}
               className="w-9 h-9 rounded hover:bg-[rgb(60,56,54)] flex items-center justify-center text-[rgb(209,210,211)] hover:text-white transition-colors"
               title="More actions"
-              onClick={(e) => e.stopPropagation()}
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                 <circle cx="12" cy="5" r="2" />
@@ -485,16 +542,28 @@ const FileAttachment: React.FC<{ fileId: string; onClick: () => void }> = ({ fil
           />
         </div>
       </div>
+      
+      {/* Context Menu */}
+      {showContextMenu && fileInfo && (
+        <FileContextMenu
+          file={fileInfo}
+          workspaceId={workspaceId}
+          onClose={() => setShowContextMenu(false)}
+          position={menuPosition}
+        />
+      )}
+    </>
     );
   }
 
   // Render PowerPoint preview card
   if (isPpt && fileInfo) {
     return (
-      <div
-        onClick={onClick}
-        className="w-full max-w-[600px] bg-[rgb(30,30,30)] hover:bg-[rgb(35,35,35)] rounded-lg overflow-hidden cursor-pointer transition-colors shadow-lg"
-      >
+      <>
+        <div
+          onClick={onClick}
+          className="w-full max-w-[600px] bg-[rgb(30,30,30)] hover:bg-[rgb(35,35,35)] rounded-lg overflow-hidden cursor-pointer transition-colors shadow-lg"
+        >
         {/* Header */}
         <div className="flex items-start justify-between px-4 py-3 bg-[rgb(40,40,40)]">
           <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -540,9 +609,9 @@ const FileAttachment: React.FC<{ fileId: string; onClick: () => void }> = ({ fil
               </svg>
             </button>
             <button
+              onClick={handleMoreActionsClick}
               className="w-9 h-9 rounded hover:bg-[rgb(60,56,54)] flex items-center justify-center text-[rgb(209,210,211)] hover:text-white transition-colors"
               title="More actions"
-              onClick={(e) => e.stopPropagation()}
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                 <circle cx="12" cy="5" r="2" />
@@ -571,94 +640,145 @@ const FileAttachment: React.FC<{ fileId: string; onClick: () => void }> = ({ fil
           </div>
         </div>
       </div>
+      
+      {/* Context Menu */}
+      {showContextMenu && fileInfo && (
+        <FileContextMenu
+          file={fileInfo}
+          workspaceId={workspaceId}
+          onClose={() => setShowContextMenu(false)}
+          position={menuPosition}
+        />
+      )}
+    </>
     );
   }
 
   // Render audio player
   if (isAudio && fileInfo) {
     return (
-      <div className="w-full max-w-[500px] bg-[rgb(40,40,40)] rounded-lg border border-[rgb(60,56,54)] overflow-hidden">
-        <div className="px-4 py-3 flex items-center gap-3">
-          <button className="w-10 h-10 flex-shrink-0 rounded-full bg-white hover:bg-gray-100 flex items-center justify-center transition-colors">
-            <svg className="w-5 h-5 text-gray-800 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          </button>
-          <div className="flex-1 min-w-0">
-            <div className="text-white text-[13px] font-medium truncate mb-1">
-              {fileInfo.filename}
-            </div>
-            <audio
-              src={fileUrl}
-              controls
-              controlsList="nodownload"
-              className="w-full h-8"
-              style={{
-                filter: 'invert(1) hue-rotate(180deg)',
-              }}
-              onLoadedMetadata={(e) => {
-                const audio = e.currentTarget;
-                const duration = audio.duration;
-                const minutes = Math.floor(duration / 60);
-                const seconds = Math.floor(duration % 60);
-                setAudioDuration(`${minutes}:${seconds.toString().padStart(2, '0')}`);
-              }}
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => window.open(downloadUrl, '_blank')}
-              className="w-8 h-8 rounded hover:bg-[rgb(60,56,54)] flex items-center justify-center text-[rgb(209,210,211)] hover:text-white transition-colors"
-              title="Download"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+      <>
+        <div className="w-full max-w-[500px] bg-[rgb(40,40,40)] rounded-lg border border-[rgb(60,56,54)] overflow-hidden relative group">
+          <div className="px-4 py-3 flex items-center gap-3">
+            <button className="w-10 h-10 flex-shrink-0 rounded-full bg-white hover:bg-gray-100 flex items-center justify-center transition-colors">
+              <svg className="w-5 h-5 text-gray-800 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
               </svg>
             </button>
+            <div className="flex-1 min-w-0">
+              <div className="text-white text-[13px] font-medium truncate mb-1">
+                {fileInfo.filename}
+              </div>
+              <audio
+                src={fileUrl}
+                controls
+                controlsList="nodownload"
+                className="w-full h-8"
+                style={{
+                  filter: 'invert(1) hue-rotate(180deg)',
+                }}
+                onLoadedMetadata={(e) => {
+                  const audio = e.currentTarget;
+                  const duration = audio.duration;
+                  const minutes = Math.floor(duration / 60);
+                  const seconds = Math.floor(duration % 60);
+                  setAudioDuration(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+                }}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleMoreActionsClick}
+                className="w-8 h-8 rounded hover:bg-[rgb(60,56,54)] flex items-center justify-center text-[rgb(209,210,211)] hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                title="More actions"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <circle cx="12" cy="5" r="2" />
+                  <circle cx="12" cy="12" r="2" />
+                  <circle cx="12" cy="19" r="2" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+        
+        {/* Context Menu */}
+        {showContextMenu && fileInfo && (
+          <FileContextMenu
+            file={fileInfo}
+            workspaceId={workspaceId}
+            onClose={() => setShowContextMenu(false)}
+            position={menuPosition}
+          />
+        )}
+      </>
     );
   }
 
   // Render inline image thumbnail
   if (isImage && fileInfo) {
     return (
-      <div 
-        className="rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity max-w-[400px] bg-[rgb(49,48,44)]"
-        onClick={onClick}
-      >
-        <img
-          src={fileUrl}
-          alt={fileInfo.filename}
-          className="w-full h-auto max-h-[300px] object-contain"
-          crossOrigin="use-credentials"
-          onError={(e) => {
-            console.error('Image load error:', fileInfo.filename, fileInfo.contentType);
-            // Only set error if we're sure it's an image
-            const extension = fileInfo.filename.split('.').pop()?.toLowerCase() || '';
-            if (fileInfo.contentType?.startsWith('image/') || 
-                ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(extension)) {
-              // Try loading without inline parameter as fallback
-              const altUrl = downloadUrl;
-              if (altUrl !== fileUrl) {
-                e.currentTarget.src = altUrl;
+      <>
+        <div 
+          className="rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity max-w-[400px] bg-[rgb(49,48,44)] relative group"
+          onClick={onClick}
+        >
+          <img
+            src={fileUrl}
+            alt={fileInfo.filename}
+            className="w-full h-auto max-h-[300px] object-contain"
+            crossOrigin="use-credentials"
+            onError={(e) => {
+              console.error('Image load error:', fileInfo.filename, fileInfo.contentType);
+              // Only set error if we're sure it's an image
+              const extension = fileInfo.filename.split('.').pop()?.toLowerCase() || '';
+              if (fileInfo.contentType?.startsWith('image/') || 
+                  ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(extension)) {
+                // Try loading without inline parameter as fallback
+                const altUrl = downloadUrl;
+                if (altUrl !== fileUrl) {
+                  e.currentTarget.src = altUrl;
+                } else {
+                  setImageError(true);
+                  setIsImage(false);
+                }
               } else {
                 setImageError(true);
                 setIsImage(false);
               }
-            } else {
-              setImageError(true);
-              setIsImage(false);
-            }
-          }}
-          onLoad={() => {
-            // Image loaded successfully
-            setIsImage(true);
-            setImageError(false);
-          }}
-        />
-      </div>
+            }}
+            onLoad={() => {
+              // Image loaded successfully
+              setIsImage(true);
+              setImageError(false);
+            }}
+          />
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleMoreActionsClick(e);
+            }}
+            className="absolute top-2 right-2 w-8 h-8 rounded bg-[rgb(49,48,44)]/80 hover:bg-[rgb(49,48,44)] flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+            title="More actions"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="5" r="2" />
+              <circle cx="12" cy="12" r="2" />
+              <circle cx="12" cy="19" r="2" />
+            </svg>
+          </button>
+        </div>
+        
+        {/* Context Menu */}
+        {showContextMenu && fileInfo && (
+          <FileContextMenu
+            file={fileInfo}
+            workspaceId={workspaceId}
+            onClose={() => setShowContextMenu(false)}
+            position={menuPosition}
+          />
+        )}
+      </>
     );
   }
 
@@ -674,25 +794,50 @@ const FileAttachment: React.FC<{ fileId: string; onClick: () => void }> = ({ fil
   const extension = getFileExtension(fileInfo.filename);
 
   return (
-    <a
-      href={downloadUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center gap-3 px-3 py-2 bg-[rgb(49,48,44)] hover:bg-[rgb(60,56,54)] rounded border border-[rgb(60,56,54)] transition-colors w-full max-w-[400px]"
-    >
-      {getFileTypeIcon(fileInfo.contentType, extension)}
-      <div className="flex-1 min-w-0">
-        <div className="text-sm text-white font-medium truncate">
-          {truncateFilename(fileInfo.filename)}
-        </div>
-        <div className="text-xs text-[rgb(209,210,211)]">
-          {extension} • {formatFileSize(fileInfo.length)}
-        </div>
+    <>
+      <div className="flex items-center gap-3 px-3 py-2 bg-[rgb(49,48,44)] hover:bg-[rgb(60,56,54)] rounded border border-[rgb(60,56,54)] transition-colors w-full max-w-[400px] group relative">
+        <a
+          href={downloadUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 flex-1 min-w-0"
+        >
+          {getFileTypeIcon(fileInfo.contentType, extension)}
+          <div className="flex-1 min-w-0">
+            <div className="text-sm text-white font-medium truncate">
+              {truncateFilename(fileInfo.filename)}
+            </div>
+            <div className="text-xs text-[rgb(209,210,211)]">
+              {extension} • {formatFileSize(fileInfo.length)}
+            </div>
+          </div>
+          <svg className="w-5 h-5 text-[rgb(209,210,211)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+        </a>
+        <button
+          onClick={handleMoreActionsClick}
+          className="w-8 h-8 rounded hover:bg-[rgb(60,56,54)] flex items-center justify-center text-[rgb(209,210,211)] hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+          title="More actions"
+        >
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <circle cx="12" cy="5" r="2" />
+            <circle cx="12" cy="12" r="2" />
+            <circle cx="12" cy="19" r="2" />
+          </svg>
+        </button>
       </div>
-      <svg className="w-5 h-5 text-[rgb(209,210,211)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-      </svg>
-    </a>
+      
+      {/* Context Menu */}
+      {showContextMenu && fileInfo && (
+        <FileContextMenu
+          file={fileInfo}
+          workspaceId={workspaceId}
+          onClose={() => setShowContextMenu(false)}
+          position={menuPosition}
+        />
+      )}
+    </>
   );
 };
 
@@ -709,6 +854,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
   onReaction,
   formatTime,
 }) => {
+  const { currentWorkspaceId } = useWorkspace();
   const [isHovered, setIsHovered] = useState(false);
   const [showEditInput, setShowEditInput] = useState(false);
   const [editText, setEditText] = useState(message.content);
@@ -857,6 +1003,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
                         key={fileId} 
                         fileId={fileId}
                         onClick={() => handleFileClick(fileId)}
+                        workspaceId={currentWorkspaceId || ''}
                       />
                     ))}
                   </div>
