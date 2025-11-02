@@ -29,7 +29,7 @@ import {
   FORMAT_TEXT_COMMAND,
 } from 'lexical';
 import { $isListNode, $isListItemNode } from '@lexical/list';
-import { INSERT_UNORDERED_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, REMOVE_LIST_COMMAND } from '@lexical/list';
+import { INSERT_UNORDERED_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND } from '@lexical/list';
 import { $createQuoteNode } from '@lexical/rich-text';
 import { $createCodeNode } from '@lexical/code';
 import { $createLinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
@@ -90,12 +90,10 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
   const [linkModalSelectedText, setLinkModalSelectedText] = useState('');
   const [showEmojiSuggestions, setShowEmojiSuggestions] = useState(false);
   const [emojiSearchTerm, setEmojiSearchTerm] = useState('');
-  const [emojiSearchStartPos, setEmojiSearchStartPos] = useState(0);
   const [selectedEmojiIndex, setSelectedEmojiIndex] = useState(0);
   const [emojiSuggestionsPosition, setEmojiSuggestionsPosition] = useState({ bottom: 0, left: 0 });
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const [mentionSearchTerm, setMentionSearchTerm] = useState('');
-  const [mentionSearchStartPos, setMentionSearchStartPos] = useState(0);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [mentionSuggestionsPosition, setMentionSuggestionsPosition] = useState({ bottom: 0, left: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
@@ -325,7 +323,6 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
               const searchTerm = textBeforeCursor.slice(lastAtIndex + 1);
               if (!searchTerm.includes(' ') && !searchTerm.includes('\n') && !searchTerm.includes('@')) {
                 setMentionSearchTerm(searchTerm);
-                setMentionSearchStartPos(lastAtIndex);
                 const position = getCursorCoordinates();
                 setMentionSuggestionsPosition(position);
                 setShowMentionSuggestions(true);
@@ -346,7 +343,6 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
               const searchTerm = textBeforeCursor.slice(lastColonIndex + 1);
               if (!searchTerm.includes(' ') && !searchTerm.includes('\n') && !searchTerm.includes(':')) {
                 setEmojiSearchTerm(searchTerm);
-                setEmojiSearchStartPos(lastColonIndex);
                 const position = getCursorCoordinates();
                 setEmojiSuggestionsPosition(position);
                 setShowEmojiSuggestions(true);
