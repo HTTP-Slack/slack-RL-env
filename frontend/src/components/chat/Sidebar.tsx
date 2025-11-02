@@ -34,6 +34,7 @@ interface SidebarProps {
   conversations: Conversation[];
   users: User[];
   activeConversation: Conversation | null;
+  activeChannel?: IChannel | null;
   onConversationSelect: (conversation: Conversation) => void;
   onUserSelect: (userId: string) => void;
   onChannelSelect: (channelId: string) => void;
@@ -42,11 +43,12 @@ interface SidebarProps {
 
 interface SortableChannelProps {
   channel: IChannel;
+  isActive?: boolean;
   onChannelSelect: (channelId: string) => void;
   onChannelMenuClick?: (channel: IChannel, position: { x: number; y: number }) => void;
 }
 
-const SortableChannel: React.FC<SortableChannelProps> = ({ channel, onChannelSelect, onChannelMenuClick }) => {
+const SortableChannel: React.FC<SortableChannelProps> = ({ channel, isActive, onChannelSelect, onChannelMenuClick }) => {
   const {
     attributes,
     listeners,
@@ -77,7 +79,9 @@ const SortableChannel: React.FC<SortableChannelProps> = ({ channel, onChannelSel
     <div ref={setNodeRef} style={style} className="relative group/channel">
       <button
         onClick={() => onChannelSelect(channel._id)}
-        className="w-full px-2 py-1 rounded flex items-center hover:bg-[#302234] transition-colors"
+        className={`w-full px-2 py-1 rounded flex items-center hover:bg-[#302234] transition-colors ${
+          isActive ? 'bg-[#7d3986]' : ''
+        }`}
       >
         <span className="text-[#d1d2d3] mr-2">#</span>
         <span className="text-[15px] text-[#d1d2d3] truncate flex-1 text-left">
@@ -112,11 +116,12 @@ const SortableChannel: React.FC<SortableChannelProps> = ({ channel, onChannelSel
 
 interface SortableSectionProps {
   section: ISection;
+  activeChannelId?: string;
   onChannelSelect: (channelId: string) => void;
   onChannelMenuClick?: (channel: IChannel, position: { x: number; y: number }) => void;
 }
 
-const SortableSection: React.FC<SortableSectionProps> = ({ section, onChannelSelect, onChannelMenuClick }) => {
+const SortableSection: React.FC<SortableSectionProps> = ({ section, activeChannelId, onChannelSelect, onChannelMenuClick }) => {
   const {
     attributes,
     listeners,
@@ -197,6 +202,7 @@ const SortableSection: React.FC<SortableSectionProps> = ({ section, onChannelSel
                 <SortableChannel
                   key={channel._id}
                   channel={channel}
+                  isActive={activeChannelId === channel._id}
                   onChannelSelect={onChannelSelect}
                   onChannelMenuClick={onChannelMenuClick}
                 />
@@ -215,6 +221,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   conversations,
   users,
   activeConversation,
+  activeChannel,
   onConversationSelect,
   onUserSelect,
   onChannelSelect,
@@ -687,6 +694,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               <SortableSection
                 key={section._id}
                 section={section}
+                activeChannelId={activeChannel?._id}
                 onChannelSelect={onChannelSelect}
                 onChannelMenuClick={onChannelMenuClick}
               />

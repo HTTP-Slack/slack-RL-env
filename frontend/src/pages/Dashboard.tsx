@@ -480,6 +480,7 @@ const Dashboard: React.FC = () => {
           conversations={conversations}
           users={users}
           activeConversation={activeConversation}
+          activeChannel={activeChannel}
           onConversationSelect={(conv) => {
             setActiveConversation(conv);
             setActiveChannel(null); // Clear channel when selecting conversation
