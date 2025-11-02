@@ -19,6 +19,16 @@
   scrollbar-width: none;
 }
 
+/* Hide scrollbar for recent files submenu only */
+.recent-files-submenu-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.recent-files-submenu-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Slide-in animation for side panel */
 @keyframes slide-in-right {
   from {
