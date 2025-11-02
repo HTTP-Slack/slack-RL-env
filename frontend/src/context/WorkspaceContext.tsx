@@ -8,7 +8,9 @@ import {
   getOrCreateConversation,
   getOrganisationUsers,
 } from '../services/messageApi';
+import { getSections } from '../services/sectionApi';
 import { useAuth } from './AuthContext';
+import type { ISection } from '../types/section';
 
 interface WorkspaceContextType {
   currentWorkspaceId: string | null;
@@ -20,6 +22,8 @@ interface WorkspaceContextType {
   messages: Message[];
   loading: boolean;
   socket: Socket | null;
+  sections: ISection[];
+  setSections: React.Dispatch<React.SetStateAction<ISection[]>>;
   sendMessage: (content: string, attachments?: string[]) => Promise<void>;
   fetchConversations: () => Promise<void>;
   startConversation: (otherUserId: string) => Promise<void>;
@@ -49,6 +53,7 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [socket, setSocket] = useState<Socket | null>(null);
+  const [sections, setSections] = useState<ISection[]>([]);
 
   // Initialize socket connection
   useEffect(() => {
@@ -189,6 +194,19 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
     };
   }, [user]);
 
+  const fetchSections = useCallback(async () => {
+    if (!currentWorkspaceId) return;
+    try {
+      console.log('📁 Fetching sections for workspace:', currentWorkspaceId);
+      const sectionsData = await getSections(currentWorkspaceId);
+      console.log('✅ Sections fetched:', sectionsData.length, 'sections', sectionsData);
+      setSections(sectionsData);
+    } catch (error) {
+      console.error("❌ Error fetching sections:", error);
+      setSections([]);
+    }
+  }, [currentWorkspaceId]);
+
   const fetchConversations = useCallback(async () => {
     if (!currentWorkspaceId) return;
     
@@ -262,18 +280,21 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
       setUsers([]);
       setMessages([]);
       setActiveConversation(null);
+      setSections([]);
       
       // Fetch new data
       fetchConversations();
       fetchUsers();
+      fetchSections();
     } else {
       // Clear everything if no workspace selected
       setConversations([]);
       setUsers([]);
       setMessages([]);
       setActiveConversation(null);
+      setSections([]);
     }
-  }, [currentWorkspaceId, fetchConversations, fetchUsers]);
+  }, [currentWorkspaceId, fetchConversations, fetchUsers, fetchSections]);
 
   // Fetch messages when active conversation changes
   useEffect(() => {
@@ -403,6 +424,8 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
     fetchConversations,
     startConversation,
     refreshMessages,
+    sections,
+    setSections,
   };
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;

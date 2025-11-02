@@ -135,6 +135,12 @@ const Dashboard: React.FC = () => {
     });
   };
 
+  const handleChannelSelect = (channelId: string) => {
+    console.log('Channel selected:', channelId);
+    // TODO: Implement channel selection logic
+    // This will be similar to conversation selection but for channels
+  };
+
   if (!user || !currentWorkspaceId) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#1a1d21] text-white">
@@ -213,6 +219,7 @@ const Dashboard: React.FC = () => {
           activeConversation={activeConversation}
           onConversationSelect={setActiveConversation}
           onUserSelect={handleUserSelect}
+          onChannelSelect={handleChannelSelect}
         />
         {activeConversation && activeUser ? (
           <>
