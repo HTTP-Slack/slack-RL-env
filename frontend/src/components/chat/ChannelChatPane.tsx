@@ -16,6 +16,8 @@ import {
   type PinnedMessage,
 } from '../../services/pinnedMessageApi';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useProfile } from '../../features/profile/ProfileContext';
+import { useAuth } from '../../context/AuthContext';
 
 interface ChannelChatPaneProps {
   currentUser: User;
@@ -46,6 +48,8 @@ const ChannelChatPane: React.FC<ChannelChatPaneProps> = ({
   const { currentWorkspaceId } = useWorkspace();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const { openUserProfile, openPanel } = useProfile();
+  const { user: currentAuthUser } = useAuth();
   const [showAddMembers, setShowAddMembers] = useState(false);
   const [showChannelDetails, setShowChannelDetails] = useState(false);
   const [firstUnreadMessageId, setFirstUnreadMessageId] = useState<string | null>(null);
@@ -160,6 +164,16 @@ const ChannelChatPane: React.FC<ChannelChatPaneProps> = ({
       messageRefs.current.set(messageId, element);
     } else {
       messageRefs.current.delete(messageId);
+    }
+  };
+
+  const handleUserClick = (user: User) => {
+    // If clicking on own profile, open ProfilePanel
+    if (currentAuthUser && user._id === currentAuthUser._id) {
+      openPanel();
+    } else {
+      // Otherwise open UserProfileModal for the clicked user
+      openUserProfile(user);
     }
   };
 
@@ -299,6 +313,7 @@ const ChannelChatPane: React.FC<ChannelChatPaneProps> = ({
                     onReaction={(emoji) => onReaction(message._id, emoji)}
                     onMarkUnread={() => handleMarkUnread(message._id)}
                     onPin={() => handlePinMessage(message._id)}
+                    onUserClick={handleUserClick}
                     formatTime={formatTime}
                   />
                 </div>

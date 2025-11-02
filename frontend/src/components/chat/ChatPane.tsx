@@ -7,6 +7,7 @@ import UnreadDivider from './UnreadDivider';
 import JumpToMenu from './JumpToMenu';
 import PinnedMessageLabel from './PinnedMessageLabel';
 import { useProfile } from '../../features/profile/ProfileContext';
+import { useAuth } from '../../context/AuthContext';
 import { getTargetDate } from '../../utils/dateUtils';
 import {
   getPinnedMessages,
@@ -45,7 +46,8 @@ const ChatPane: React.FC<ChatPaneProps> = ({
   const { currentWorkspaceId } = useWorkspace();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const { openPanel } = useProfile();
+  const { openUserProfile, openPanel } = useProfile();
+  const { user: currentAuthUser } = useAuth();
   const [firstUnreadMessageId, setFirstUnreadMessageId] = useState<string | null>(null);
   const [pinnedMessages, setPinnedMessages] = useState<Map<string, PinnedMessage>>(new Map());
 
@@ -165,6 +167,16 @@ const ChatPane: React.FC<ChatPaneProps> = ({
     }
   };
 
+  const handleUserClick = (user: User) => {
+    // If clicking on own profile, open ProfilePanel
+    if (currentAuthUser && user._id === currentAuthUser._id) {
+      openPanel();
+    } else {
+      // Otherwise open UserProfileModal for the clicked user
+      openUserProfile(user);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-[rgb(26,29,33)]">
       {/* Chat Header */}
@@ -218,11 +230,11 @@ const ChatPane: React.FC<ChatPaneProps> = ({
               <div className="text-[15px] text-white leading-[1.46668] mb-4">
                 This conversation is just between <strong className="font-bold">@{activeUser.username || 'Unknown User'}</strong> and you. Check out their profile to learn more about them.
               </div>
-              <button 
-                onClick={openPanel}
+              <button
+                onClick={() => openUserProfile(activeUser)}
                 className="px-4 py-2 bg-[rgb(26,29,33)] border border-white rounded text-[15px] font-medium text-white hover:bg-[rgb(49,48,44)] transition-colors"
               >
-                View profile
+                View Profile
               </button>
             </div>
           </div>
@@ -287,6 +299,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({
                     onReaction={(emoji) => onReaction(message._id, emoji)}
                     onMarkUnread={() => handleMarkUnread(message._id)}
                     onPin={() => handlePinMessage(message._id)}
+                    onUserClick={handleUserClick}
                     formatTime={formatTime}
                   />
                 </div>

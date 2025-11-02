@@ -21,6 +21,7 @@ interface MessageItemProps {
   onReaction: (emoji: string) => void;
   onMarkUnread: () => void;
   onPin?: () => void;
+  onUserClick?: (user: ApiUser) => void;
   formatTime: (date: Date) => string;
 }
 
@@ -851,6 +852,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
   onReaction,
   onMarkUnread,
   onPin,
+  onUserClick,
   formatTime,
 }) => {
   const { currentWorkspaceId } = useWorkspace();
@@ -930,7 +932,10 @@ const MessageItem: React.FC<MessageItemProps> = ({
       <div className="flex-1 min-w-0 flex flex-col">
         {showAvatar && (
           <div className="flex items-center mb-0.5">
-            <button className="text-[15px] font-black text-[rgb(248,248,248)] mr-2 hover:underline cursor-pointer">
+            <button
+              onClick={() => onUserClick?.(user)}
+              className="text-[15px] font-black text-[rgb(248,248,248)] mr-2 hover:underline cursor-pointer"
+            >
               {user.username || 'Unknown User'}
             </button>
             <span className="text-[12px] font-normal text-[rgb(171,171,173)] hover:underline cursor-pointer">

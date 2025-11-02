@@ -7,6 +7,8 @@ import ChannelChatPane from '../components/chat/ChannelChatPane';
 import ThreadPanel from '../components/chat/ThreadPanel';
 import { PreferencesModal } from '../features/preferences/PreferencesModal';
 import { ProfilePanel } from '../features/profile/ProfilePanel';
+import { UserProfileModal } from '../features/profile/UserProfileModal';
+import { useProfile } from '../features/profile/ProfileContext';
 import { useAuth } from '../context/AuthContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { getWorkspaces } from '../services/workspaceApi';
@@ -19,6 +21,7 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const { selectedUser } = useProfile();
   const {
     currentWorkspaceId,
     setCurrentWorkspaceId,
@@ -405,6 +408,7 @@ const Dashboard: React.FC = () => {
       {/* Preferences and Profile Modals */}
       <PreferencesModal />
       <ProfilePanel />
+      {selectedUser && <UserProfileModal user={selectedUser} />}
     </div>
   );
 };
