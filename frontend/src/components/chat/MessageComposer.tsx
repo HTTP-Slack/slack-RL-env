@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { insertMarkdown, parseMarkdown } from '../../utils/markdown';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { uploadFiles, getFileUrl } from '../../services/fileApi';
+import { uploadFiles, getFileUrl, updateFileMetadata } from '../../services/fileApi';
 import { getRecentFiles, formatRelativeTime } from '../../services/recentFilesService';
 import EmojiPicker from './EmojiPicker';
 import FormattingHelpModal from './FormattingHelpModal';
@@ -523,10 +523,51 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     setShowFileDetailsEdit(true);
   };
 
-  const handleSaveFileDetails = () => {
-    // TODO: Implement file renaming and description storage
-    // For now, just close the edit modal
-    setShowFileDetailsEdit(false);
+  const handleSaveFileDetails = async () => {
+    if (!previewModalData) return;
+
+    try {
+      // Get the uploaded file ID from the map
+      const uploadedFileId = uploadedFileIds.get(previewModalData.id);
+      
+      if (!uploadedFileId) {
+        alert('Cannot update file: File not uploaded yet');
+        return;
+      }
+
+      // Call API to update file metadata
+      const updatedFile = await updateFileMetadata(uploadedFileId, {
+        filename: editingFileName,
+        description: editingFileDescription,
+      });
+
+      if (updatedFile) {
+        // Update the selected file with new name
+        setSelectedFiles(prev => 
+          prev.map(sf => 
+            sf.id === previewModalData.id 
+              ? { ...sf, file: new File([sf.file], updatedFile.filename, { type: sf.file.type }) }
+              : sf
+          )
+        );
+        
+        // Update preview modal data
+        const newFile = new File([previewModalData.file], updatedFile.filename, { type: previewModalData.file.type });
+        setPreviewModalData({
+          ...previewModalData,
+          file: newFile,
+        });
+        
+        // Close the edit modal
+        setShowFileDetailsEdit(false);
+        
+        // Show success feedback
+        console.log('File details updated successfully');
+      }
+    } catch (error: any) {
+      console.error('Error updating file details:', error);
+      alert(error.response?.data?.message || 'Failed to update file details. Please try again.');
+    }
   };
 
   const handleCancelFileDetails = () => {

@@ -102,6 +102,27 @@ export const getShareableFileLink = (fileId: string, workspaceId: string, filena
 };
 
 /**
+ * Update file metadata (filename and description)
+ */
+export const updateFileMetadata = async (
+  fileId: string,
+  updates: { filename?: string; description?: string }
+): Promise<FileMetadata | null> => {
+  try {
+    const response = await api.patch<ApiResponse<FileMetadata>>(`/files/${fileId}`, updates);
+    
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    
+    return null;
+  } catch (error: any) {
+    console.error('Error updating file metadata:', error);
+    throw error;
+  }
+};
+
+/**
  * Copy text to clipboard
  */
 export const copyToClipboard = async (text: string): Promise<boolean> => {
