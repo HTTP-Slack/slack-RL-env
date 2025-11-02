@@ -205,6 +205,7 @@ const ThreadPanel: React.FC<ThreadPanelProps> = ({
             onEdit={() => {}}
             onDelete={() => {}}
             onOpenThread={() => {}}
+            onMarkUnread={() => {}}
             onReaction={(emoji) => {
               if (!socket) return;
               socket.emit('reaction', {
@@ -260,6 +261,7 @@ const ThreadPanel: React.FC<ThreadPanelProps> = ({
               onEdit={(newText) => handleEditMessage(reply._id, newText)}
               onDelete={() => handleDeleteMessage(reply._id)}
               onOpenThread={() => {}}
+              onMarkUnread={() => {}}
               onReaction={(emoji) => handleReaction(reply._id, emoji)}
               formatTime={formatTime}
             />

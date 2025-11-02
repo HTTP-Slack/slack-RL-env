@@ -239,8 +239,8 @@ const Dashboard: React.FC = () => {
         // Navigate to channel/conversation and highlight message
         if (result.channel) {
           await handleChannelSelect(result.channel._id);
-        } else if (result.conversation) {
-          const conversation = conversations.find(c => c._id === result.conversation._id);
+        } else if (result.conversation?._id) {
+          const conversation = conversations.find(c => c._id === result.conversation?._id);
           if (conversation) {
             setActiveConversation(conversation);
             setActiveChannel(null);
