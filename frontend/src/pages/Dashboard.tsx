@@ -6,6 +6,7 @@ import ChatPane from '../components/chat/ChatPane';
 import ChannelChatPane from '../components/chat/ChannelChatPane';
 import ThreadPanel from '../components/chat/ThreadPanel';
 import { ActivityPanel } from '../components/chat/ActivityPanel';
+import { DMPanel } from '../components/chat/DMPanel';
 import ChannelContextMenu from '../components/chat/ChannelContextMenu';
 import ChannelSettingsModal from '../components/chat/ChannelSettingsModal';
 import ChannelActionsMenu from '../components/chat/ChannelActionsMenu';
@@ -49,6 +50,7 @@ const Dashboard: React.FC = () => {
   const [activeChannel, setActiveChannel] = useState<IChannel | null>(null);
   const [channelMessages, setChannelMessages] = useState<any[]>([]);
   const [isActivityOpen, setIsActivityOpen] = useState(false);
+  const [isDMsOpen, setIsDMsOpen] = useState(false);
   const [channelContextMenu, setChannelContextMenu] = useState<{
     channel: IChannel;
     position: { x: number; y: number };
@@ -477,11 +479,65 @@ const Dashboard: React.FC = () => {
       <div className="flex flex-1 overflow-hidden">
         <LeftNav 
           workspaceName={currentWorkspace?.name}
-          onActivityClick={() => setIsActivityOpen(true)}
-          onHomeClick={() => setIsActivityOpen(false)}
+          onActivityClick={() => {
+            setIsActivityOpen(true);
+            setIsDMsOpen(false);
+          }}
+          onHomeClick={() => {
+            setIsActivityOpen(false);
+            setIsDMsOpen(false);
+          }}
+          onDMsClick={() => {
+            setIsDMsOpen(true);
+            setIsActivityOpen(false);
+          }}
           isActivityOpen={isActivityOpen}
+          isDMsOpen={isDMsOpen}
         />
-        {isActivityOpen ? (
+        {isDMsOpen ? (
+          <>
+            {/* DMs Panel - Like Activity Panel */}
+            <DMPanel
+              isOpen={isDMsOpen}
+              onClose={() => setIsDMsOpen(false)}
+              onConversationSelect={(conv) => {
+                setActiveConversation(conv);
+                setActiveChannel(null);
+              }}
+            />
+            {/* Chat content shown alongside DM panel */}
+            {activeConversation && activeUser ? (
+              <>
+                <ChatPane
+                  currentUser={user}
+                  activeUser={activeUser}
+                  messages={messages}
+                  threads={{}}
+                  editingMessageId={editingMessageId}
+                  onSendMessage={handleSendMessage}
+                  onEditMessage={handleEditMessage}
+                  onDeleteMessage={handleDeleteMessage}
+                  onOpenThread={handleOpenThread}
+                  onReaction={handleReaction}
+                />
+                {activeThread && (
+                  <ThreadPanel
+                    parentMessage={activeThread}
+                    currentUser={user}
+                    onClose={handleCloseThread}
+                  />
+                )}
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center bg-[#1a1d21]">
+                <div className="text-center">
+                  <p className="text-[#d1d2d3] text-lg mb-4">Select a conversation to start chatting</p>
+                  <p className="text-[#616061] text-sm">Choose a user from the sidebar</p>
+                </div>
+              </div>
+            )}
+          </>
+        ) : isActivityOpen ? (
           <>
             <ActivityPanel
               isOpen={isActivityOpen}

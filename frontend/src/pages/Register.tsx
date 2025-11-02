@@ -131,7 +131,7 @@ const Register = () => {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password (min. 8 characters)"
+              placeholder="Password (min. 6 characters)"
               className="w-full px-4 py-3 border border-gray-300 rounded-md mb-3 text-base focus:outline-none focus:border-gray-400 focus:ring-0"
               required
               disabled={loading}

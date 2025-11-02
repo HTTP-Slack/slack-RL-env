@@ -3,19 +3,20 @@ import Organisation from '../models/organisation.model.js';
 
 /**
  * Parse mentions from message content
- * Supports @username, @channel, @here
+ * Supports @username, @channel, @here, @everyone
  * @param {string} content - Message content
  * @param {string} organisationId - Organisation ID to find users
- * @returns {Promise<Object>} Object containing { mentionedUsers: Array, hasChannelMention: boolean, hasHereMention: boolean }
+ * @returns {Promise<Object>} Object containing { mentionedUsers: Array, hasChannelMention: boolean, hasHereMention: boolean, hasEveryoneMention: boolean }
  */
 export const parseMentions = async (content, organisationId) => {
   if (!content || typeof content !== 'string') {
-    return { mentionedUsers: [], hasChannelMention: false, hasHereMention: false };
+    return { mentionedUsers: [], hasChannelMention: false, hasHereMention: false, hasEveryoneMention: false };
   }
 
   const mentionedUsers = [];
   let hasChannelMention = false;
   let hasHereMention = false;
+  let hasEveryoneMention = false;
 
   // Get organisation members for membership validation
   let organisationMembers = [];
@@ -35,11 +36,13 @@ export const parseMentions = async (content, organisationId) => {
     const username = mention.substring(1).toLowerCase(); // Remove @ and lowercase
     
     // Check for special mentions
-    if (username === 'channel' || username === 'here') {
+    if (username === 'channel' || username === 'here' || username === 'everyone') {
       if (username === 'channel') {
         hasChannelMention = true;
       } else if (username === 'here') {
         hasHereMention = true;
+      } else if (username === 'everyone') {
+        hasEveryoneMention = true;
       }
       continue;
     }
@@ -74,6 +77,7 @@ export const parseMentions = async (content, organisationId) => {
     mentionedUsers: uniqueMentionedUsers,
     hasChannelMention,
     hasHereMention,
+    hasEveryoneMention,
   };
 };
 

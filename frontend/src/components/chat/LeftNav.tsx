@@ -5,10 +5,12 @@ interface LeftNavProps {
   workspaceName?: string;
   onActivityClick?: () => void;
   onHomeClick?: () => void;
+  onDMsClick?: () => void;
   isActivityOpen?: boolean;
+  isDMsOpen?: boolean;
 }
 
-const LeftNav: React.FC<LeftNavProps> = ({ workspaceName, onActivityClick, onHomeClick, isActivityOpen }) => {
+const LeftNav: React.FC<LeftNavProps> = ({ workspaceName, onActivityClick, onHomeClick, onDMsClick, isActivityOpen, isDMsOpen }) => {
   // Get workspace initials (first 2 letters or first letter of each word)
   const getInitials = (name?: string) => {
     if (!name) return 'W';
@@ -18,8 +20,9 @@ const LeftNav: React.FC<LeftNavProps> = ({ workspaceName, onActivityClick, onHom
     }
     return name.substring(0, 2).toUpperCase();
   };
-  
+
   const initials = getInitials(workspaceName);
+
   return (
     <div className="w-[70px] bg-[#350d36] flex flex-col items-center py-3 gap-2 border-r border-[#3b2d3e] relative">
       {/* Workspace Icon */}
@@ -44,7 +47,12 @@ const LeftNav: React.FC<LeftNavProps> = ({ workspaceName, onActivityClick, onHom
 
       {/* DMs */}
       <div className="flex flex-col items-center gap-0.5">
-        <button className="w-11 h-11 flex items-center justify-center rounded hover:bg-[#6f4d72] transition-colors relative">
+        <button
+          onClick={onDMsClick}
+          className={`w-11 h-11 flex items-center justify-center rounded transition-colors relative ${
+            isDMsOpen ? 'bg-[#7d3986]' : 'hover:bg-[#6f4d72]'
+          }`}
+        >
           <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>

@@ -21,7 +21,7 @@ export const createNotifications = async ({ message, organisationId, senderId, i
     const messageId = message._id;
 
     // Parse mentions from message content
-    const { mentionedUsers, hasChannelMention, hasHereMention } = await parseMentions(
+    const { mentionedUsers, hasChannelMention, hasHereMention, hasEveryoneMention } = await parseMentions(
       content,
       organisationId
     );
@@ -87,6 +87,15 @@ export const createNotifications = async ({ message, organisationId, senderId, i
       });
     }
 
+    // Handle @everyone mention - notify all organisation members
+    if (hasEveryoneMention) {
+      organisationMembers.forEach(memberId => {
+        if (memberId !== senderId.toString()) {
+          usersToNotify.add(memberId);
+        }
+      });
+    }
+
     // Create notifications based on user preferences
     const notifications = [];
 
@@ -105,9 +114,9 @@ export const createNotifications = async ({ message, organisationId, senderId, i
           if (notificationPrefs.type === 'nothing') {
             shouldNotify = false;
           } else if (notificationPrefs.type === 'direct_mentions_keywords') {
-            // Only notify if user is directly mentioned (not channel/here)
+            // Only notify if user is directly mentioned (not channel/here/everyone)
             const isDirectlyMentioned = mentionedUsers.includes(userId);
-            if (!isDirectlyMentioned && !hasChannelMention && !hasHereMention) {
+            if (!isDirectlyMentioned && !hasChannelMention && !hasHereMention && !hasEveryoneMention) {
               shouldNotify = false;
             }
           }
@@ -118,7 +127,7 @@ export const createNotifications = async ({ message, organisationId, senderId, i
       if (shouldNotify) {
         // Determine notification type
         let notificationType = 'mention';
-        if (hasChannelMention || hasHereMention) {
+        if (hasChannelMention || hasHereMention || hasEveryoneMention) {
           notificationType = 'channel_mention';
         } else if (mentionedUsers.includes(userId)) {
           notificationType = 'mention';
@@ -138,6 +147,7 @@ export const createNotifications = async ({ message, organisationId, senderId, i
           metadata: {
             hasChannelMention,
             hasHereMention,
+            hasEveryoneMention,
             channelName,
           },
         });
