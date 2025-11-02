@@ -659,8 +659,23 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
       )}
     <div className="p-message_pane_input relative">
       {userName && (
-        <div className="mb-2 text-[13px] text-[rgb(209,210,211)] leading-[1.38463]">
-          <span className="font-semibold text-white">{userName}</span> has paused their notifications
+        <div className="flex items-start gap-3 mb-2 px-3 py-3 bg-[rgb(36,39,42)] rounded-t-lg border-b border-[rgb(209,210,211)]/20">
+          <div className="flex items-center justify-center flex-shrink-0 w-4 h-4 mt-0.5">
+            <svg
+              viewBox="0 0 20 20"
+              className="w-4 h-4 text-[rgb(171,171,173)]"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10.001 1.5c-.689 0-1.31.246-1.767.762-.331.374-.54.85-.65 1.383-1.21.369-2.103 1.137-2.685 2.357-.604 1.266-.859 2.989-.894 5.185l-1.88 1.886-.012.013c-.636.7-.806 1.59-.373 2.342.407.705 1.224 1.072 2.104 1.072h3.388c.13.391.34.777.646 1.107.498.537 1.219.893 2.137.893.911 0 1.626-.358 2.119-.896.302-.33.51-.714.638-1.104h3.384c.88 0 1.697-.367 2.103-1.072.434-.752.264-1.642-.372-2.342l-.011-.013-1.878-1.886c-.028-1.727-.19-3.162-.553-4.312h2.305a.625.625 0 1 0 0-1.25H16l2.25-3a.625.625 0 0 0-.5-1h-3a.625.625 0 1 0 0 1.25h1.75l-1.808 2.411c-.563-.812-1.32-1.35-2.273-1.641-.112-.533-.32-1.009-.651-1.383-.457-.516-1.078-.762-1.767-.762m-.501 6A.5.5 0 0 1 10 7h2.5a.5.5 0 0 1 .384.82L11.068 10H12.5a.5.5 0 0 1 0 1H10a.5.5 0 0 1-.384-.82L11.432 8H10a.5.5 0 0 1-.5-.5"
+                clipRule="evenodd"
+              />
+            </svg>
+          </div>
+          <div className="text-[13px] text-[rgb(209,210,211)] leading-[1.38463]">
+            <span>{userName}</span> has <strong className="font-bold">paused their notifications</strong>
+          </div>
         </div>
       )}
       <div

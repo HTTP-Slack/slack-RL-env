@@ -5,6 +5,7 @@ import { getFileUrl, getFileInfo, type FileMetadata } from '../../services/fileA
 import { useWorkspace } from '../../context/WorkspaceContext';
 import EmojiPicker from './EmojiPicker';
 import FileContextMenu from './FileContextMenu';
+import MessageContextMenu from './MessageContextMenu';
 
 interface MessageItemProps {
   message: ApiMessage;
@@ -17,6 +18,7 @@ interface MessageItemProps {
   onDelete: () => void;
   onOpenThread: () => void;
   onReaction: (emoji: string) => void;
+  onMarkUnread: () => void;
   formatTime: (date: Date) => string;
 }
 
@@ -844,6 +846,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
   onDelete,
   onOpenThread,
   onReaction,
+  onMarkUnread,
   formatTime,
 }) => {
   const { currentWorkspaceId } = useWorkspace();
@@ -851,6 +854,8 @@ const MessageItem: React.FC<MessageItemProps> = ({
   const [showEditInput, setShowEditInput] = useState(false);
   const [editText, setEditText] = useState(message.content);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
   const [viewerFileId, setViewerFileId] = useState<string | null>(null);
   const [viewerFileInfo, setViewerFileInfo] = useState<FileMetadata | null>(null);
 
@@ -902,29 +907,29 @@ const MessageItem: React.FC<MessageItemProps> = ({
 
   return (
     <div
-      className={`flex mb-1 group relative ${showAvatar ? 'mt-4' : 'mt-0.5'}`}
+      className={`flex py-2 px-5 group relative hover:bg-[rgb(26,27,30)] ${showAvatar ? '' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Avatar */}
-      <div className="flex-shrink-0 mr-3">
+      <div className="flex-shrink-0 mr-2">
         {showAvatar ? (
-          <div className="w-8 h-8 rounded bg-[rgb(97,31,105)] flex items-center justify-center text-white text-sm font-semibold">
+          <div className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center bg-[rgba(232,232,232,0.13)] text-white text-sm font-semibold">
             {user.username?.charAt(0).toUpperCase() || 'U'}
           </div>
         ) : (
-          <div className="w-8 h-8"></div>
+          <div className="w-9 h-9"></div>
         )}
       </div>
 
       {/* Message Content */}
       <div className="flex-1 min-w-0 flex flex-col">
         {showAvatar && (
-          <div className="flex items-center mb-1">
-            <span className="text-[15px] font-bold text-white mr-2">
+          <div className="flex items-center mb-0.5">
+            <button className="text-[15px] font-black text-[rgb(248,248,248)] mr-2 hover:underline cursor-pointer">
               {user.username || 'Unknown User'}
-            </span>
-            <span className="text-[12px] font-normal text-[rgb(209,210,211)]">
+            </button>
+            <span className="text-[12px] font-normal text-[rgb(171,171,173)] hover:underline cursor-pointer">
               {formatTime(new Date(message.createdAt))}
             </span>
           </div>
@@ -1042,50 +1047,71 @@ const MessageItem: React.FC<MessageItemProps> = ({
 
       {/* Hover Actions */}
       {isHovered && !showEditInput && (
-        <div className="absolute -top-4 right-0 flex items-center gap-1 bg-[rgb(34,37,41)] border border-[rgb(60,56,54)] rounded-lg shadow-lg px-1 py-1">
+        <div className="absolute -top-5 right-5 flex items-center gap-0 bg-[rgb(26,29,33)] rounded-xl shadow-[rgba(232,232,232,0.13)_0px_0px_0px_1px,rgba(0,0,0,0.08)_0px_1px_3px_0px] p-1">
+          {/* Quick emoji reactions */}
+          <button
+            onClick={() => onReaction('✅')}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[rgb(49,48,44)] text-[rgb(171,171,173)] transition-colors p-1"
+            title="React with white check mark"
+          >
+            <span className="text-base">✅</span>
+          </button>
+          <button
+            onClick={() => onReaction('👀')}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[rgb(49,48,44)] text-[rgb(171,171,173)] transition-colors p-1"
+            title="React with eyes"
+          >
+            <span className="text-base">👀</span>
+          </button>
+          <button
+            onClick={() => onReaction('🙌')}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[rgb(49,48,44)] text-[rgb(171,171,173)] transition-colors p-1"
+            title="React with raised hands"
+          >
+            <span className="text-base">🙌</span>
+          </button>
+
+          {/* React button with label */}
           <button
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className="w-7 h-7 flex items-center justify-center rounded hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)] transition-colors"
+            className="flex items-center gap-0.5 h-8 px-2 rounded-lg hover:bg-[rgb(49,48,44)] text-[rgb(171,171,173)] transition-colors"
             title="Add reaction"
           >
-            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1" />
-              <circle cx="5.5" cy="7" r="1" fill="currentColor" />
-              <circle cx="10.5" cy="7" r="1" fill="currentColor" />
-              <path d="M5 10c0 1.5 1.5 2.5 3 2.5s3-1 3-2.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+            <svg className="w-[18px] h-[18px]" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M15.5 1a.75.75 0 0 1 .75.75v2h2a.75.75 0 0 1 0 1.5h-2v2a.75.75 0 0 1-1.5 0v-2h-2a.75.75 0 0 1 0-1.5h2v-2A.75.75 0 0 1 15.5 1m-13 10a6.5 6.5 0 0 1 7.166-6.466.75.75 0 0 0 .152-1.493 8 8 0 1 0 7.14 7.139.75.75 0 0 0-1.492.152A7 7 0 0 1 15.5 11a6.5 6.5 0 1 1-13 0m4.25-.5a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5m4.5 0a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5M9 15c1.277 0 2.553-.724 3.06-2.173.148-.426-.209-.827-.66-.827H6.6c-.452 0-.808.4-.66.827C6.448 14.276 7.724 15 9 15" clipRule="evenodd" />
             </svg>
+            <span className="text-[12px] font-bold leading-[18px] whitespace-nowrap">React</span>
           </button>
+
+          {/* Reply button with label */}
           <button
             onClick={onOpenThread}
-            className="w-7 h-7 flex items-center justify-center rounded hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)] transition-colors"
+            className="flex items-center gap-0.5 h-8 px-2 rounded-lg hover:bg-[rgb(49,48,44)] text-[rgb(171,171,173)] transition-colors"
             title="Reply in thread"
           >
-            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M3 3.5C3 2.67157 3.67157 2 4.5 2H11.5C12.3284 2 13 2.67157 13 3.5V9.5C13 10.3284 12.3284 11 11.5 11H9L6 14V11H4.5C3.67157 11 3 10.3284 3 9.5V3.5Z" />
+            <svg className="w-[18px] h-[18px]" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 3a7 7 0 1 0 3.394 13.124.75.75 0 0 1 .542-.074l2.794.68-.68-2.794a.75.75 0 0 1 .073-.542A7 7 0 0 0 10 3m-8.5 7a8.5 8.5 0 1 1 16.075 3.859l.904 3.714a.75.75 0 0 1-.906.906l-3.714-.904A8.5 8.5 0 0 1 1.5 10M6 8.25a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 6 8.25M6.75 11a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5z" clipRule="evenodd" />
+            </svg>
+            <span className="text-[12px] font-bold leading-[18px] whitespace-nowrap">Reply</span>
+          </button>
+
+          {/* More actions menu */}
+          <button
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              setContextMenuPosition({
+                x: rect.left,
+                y: rect.bottom + 5,
+              });
+              setShowContextMenu(true);
+            }}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[rgb(49,48,44)] text-[rgb(171,171,173)] transition-colors"
+            title="More actions"
+          >
+            <svg className="w-[18px] h-[18px]" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 5.5A1.75 1.75 0 1 1 10 2a1.75 1.75 0 0 1 0 3.5m0 6.25a1.75 1.75 0 1 1 0-3.5 1.75 1.75 0 0 1 0 3.5m-1.75 4.5a1.75 1.75 0 1 0 3.5 0 1.75 1.75 0 0 0-3.5 0" clipRule="evenodd" />
             </svg>
           </button>
-          {isCurrentUser && (
-            <>
-              <button
-                onClick={handleEditClick}
-                className="w-7 h-7 flex items-center justify-center rounded hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)] transition-colors"
-                title="Edit message"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-              </button>
-              <button
-                onClick={onDelete}
-                className="w-7 h-7 flex items-center justify-center rounded hover:bg-[rgb(49,48,44)] text-[rgb(209,210,211)] transition-colors"
-                title="Delete message"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            </>
-          )}
         </div>
       )}
 
@@ -1100,6 +1126,18 @@ const MessageItem: React.FC<MessageItemProps> = ({
             onClose={() => setShowEmojiPicker(false)}
           />
         </div>
+      )}
+
+      {/* Message Context Menu */}
+      {showContextMenu && (
+        <MessageContextMenu
+          isCurrentUser={isCurrentUser}
+          onEdit={handleEditClick}
+          onDelete={onDelete}
+          onMarkUnread={onMarkUnread}
+          onClose={() => setShowContextMenu(false)}
+          position={contextMenuPosition}
+        />
       )}
 
       {/* File Viewer Modal */}

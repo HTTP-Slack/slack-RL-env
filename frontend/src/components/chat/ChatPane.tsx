@@ -1,8 +1,9 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import type { Thread } from '../../constants/chat';
 import type { User, Message } from '../../services/messageApi';
 import MessageItem from './MessageItem';
 import MessageComposer from './MessageComposer';
+import UnreadDivider from './UnreadDivider';
 import { useProfile } from '../../features/profile/ProfileContext';
 
 interface ChatPaneProps {
@@ -31,6 +32,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { openPanel } = useProfile();
+  const [firstUnreadMessageId, setFirstUnreadMessageId] = useState<string | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -47,6 +49,10 @@ const ChatPane: React.FC<ChatPaneProps> = ({
   const getThreadCount = (message: Message) => {
     // Get thread count from message.threadRepliesCount
     return message.threadRepliesCount || 0;
+  };
+
+  const handleMarkUnread = (messageId: string) => {
+    setFirstUnreadMessageId(messageId);
   };
 
   return (
@@ -126,13 +132,21 @@ const ChatPane: React.FC<ChatPaneProps> = ({
               .map((message, index, validMessages) => {
               const isCurrentUser = message.sender._id === currentUser._id;
               const messageUser = isCurrentUser ? currentUser : activeUser;
-              const showAvatar = index === 0 || !validMessages[index - 1].sender || validMessages[index - 1].sender._id !== message.sender._id;
+              const timeSincePrevious = index > 0
+                ? new Date(message.createdAt).getTime() - new Date(validMessages[index - 1].createdAt).getTime()
+                : 0;
+              const showAvatar = index === 0 ||
+                !validMessages[index - 1].sender ||
+                validMessages[index - 1].sender._id !== message.sender._id ||
+                timeSincePrevious > 600000; // Show avatar if more than 10 minutes apart
               const threadCount = getThreadCount(message);
-              const shouldShowTimestamp = index === 0 || 
-                new Date(message.createdAt).getTime() - new Date(validMessages[index - 1].createdAt).getTime() > 600000; // 10 minutes
+              const shouldShowTimestamp = index === 0 || timeSincePrevious > 600000; // 10 minutes
 
               return (
                 <div key={message._id}>
+                  {/* Show unread divider before this message if it's marked as first unread */}
+                  {firstUnreadMessageId === message._id && <UnreadDivider />}
+
                   {shouldShowTimestamp && index > 0 && (
                     <div className="flex items-center my-4">
                       <div className="flex-1 border-t border-[rgb(49,48,44)]"></div>
@@ -153,6 +167,7 @@ const ChatPane: React.FC<ChatPaneProps> = ({
                     onDelete={() => onDeleteMessage(message._id)}
                     onOpenThread={() => onOpenThread(message._id)}
                     onReaction={(emoji) => onReaction(message._id, emoji)}
+                    onMarkUnread={() => handleMarkUnread(message._id)}
                     formatTime={formatTime}
                   />
                 </div>
