@@ -83,7 +83,7 @@ const LaterItem: React.FC<LaterItemProps> = ({ item, onUpdate, onDelete, onEdit 
 
   return (
     <div
-      className="relative border-b border-[rgba(239,225,245,0.22)] py-3 px-3 hover:bg-[rgba(239,225,245,0.08)] cursor-pointer transition-colors group"
+      className="relative border-b border-[rgba(239,225,245,0.22)] py-3 px-3 hover:bg-[rgba(239,225,245,0.08)] transition-colors group"
       style={{ fontFamily: 'Slack-Lato, sans-serif' }}
     >
       {/* Header - Due date and type */}
@@ -114,9 +114,11 @@ const LaterItem: React.FC<LaterItemProps> = ({ item, onUpdate, onDelete, onEdit 
             className="w-9 h-9 rounded-lg bg-[rgba(232,232,232,0.13)] flex items-center justify-center text-white font-bold overflow-hidden"
             style={{ borderRadius: 'clamp(6px, 22.222%, 12px)' }}
           >
-            {/* Use first letter of user as avatar placeholder */}
+            {/* Use first letter of username as avatar placeholder */}
             <span className="text-[15px]">
-              {item.userId ? item.userId.charAt(0).toUpperCase() : 'U'}
+              {typeof item.userId === 'object' && item.userId.username
+                ? item.userId.username.charAt(0).toUpperCase()
+                : 'U'}
             </span>
           </div>
         </div>
@@ -234,7 +236,9 @@ const LaterItem: React.FC<LaterItemProps> = ({ item, onUpdate, onDelete, onEdit 
 
           {/* User name */}
           <div className="font-bold text-white text-[15px] mb-1">
-            {item.userId || 'Unknown User'}
+            {typeof item.userId === 'object' && item.userId.username
+              ? item.userId.username
+              : 'Unknown User'}
           </div>
 
           {/* Description with rich text */}

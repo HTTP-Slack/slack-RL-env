@@ -36,7 +36,9 @@ export const getLaterItems = async (req, res) => {
       query.status = status;
     }
 
-    const laterItems = await LaterItem.find(query).sort({ createdAt: -1 });
+    const laterItems = await LaterItem.find(query)
+      .populate('userId', 'username email')
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -60,7 +62,8 @@ export const getLaterItem = async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
 
-    const laterItem = await LaterItem.findOne({ _id: id, userId });
+    const laterItem = await LaterItem.findOne({ _id: id, userId })
+      .populate('userId', 'username email');
 
     if (!laterItem) {
       return res.status(404).json({
@@ -113,6 +116,9 @@ export const createLaterItem = async (req, res) => {
       dueDate: dueDate || null,
       status: 'in-progress',
     });
+
+    // Populate user information before sending response
+    await laterItem.populate('userId', 'username email');
 
     res.status(201).json({
       success: true,
@@ -168,6 +174,9 @@ export const updateLaterItem = async (req, res) => {
 
     await laterItem.save();
 
+    // Populate user information before sending response
+    await laterItem.populate('userId', 'username email');
+
     res.status(200).json({
       success: true,
       data: laterItem,
@@ -210,6 +219,9 @@ export const updateLaterItemStatus = async (req, res) => {
 
     laterItem.status = status;
     await laterItem.save();
+
+    // Populate user information before sending response
+    await laterItem.populate('userId', 'username email');
 
     res.status(200).json({
       success: true,

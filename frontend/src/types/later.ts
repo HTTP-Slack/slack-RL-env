@@ -3,7 +3,11 @@ export interface ILaterItem {
   title: string;
   description: string;
   status: 'in-progress' | 'archived' | 'completed';
-  userId: string;
+  userId: string | {
+    _id: string;
+    username: string;
+    email: string;
+  };
   organisation: string;
   dueDate: string | null;
   createdAt: string;
