@@ -45,8 +45,17 @@ const initializeSocket = (io) => {
       }
     })
 
+    socket.on('thread-open', async ({ messageId, userId }) => {
+      if (messageId) {
+        console.log(`🧵 User ${userId} joined thread room ${messageId}`)
+        socket.join(messageId)
+        console.log(`✅ User successfully joined thread room ${messageId}`)
+      }
+    })
+
     socket.on('thread-message', async ({ userId, messageId, message }) => {
       try {
+        console.log(`📤 Received thread-message event from user ${userId} for message ${messageId}`)
         socket.join(messageId)
         let newMessage = await Thread.create({
           sender: message.sender,
@@ -55,7 +64,9 @@ const initializeSocket = (io) => {
           hasRead: false,
         })
         newMessage = await newMessage.populate('sender')
-        io.to(messageId).emit('thread-message', { newMessage })
+        console.log(`✅ Broadcasting thread-message to room ${messageId}:`, newMessage._id)
+        // Use io.in() to broadcast to ALL sockets in the room, including sender
+        io.in(messageId).emit('thread-message', { newMessage })
         const updatedMessage = await Message.findByIdAndUpdate(
           messageId,
           {
@@ -66,12 +77,11 @@ const initializeSocket = (io) => {
           { new: true }
         ).populate(['threadReplies', 'sender', 'reactions.reactedToBy'])
 
-        io.to(messageId).emit('message-updated', {
+        // Broadcast parent message update to ALL sockets in thread room
+        io.in(messageId).emit('message-updated', {
           id: messageId,
           message: updatedMessage,
         })
-
-        // socket.emit("message-updated", { messageId, message: updatedMessage });
       } catch (error) {
         console.log(error)
       }
@@ -195,6 +205,76 @@ const initializeSocket = (io) => {
       }
     })
 
+    socket.on('edit-message', async ({ messageId, newContent, isThread }) => {
+      try {
+        let message
+        if (isThread) {
+          message = await Thread.findById(messageId)
+        } else {
+          message = await Message.findById(messageId)
+        }
+
+        if (!message) {
+          console.log('Message not found')
+          return
+        }
+
+        // Update the message content
+        message.content = newContent
+        await message.save()
+
+        // Populate the message with related data
+        if (isThread) {
+          await message.populate(['reactions.reactedToBy', 'sender'])
+        } else {
+          await message.populate([
+            'reactions.reactedToBy',
+            'sender',
+            'threadReplies',
+          ])
+        }
+
+        // Determine the room to broadcast to
+        const roomId = isThread ? message.message : (message.channel || message.conversation)
+
+        // Broadcast the updated message to all users in the room
+        io.to(roomId.toString()).emit('message-updated', { id: messageId, message, isThread })
+      } catch (error) {
+        console.log('Error editing message:', error)
+      }
+    })
+
+    socket.on('delete-message', async ({ messageId, isThread }) => {
+      try {
+        let message
+        if (isThread) {
+          message = await Thread.findById(messageId)
+        } else {
+          message = await Message.findById(messageId)
+        }
+
+        if (!message) {
+          console.log('Message not found')
+          return
+        }
+
+        // Determine the room to broadcast to
+        const roomId = isThread ? message.message : (message.channel || message.conversation)
+
+        // Delete the message
+        if (isThread) {
+          await Thread.findByIdAndDelete(messageId)
+        } else {
+          await Message.findByIdAndDelete(messageId)
+        }
+
+        // Broadcast the deletion to all users in the room
+        io.to(roomId.toString()).emit('message-deleted', { id: messageId, isThread })
+      } catch (error) {
+        console.log('Error deleting message:', error)
+      }
+    })
+
     socket.on('reaction', async ({ emoji, id, isThread, userId }) => {
       // 1. Message.findbyid(id)
       let message
@@ -208,6 +288,10 @@ const initializeSocket = (io) => {
         // Handle the case where the model with the given id is not found
         return
       }
+      
+      // Determine the room to broadcast to
+      const roomId = isThread ? message.message : (message.channel || message.conversation)
+      
       // 2. check if emoji already exists in Message.reactions array
       if (message.reactions.some((r) => r.emoji === emoji)) {
         // 3. if it does, check if userId exists in reactedToBy array
@@ -234,25 +318,7 @@ const initializeSocket = (io) => {
               )
             }
             
-            if (isThread) {
-              await message.populate(['reactions.reactedToBy', 'sender'])
-            } else {
-              await message.populate([
-                'reactions.reactedToBy',
-                'sender',
-                'threadReplies',
-              ])
-            }
-            socket.emit('message-updated', { id, message, isThread })
             await message.save()
-          }
-        } else {
-          // Find the reaction that matches the emoji and push userId to its reactedToBy array
-          const reactionToUpdate = message.reactions.find(
-            (r) => r.emoji === emoji
-          )
-          if (reactionToUpdate) {
-            reactionToUpdate.reactedToBy.push(userId)
             
             if (isThread) {
               await message.populate(['reactions.reactedToBy', 'sender'])
@@ -263,13 +329,39 @@ const initializeSocket = (io) => {
                 'threadReplies',
               ])
             }
-            socket.emit('message-updated', { id, message, isThread })
+            
+            // Broadcast to all users in the room
+            io.to(roomId.toString()).emit('message-updated', { id, message, isThread })
+          }
+        } else {
+          // Find the reaction that matches the emoji and push userId to its reactedToBy array
+          const reactionToUpdate = message.reactions.find(
+            (r) => r.emoji === emoji
+          )
+          if (reactionToUpdate) {
+            reactionToUpdate.reactedToBy.push(userId)
+            
             await message.save()
+            
+            if (isThread) {
+              await message.populate(['reactions.reactedToBy', 'sender'])
+            } else {
+              await message.populate([
+                'reactions.reactedToBy',
+                'sender',
+                'threadReplies',
+              ])
+            }
+            
+            // Broadcast to all users in the room
+            io.to(roomId.toString()).emit('message-updated', { id, message, isThread })
           }
         }
       } else {
         // 4. if it doesn't exists, create a new reaction like this {emoji, reactedToBy: [userId]}
         message.reactions.push({ emoji, reactedToBy: [userId] })
+        
+        await message.save()
         
         if (isThread) {
           await message.populate(['reactions.reactedToBy', 'sender'])
@@ -280,8 +372,9 @@ const initializeSocket = (io) => {
             'threadReplies',
           ])
         }
-        socket.emit('message-updated', { id, message, isThread })
-        await message.save()
+        
+        // Broadcast to all users in the room
+        io.to(roomId.toString()).emit('message-updated', { id, message, isThread })
       }
     })
     // Event handler for joining a room

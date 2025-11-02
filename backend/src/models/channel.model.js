@@ -20,6 +20,10 @@ const channelSchema = new mongoose.Schema({
   description: {
     type: String,
   },
+  section: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Section",
+  },
   organisation: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Organisation',
@@ -34,6 +38,12 @@ const channelSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  starred: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+  ],
 }, {
   timestamps: true,
   versionKey: false,

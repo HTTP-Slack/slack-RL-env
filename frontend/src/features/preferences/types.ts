@@ -153,6 +153,8 @@ export interface AudioVideoPreferences {
 export interface PrivacyVisibilityPreferences {
   slackConnectDiscoverable: boolean;
   contactSharing: 'all' | 'workspace_only' | 'none';
+  blockedInvitations: string[];
+  hiddenPeople: string[];
 }
 
 export interface SlackAIPreferences {
@@ -163,6 +165,7 @@ export interface AdvancedPreferences {
   whenTypingCodeEnterShouldNotSend: boolean;
   formatMessagesWithMarkup: boolean;
   enterBehavior: 'send' | 'newline';
+  ctrlFStartsSearch: boolean;
   searchShortcut: 'cmd_f' | 'cmd_k';
   excludeChannelsFromSearch: string[];
   searchSortDefault: SearchSortDefault;
@@ -189,5 +192,6 @@ export interface UserPreferences {
   privacyVisibility: PrivacyVisibilityPreferences;
   slackAI: SlackAIPreferences;
   advanced: AdvancedPreferences;
+  streamSummaryResults: boolean;
 }
 

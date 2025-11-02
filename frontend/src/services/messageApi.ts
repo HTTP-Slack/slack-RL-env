@@ -195,3 +195,23 @@ export const getOrganisationUsers = async (organisationId: string): Promise<User
     return [];
   }
 };
+
+/**
+ * Get thread replies for a message
+ */
+export const getThreadReplies = async (messageId: string): Promise<Thread[]> => {
+  try {
+    const response = await api.get<ApiResponse<Thread[]>>(
+      `/message/${messageId}/replies`
+    );
+    
+    if (response.data.success && response.data.data) {
+      return response.data.data;
+    }
+    
+    return [];
+  } catch (error: any) {
+    console.error('Error fetching thread replies:', error);
+    return [];
+  }
+};

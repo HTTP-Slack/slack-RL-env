@@ -1,12 +1,17 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
+import type { User } from '../../services/messageApi';
 
 interface ProfileContextType {
   isPanelOpen: boolean;
   isEditModalOpen: boolean;
+  isUserProfileModalOpen: boolean;
+  selectedUser: User | null;
   openPanel: () => void;
   closePanel: () => void;
   openEditModal: () => void;
   closeEditModal: () => void;
+  openUserProfile: (user: User) => void;
+  closeUserProfile: () => void;
 }
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
@@ -14,6 +19,8 @@ const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isUserProfileModalOpen, setIsUserProfileModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   const openPanel = () => {
     setIsPanelOpen(true);
@@ -31,13 +38,27 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     setIsEditModalOpen(false);
   };
 
+  const openUserProfile = (user: User) => {
+    setSelectedUser(user);
+    setIsUserProfileModalOpen(true);
+  };
+
+  const closeUserProfile = () => {
+    setIsUserProfileModalOpen(false);
+    setSelectedUser(null);
+  };
+
   const value: ProfileContextType = {
     isPanelOpen,
     isEditModalOpen,
+    isUserProfileModalOpen,
+    selectedUser,
     openPanel,
     closePanel,
     openEditModal,
     closeEditModal,
+    openUserProfile,
+    closeUserProfile,
   };
 
   return (

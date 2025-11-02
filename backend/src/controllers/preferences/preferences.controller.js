@@ -1,0 +1,376 @@
+import Preferences from '../../models/preferences/preferences.model.js';
+import NotificationPreferences from '../../models/preferences/notificationPreferences.model.js';
+import VIPPreferences from '../../models/preferences/vipPreferences.model.js';
+import NavigationPreferences from '../../models/preferences/navigationPreferences.model.js';
+import HomePreferences from '../../models/preferences/homePreferences.model.js';
+import AppearancePreferences from '../../models/preferences/appearancePreferences.model.js';
+import MessagesMediaPreferences from '../../models/preferences/messagesMediaPreferences.model.js';
+import LanguageRegionPreferences from '../../models/preferences/languageRegionPreferences.model.js';
+import AccessibilityPreferences from '../../models/preferences/accessibilityPreferences.model.js';
+import MarkAsReadPreferences from '../../models/preferences/markAsReadPreferences.model.js';
+import AudioVideoPreferences from '../../models/preferences/audioVideoPreferences.model.js';
+import PrivacyVisibilityPreferences from '../../models/preferences/privacyVisibilityPreferences.model.js';
+import AdvancedPreferences from '../../models/preferences/advancedPreferences.model.js';
+
+// @desc    get user's complete preferences
+// @route   GET /api/preferences
+// @access  Private
+export const getPreferences = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    let preferences = await Preferences.findOne({ user: userId })
+      .populate('notifications')
+      .populate('vip')
+      .populate('navigation')
+      .populate('home')
+      .populate({ path: 'appearance', populate: { path: 'theme' } })
+      .populate('messagesMedia')
+      .populate('languageRegion')
+      .populate('accessibility')
+      .populate('markAsRead')
+      .populate('audioVideo')
+      .populate({
+        path: 'privacyVisibility',
+        populate: [
+          { path: 'blockedInvitations', select: 'email username' },
+          { path: 'hiddenPeople', select: 'email username' },
+        ],
+      })
+      .populate('slackAI')
+      .populate('advanced');
+
+    // If preferences don't exist, create them with defaults
+    if (!preferences) {
+      preferences = await Preferences.create({ user: userId });
+      preferences = await Preferences.findById(preferences._id)
+        .populate('notifications')
+        .populate('vip')
+        .populate('navigation')
+        .populate('home')
+        .populate({ path: 'appearance', populate: { path: 'theme' } })
+        .populate('messagesMedia')
+        .populate('languageRegion')
+        .populate('accessibility')
+        .populate('markAsRead')
+        .populate('audioVideo')
+        .populate({
+          path: 'privacyVisibility',
+          populate: [
+            { path: 'blockedInvitations', select: 'email username' },
+            { path: 'hiddenPeople', select: 'email username' },
+          ],
+        })
+        .populate('slackAI')
+        .populate('advanced');
+    }
+
+    res.status(200).json({
+      success: true,
+      data: preferences,
+    });
+  } catch (error) {
+    console.log('Error in getPreferences:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message,
+    });
+  }
+};
+
+// @desc    update user's preferences
+// @route   PATCH /api/preferences
+// @access  Private
+/*
+  body {
+    notifications: { ... } (optional),
+    vip: { ... } (optional),
+    ... (other preference categories)
+  }
+*/
+export const updatePreferences = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const updateData = req.body;
+
+    let preferences = await Preferences.findOne({ user: userId });
+
+    if (!preferences) {
+      preferences = await Preferences.create({ user: userId });
+    }
+
+    // Handle notifications update
+    if (updateData.notifications) {
+      if (preferences.notifications) {
+        await NotificationPreferences.findByIdAndUpdate(
+          preferences.notifications,
+          updateData.notifications,
+          { new: true }
+        );
+      } else {
+        const notificationPrefs = await NotificationPreferences.create(updateData.notifications);
+        preferences.notifications = notificationPrefs._id;
+        await preferences.save();
+      }
+    }
+
+    // Handle VIP update
+    if (updateData.vip) {
+      if (preferences.vip) {
+        await VIPPreferences.findByIdAndUpdate(
+          preferences.vip,
+          updateData.vip,
+          { new: true }
+        );
+      } else {
+        const vipPrefs = await VIPPreferences.create(updateData.vip);
+        preferences.vip = vipPrefs._id;
+        await preferences.save();
+      }
+    }
+
+    // Handle navigation update
+    if (updateData.navigation) {
+      if (preferences.navigation) {
+        await NavigationPreferences.findByIdAndUpdate(
+          preferences.navigation,
+          updateData.navigation,
+          { new: true }
+        );
+      } else {
+        const navigationPrefs = await NavigationPreferences.create(updateData.navigation);
+        preferences.navigation = navigationPrefs._id;
+        await preferences.save();
+      }
+    }
+
+    // Handle home update
+    if (updateData.home) {
+      if (preferences.home) {
+        await HomePreferences.findByIdAndUpdate(
+          preferences.home,
+          updateData.home,
+          { new: true }
+        );
+      } else {
+        const homePrefs = await HomePreferences.create(updateData.home);
+        preferences.home = homePrefs._id;
+        await preferences.save();
+      }
+    }
+
+    // Handle appearance update
+    if (updateData.appearance) {
+      if (preferences.appearance) {
+        await AppearancePreferences.findByIdAndUpdate(
+          preferences.appearance,
+          updateData.appearance,
+          { new: true }
+        );
+      } else {
+        const appearancePrefs = await AppearancePreferences.create(updateData.appearance);
+        preferences.appearance = appearancePrefs._id;
+        await preferences.save();
+      }
+    }
+
+    // Handle messages & media update
+    if (updateData.messagesMedia) {
+      if (preferences.messagesMedia) {
+        await MessagesMediaPreferences.findByIdAndUpdate(
+          preferences.messagesMedia,
+          updateData.messagesMedia,
+          { new: true }
+        );
+      } else {
+        const messagesMediaPrefs = await MessagesMediaPreferences.create(updateData.messagesMedia);
+        preferences.messagesMedia = messagesMediaPrefs._id;
+        await preferences.save();
+      }
+    }
+
+    // Handle language & region update
+    if (updateData.languageRegion) {
+      if (preferences.languageRegion) {
+        await LanguageRegionPreferences.findByIdAndUpdate(
+          preferences.languageRegion,
+          updateData.languageRegion,
+          { new: true }
+        );
+      } else {
+        const languageRegionPrefs = await LanguageRegionPreferences.create(updateData.languageRegion);
+        preferences.languageRegion = languageRegionPrefs._id;
+        await preferences.save();
+      }
+    }
+
+    // Handle accessibility update
+    if (updateData.accessibility) {
+      if (preferences.accessibility) {
+        await AccessibilityPreferences.findByIdAndUpdate(
+          preferences.accessibility,
+          updateData.accessibility,
+          { new: true }
+        );
+      } else {
+        const accessibilityPrefs = await AccessibilityPreferences.create(updateData.accessibility);
+        preferences.accessibility = accessibilityPrefs._id;
+        await preferences.save();
+      }
+    }
+
+    // Handle mark as read update
+    if (updateData.markAsRead) {
+      if (preferences.markAsRead) {
+        await MarkAsReadPreferences.findByIdAndUpdate(
+          preferences.markAsRead,
+          updateData.markAsRead,
+          { new: true }
+        );
+      } else {
+        const markAsReadPrefs = await MarkAsReadPreferences.create(updateData.markAsRead);
+        preferences.markAsRead = markAsReadPrefs._id;
+        await preferences.save();
+      }
+    }
+
+    // Handle audio & video update
+    if (updateData.audioVideo) {
+      if (preferences.audioVideo) {
+        await AudioVideoPreferences.findByIdAndUpdate(
+          preferences.audioVideo,
+          updateData.audioVideo,
+          { new: true }
+        );
+      } else {
+        const audioVideoPrefs = await AudioVideoPreferences.create(updateData.audioVideo);
+        preferences.audioVideo = audioVideoPrefs._id;
+        await preferences.save();
+      }
+    }
+
+    // Handle privacy & visibility update
+    if (updateData.privacyVisibility) {
+      if (preferences.privacyVisibility) {
+        await PrivacyVisibilityPreferences.findByIdAndUpdate(
+          preferences.privacyVisibility,
+          updateData.privacyVisibility,
+          { new: true }
+        );
+      } else {
+        const privacyVisibilityPrefs = await PrivacyVisibilityPreferences.create(updateData.privacyVisibility);
+        preferences.privacyVisibility = privacyVisibilityPrefs._id;
+        await preferences.save();
+      }
+    }
+
+    // Handle streamSummaryResults update (direct field on preferences)
+    if (updateData.streamSummaryResults !== undefined) {
+      preferences.streamSummaryResults = updateData.streamSummaryResults;
+    }
+
+    // Handle advanced update
+    if (updateData.advanced) {
+      if (preferences.advanced) {
+        await AdvancedPreferences.findByIdAndUpdate(
+          preferences.advanced,
+          updateData.advanced,
+          { new: true }
+        );
+      } else {
+        const advancedPrefs = await AdvancedPreferences.create(updateData.advanced);
+        preferences.advanced = advancedPrefs._id;
+        await preferences.save();
+      }
+    }
+
+    // Reload preferences with populated fields
+    preferences = await Preferences.findById(preferences._id)
+      .populate('notifications')
+      .populate('vip')
+      .populate('navigation')
+      .populate('home')
+      .populate('appearance')
+      .populate('messagesMedia')
+      .populate('languageRegion')
+      .populate('accessibility')
+      .populate('markAsRead')
+      .populate('audioVideo')
+      .populate({
+        path: 'privacyVisibility',
+        populate: [
+          { path: 'blockedInvitations', select: 'email username' },
+          { path: 'hiddenPeople', select: 'email username' },
+        ],
+      })
+      .populate('slackAI')
+      .populate('advanced');
+
+    res.status(200).json({
+      success: true,
+      data: preferences,
+    });
+  } catch (error) {
+    console.log('Error in updatePreferences:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message,
+    });
+  }
+};
+
+// @desc    create initial preferences for user
+// @route   POST /api/preferences
+// @access  Private
+export const createPreferences = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Check if preferences already exist
+    const existingPreferences = await Preferences.findOne({ user: userId });
+    if (existingPreferences) {
+      return res.status(400).json({
+        success: false,
+        message: 'Preferences already exist for this user',
+      });
+    }
+
+    const preferences = await Preferences.create({ user: userId });
+
+    const populatedPreferences = await Preferences.findById(preferences._id)
+      .populate('notifications')
+      .populate('vip')
+      .populate('navigation')
+      .populate('home')
+      .populate('appearance')
+      .populate('messagesMedia')
+      .populate('languageRegion')
+      .populate('accessibility')
+      .populate('markAsRead')
+      .populate('audioVideo')
+      .populate({
+        path: 'privacyVisibility',
+        populate: [
+          { path: 'blockedInvitations', select: 'email username' },
+          { path: 'hiddenPeople', select: 'email username' },
+        ],
+      })
+      .populate('slackAI')
+      .populate('advanced');
+
+    res.status(201).json({
+      success: true,
+      data: populatedPreferences,
+    });
+  } catch (error) {
+    console.log('Error in createPreferences:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message,
+    });
+  }
+};
+

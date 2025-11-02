@@ -15,6 +15,12 @@ const organisationSchema = new mongoose.Schema(
         ref: 'User',
       },
     ],
+    sections: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Section",
+      },
+    ],
     joinLink: String,
     url: String,
   },

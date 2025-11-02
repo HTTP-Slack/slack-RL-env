@@ -76,5 +76,29 @@ export const findFileById = async (fileId) => {
   return fileArray.length > 0 ? fileArray[0] : null;
 };
 
+/**
+ * Search files by filename
+ * @param {string} searchQuery - Search term (case-insensitive regex)
+ * @param {string} organisationId - Organisation ID to filter by
+ * @param {string} channelId - Optional channel ID to filter by
+ * @param {number} limit - Maximum number of results
+ * @returns {Promise<Array>} - Array of matching file documents
+ */
+export const searchFiles = async (searchQuery, organisationId, channelId = null, limit = 20) => {
+  const bucket = getBucket();
+
+  const query = {
+    filename: { $regex: searchQuery, $options: 'i' },
+    'metadata.organisation': organisationId,
+  };
+
+  if (channelId) {
+    query['metadata.channel'] = channelId;
+  }
+
+  const files = bucket.find(query).limit(limit);
+  return await files.toArray();
+};
+
 export { MAX_FILE_SIZE };
 

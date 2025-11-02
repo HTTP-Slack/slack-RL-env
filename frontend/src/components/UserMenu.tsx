@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { usePreferencesModal } from '../features/preferences/PreferencesContext';
 import { useProfile } from '../features/profile/ProfileContext';
 import { useAuth } from '../context/AuthContext';
+import { useWorkspace } from '../context/WorkspaceContext';
+import { getWorkspace } from '../services/workspaceApi';
 
 export function UserMenu() {
   const navigate = useNavigate();
@@ -10,7 +12,26 @@ export function UserMenu() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { openModal } = usePreferencesModal();
   const { openPanel } = useProfile();
+  const { currentWorkspaceId } = useWorkspace();
+  const [workspaceName, setWorkspaceName] = useState<string>('Workspace');
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Fetch workspace name
+  useEffect(() => {
+    const fetchWorkspaceName = async () => {
+      if (currentWorkspaceId) {
+        try {
+          const workspace = await getWorkspace(currentWorkspaceId);
+          if (workspace?.name) {
+            setWorkspaceName(workspace.name);
+          }
+        } catch (error) {
+          console.error('Failed to fetch workspace:', error);
+        }
+      }
+    };
+    fetchWorkspaceName();
+  }, [currentWorkspaceId]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -112,7 +133,7 @@ export function UserMenu() {
               onClick={handleSignOut}
               className="w-full px-4 py-2 text-gray-300 hover:bg-gray-700 transition-colors text-left text-sm"
             >
-              Sign out of HTTP Test Environment
+              Sign out of {workspaceName}
             </button>
           </div>
         </div>

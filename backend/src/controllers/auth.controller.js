@@ -84,7 +84,7 @@ export const signin = async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide a email and password',
+        message: 'Please provide an email and password',
       });
     }
 
