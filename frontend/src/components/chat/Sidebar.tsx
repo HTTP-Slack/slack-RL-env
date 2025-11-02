@@ -3,6 +3,7 @@ import type { User, Conversation } from '../../services/messageApi';
 
 interface SidebarProps {
   currentUser: User;
+  workspaceName?: string;
   conversations: Conversation[];
   users: User[];
   activeConversation: Conversation | null;
@@ -11,7 +12,8 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
-  currentUser, 
+  currentUser,
+  workspaceName,
   conversations, 
   users, 
   activeConversation, 
@@ -26,11 +28,8 @@ const Sidebar: React.FC<SidebarProps> = ({
       {/* Sidebar Header */}
       <div className="h-[60px] px-4 flex items-center border-b border-[#3b2d3e] shrink-0">
         <div className="flex items-center flex-1 min-w-0">
-          <div className="w-8 h-8 rounded bg-[#522653] flex items-center justify-center text-white font-bold text-sm mr-3 shrink-0">
-            {currentUser.username?.charAt(0).toUpperCase() || 'U'}
-          </div>
-          <span className="text-[15px] font-semibold text-white truncate">
-            {currentUser.username || 'User'}
+          <span className="text-2xl font-bold text-white truncate">
+            {workspaceName || 'Workspace'}
           </span>
         </div>
       </div>

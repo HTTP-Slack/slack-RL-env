@@ -9,6 +9,7 @@ import { ProfilePanel } from '../features/profile/ProfilePanel';
 import { useAuth } from '../context/AuthContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { getWorkspaces } from '../services/workspaceApi';
+import type { Workspace } from '../types/workspace';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -29,23 +30,31 @@ const Dashboard: React.FC = () => {
   
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [activeThread, setActiveThread] = useState<any | null>(null);
+  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
 
   // Initialize workspace from URL or fetch workspaces
   useEffect(() => {
     const initWorkspace = async () => {
       const workspaceIdFromUrl = searchParams.get('workspace');
       
+      // Fetch workspaces
+      console.log('🔍 Fetching workspaces...');
+      const workspaces = await getWorkspaces();
+      console.log('📦 Found workspaces:', workspaces.length);
+      
       if (workspaceIdFromUrl) {
         console.log('🏢 Setting workspace from URL:', workspaceIdFromUrl);
         setCurrentWorkspaceId(workspaceIdFromUrl);
+        // Find and set the current workspace details
+        const workspace = workspaces.find(w => w._id === workspaceIdFromUrl);
+        if (workspace) {
+          setCurrentWorkspace(workspace);
+        }
       } else {
-        // Fetch workspaces and select the first one
-        console.log('🔍 No workspace in URL, fetching workspaces...');
-        const workspaces = await getWorkspaces();
-        console.log('📦 Found workspaces:', workspaces.length);
-        
+        // Select the first workspace
         if (workspaces.length > 0) {
           setCurrentWorkspaceId(workspaces[0]._id);
+          setCurrentWorkspace(workspaces[0]);
           navigate(`/dashboard?workspace=${workspaces[0]._id}`, { replace: true });
         } else {
           // No workspaces found, redirect to create one
@@ -195,9 +204,10 @@ const Dashboard: React.FC = () => {
 
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
-        <LeftNav />
+        <LeftNav workspaceName={currentWorkspace?.name} />
         <Sidebar
           currentUser={user}
+          workspaceName={currentWorkspace?.name}
           conversations={conversations}
           users={users}
           activeConversation={activeConversation}
