@@ -79,6 +79,37 @@ const Dashboard: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Listen for notification navigation events
+  useEffect(() => {
+    const handleNavigateToChannel = async (e: CustomEvent) => {
+      const { channelId } = e.detail;
+      if (channelId) {
+        await handleChannelSelect(channelId);
+      }
+    };
+
+    const handleNavigateToConversation = async (e: CustomEvent) => {
+      const { conversationId } = e.detail;
+      if (conversationId) {
+        // Find conversation in the list
+        const conversation = conversations.find(c => c._id === conversationId);
+        if (conversation) {
+          setActiveConversation(conversation);
+          setActiveChannel(null);
+        }
+      }
+    };
+
+    window.addEventListener('navigate-to-channel', handleNavigateToChannel as EventListener);
+    window.addEventListener('navigate-to-conversation', handleNavigateToConversation as EventListener);
+
+    return () => {
+      window.removeEventListener('navigate-to-channel', handleNavigateToChannel as EventListener);
+      window.removeEventListener('navigate-to-conversation', handleNavigateToConversation as EventListener);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversations, handleChannelSelect, setActiveConversation]);
+
   // Initialize workspace from URL or fetch workspaces
   useEffect(() => {
     const initWorkspace = async () => {

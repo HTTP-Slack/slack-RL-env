@@ -1,5 +1,6 @@
 import React from 'react';
 import { UserMenu } from '../UserMenu';
+import { NotificationBell } from '../NotificationBell';
 
 interface LeftNavProps {
   workspaceName?: string;
@@ -75,6 +76,14 @@ const LeftNav: React.FC<LeftNavProps> = ({ workspaceName }) => {
       </div>
 
       <div className="flex-1"></div>
+
+      {/* Notifications */}
+      <div className="flex flex-col items-center gap-0.5 mb-2">
+        <div className="w-11 h-11 flex items-center justify-center">
+          <NotificationBell />
+        </div>
+        <span className="text-white text-[10px] font-medium">Notifications</span>
+      </div>
 
       {/* Add workspace */}
       <button className="w-10 h-10 flex items-center justify-center rounded hover:bg-[#6f4d72] transition-colors mb-2">
