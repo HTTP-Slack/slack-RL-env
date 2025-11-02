@@ -18,6 +18,7 @@ import channelRoute from './routes/channel.route.js';
 import conversationRoute from './routes/conversation.route.js';
 import teammatesRoute from './routes/teammates.route.js';
 import threadRoute from './routes/thread.route.js';
+import userRoute from './models/user.model.js';
 
 //setup
 dotenv.config();
@@ -53,6 +54,7 @@ app.use('/api/channel', channelRoute);
 app.use('/api/conversation', conversationRoute);
 app.use('/api/teammates', teammatesRoute);
 app.use('/api/threads', threadRoute);
+app.use('/api/users', userRoute);
 
 server.listen(PORT, ()=> {
   console.log(`Server is running on port ${PORT}`);
