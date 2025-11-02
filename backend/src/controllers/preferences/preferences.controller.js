@@ -6,6 +6,9 @@ import HomePreferences from '../../models/preferences/homePreferences.model.js';
 import AppearancePreferences from '../../models/preferences/appearancePreferences.model.js';
 import MessagesMediaPreferences from '../../models/preferences/messagesMediaPreferences.model.js';
 import LanguageRegionPreferences from '../../models/preferences/languageRegionPreferences.model.js';
+import AccessibilityPreferences from '../../models/preferences/accessibilityPreferences.model.js';
+import MarkAsReadPreferences from '../../models/preferences/markAsReadPreferences.model.js';
+import AudioVideoPreferences from '../../models/preferences/audioVideoPreferences.model.js';
 
 // @desc    get user's complete preferences
 // @route   GET /api/preferences
@@ -188,8 +191,53 @@ export const updatePreferences = async (req, res) => {
       }
     }
 
+    // Handle accessibility update
+    if (updateData.accessibility) {
+      if (preferences.accessibility) {
+        await AccessibilityPreferences.findByIdAndUpdate(
+          preferences.accessibility,
+          updateData.accessibility,
+          { new: true }
+        );
+      } else {
+        const accessibilityPrefs = await AccessibilityPreferences.create(updateData.accessibility);
+        preferences.accessibility = accessibilityPrefs._id;
+        await preferences.save();
+      }
+    }
+
+    // Handle mark as read update
+    if (updateData.markAsRead) {
+      if (preferences.markAsRead) {
+        await MarkAsReadPreferences.findByIdAndUpdate(
+          preferences.markAsRead,
+          updateData.markAsRead,
+          { new: true }
+        );
+      } else {
+        const markAsReadPrefs = await MarkAsReadPreferences.create(updateData.markAsRead);
+        preferences.markAsRead = markAsReadPrefs._id;
+        await preferences.save();
+      }
+    }
+
+    // Handle audio & video update
+    if (updateData.audioVideo) {
+      if (preferences.audioVideo) {
+        await AudioVideoPreferences.findByIdAndUpdate(
+          preferences.audioVideo,
+          updateData.audioVideo,
+          { new: true }
+        );
+      } else {
+        const audioVideoPrefs = await AudioVideoPreferences.create(updateData.audioVideo);
+        preferences.audioVideo = audioVideoPrefs._id;
+        await preferences.save();
+      }
+    }
+
     // TODO: Handle other preference categories as they are implemented
-    // Similar pattern for accessibility, markAsRead, etc.
+    // Similar pattern for privacyVisibility, slackAI, advanced, etc.
 
     // Reload preferences with populated fields
     preferences = await Preferences.findById(preferences._id)

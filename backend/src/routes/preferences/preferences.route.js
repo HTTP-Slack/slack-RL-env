@@ -13,6 +13,9 @@ import homePreferencesRoute from './homePreferences.route.js';
 import appearancePreferencesRoute from './appearancePreferences.route.js';
 import messagesMediaPreferencesRoute from './messagesMediaPreferences.route.js';
 import languageRegionPreferencesRoute from './languageRegionPreferences.route.js';
+import accessibilityPreferencesRoute from './accessibilityPreferences.route.js';
+import markAsReadPreferencesRoute from './markAsReadPreferences.route.js';
+import audioVideoPreferencesRoute from './audioVideoPreferences.route.js';
 import themeRoute from './theme.route.js';
 
 const router = express.Router();
@@ -30,6 +33,9 @@ router.use('/home', homePreferencesRoute);
 router.use('/appearance', appearancePreferencesRoute);
 router.use('/messages-media', messagesMediaPreferencesRoute);
 router.use('/language-region', languageRegionPreferencesRoute);
+router.use('/accessibility', accessibilityPreferencesRoute);
+router.use('/mark-as-read', markAsReadPreferencesRoute);
+router.use('/audio-video', audioVideoPreferencesRoute);
 router.use('/themes', themeRoute);
 
 export default router;
