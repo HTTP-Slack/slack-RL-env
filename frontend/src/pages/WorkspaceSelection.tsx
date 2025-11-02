@@ -1,5 +1,6 @@
 // Mirror link: https://slack.com/intl/en-in/
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import Header from '../components/Header';
 import { WorkspaceItem } from '../components/WorkspaceItem';
 import { getWorkspaces, getUserEmail } from '../services/workspaceApi';
@@ -10,25 +11,29 @@ const WorkspaceSelection: React.FC = () => {
   const [userEmail, setUserEmail] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [showMore, setShowMore] = useState<boolean>(false);
+  const location = useLocation();
 
+  // Function to load workspaces
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [workspacesData, email] = await Promise.all([
+        getWorkspaces(),
+        getUserEmail(),
+      ]);
+      setWorkspaces(workspacesData);
+      setUserEmail(email);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load data on mount and whenever user navigates to this page
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [workspacesData, email] = await Promise.all([
-          getWorkspaces(),
-          getUserEmail(),
-        ]);
-        setWorkspaces(workspacesData);
-        setUserEmail(email);
-      } catch (error) {
-        console.error('Error loading data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadData();
-  }, []);
+  }, [location.pathname]);
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen bg-[rgb(74,21,75)]">Loading...</div>;
@@ -69,7 +74,7 @@ const WorkspaceSelection: React.FC = () => {
           {/* Workspaces List */}
           <div className="flex flex-col rounded-b-xl bg-white">
             {visibleWorkspaces.map((workspace, index) => (
-              <div key={workspace.id} className="p-4 transition-all duration-[125ms]">
+              <div key={workspace._id} className="p-4 transition-all duration-125">
                 <WorkspaceItem workspace={workspace} />
                 {index < visibleWorkspaces.length - 1 && (
                   <div className="h-0 my-4 border-t border-[rgb(235,234,235)]"></div>
@@ -81,7 +86,7 @@ const WorkspaceSelection: React.FC = () => {
             {!showMore && hasMoreWorkspaces && (
               <>
                 <div className="h-0 my-4 border-t border-[rgb(235,234,235)]"></div>
-                <div className="p-4 transition-all duration-[125ms]">
+                <div className="p-4 transition-all duration-125">
                   <div className="flex items-center">
                     <div className="w-[75px] h-[75px] mr-4 rounded-[5px] bg-[rgb(235,234,235)]"></div>
                     <div className="flex flex-col my-3 flex-1">
@@ -153,7 +158,7 @@ const WorkspaceSelection: React.FC = () => {
             </p>
             <a
               href="/profile-step1"
-              className="p-4 rounded-[4px] text-[14px] font-bold leading-[18px] text-center uppercase tracking-[0.798px] whitespace-nowrap text-[rgb(97,31,105)] bg-white border border-[rgb(97,31,105)] cursor-pointer transition-[box-shadow_0.42s_cubic-bezier(0.165,0.84,0.44,1),color_0.42s_cubic-bezier(0.165,0.84,0.44,1),background_0.42s_cubic-bezier(0.165,0.84,0.44,1)]"
+              className="p-4 rounded-[4px] text-[14px] font-bold leading-[18px] text-center uppercase tracking-[0.798px] whitespace-nowrap text-[rgb(97,31,105)] bg-white border border-[rgb(97,31,105)] cursor-pointer transition-[box-shadow_0.42s_cubic-bezier(0.165,0.84,0.44,1),color_0.42s_cubic-bezier(0.165,0.84,0.44,1),background_0.42s_cubic-bezier(0.165,0.84,0.44,1)] hover:bg-[rgb(97,31,105)] hover:text-white"
             >
               Create a new workspace
             </a>

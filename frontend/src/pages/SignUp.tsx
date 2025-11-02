@@ -1,12 +1,14 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 const SignUp = () => {
   const [email, setEmail] = useState('')
+  const navigate = useNavigate()
 
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     console.log('Email submitted:', email)
+    navigate('/signup/pass', { state: { email } })
   }
 
   const handleGoogleSignUp = () => {
@@ -20,9 +22,9 @@ const SignUp = () => {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       {/* Header - Centered Logo */}
-      <header className="w-full px-8 py-6 relative flex justify-center items-center">
+      <header className="w-full px-8 pt-12 pb-10 flex justify-center items-center">
         <div className="flex items-center gap-2">
-          <svg className="w-8 h-8" viewBox="0 0 124 124" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg className="w-7 h-7" viewBox="0 0 124 124" fill="none" xmlns="http://www.w3.org/2000/svg">
             {/* Cyan shapes */}
             <path d="M26.3996 78.2003C26.3996 84.8003 20.9996 90.2003 14.3996 90.2003C7.79961 90.2003 2.39961 84.8003 2.39961 78.2003C2.39961 71.6003 7.79961 66.2003 14.3996 66.2003H26.3996V78.2003Z" fill="#36C5F0"/>
             <path d="M32.3996 78.2003C32.3996 71.6003 37.7996 66.2003 44.3996 66.2003C50.9996 66.2003 56.3996 71.6003 56.3996 78.2003V109.6C56.3996 116.2 50.9996 121.6 44.3996 121.6C37.7996 121.6 32.3996 116.2 32.3996 109.6V78.2003Z" fill="#36C5F0"/>
@@ -36,13 +38,13 @@ const SignUp = () => {
             <path d="M79.5996 97.5996C86.1996 97.5996 91.5996 102.9996 91.5996 109.5996C91.5996 116.1996 86.1996 121.5996 79.5996 121.5996C72.9996 121.5996 67.5996 116.1996 67.5996 109.5996V97.5996H79.5996Z" fill="#E01E5A"/>
             <path d="M79.5996 91.5996C72.9996 91.5996 67.5996 86.1996 67.5996 79.5996C67.5996 72.9996 72.9996 67.5996 79.5996 67.5996H110.9996C117.5996 67.5996 122.9996 72.9996 122.9996 79.5996C122.9996 86.1996 117.5996 91.5996 110.9996 91.5996H79.5996Z" fill="#E01E5A"/>
           </svg>
-          <span className="text-2xl font-bold text-gray-900">slack</span>
+          <span className="text-3xl font-bold text-gray-900">slack</span>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex items-center justify-center px-8 pt-12 pb-20">
-        <div className="w-full max-w-md">
+      <main className="flex-1 flex items-start justify-center px-8 pt-0 pb-20">
+        <div className="w-full max-w-xl">
           <h1 className="text-[2.75rem] leading-tight font-bold text-black text-center mb-2">
             First, enter your email
           </h1>
@@ -51,7 +53,7 @@ const SignUp = () => {
           </p>
 
           {/* Email Form */}
-          <form onSubmit={handleEmailSubmit} className="mb-4">
+          <form onSubmit={handleEmailSubmit} className="mb-4 mx-auto w-3/4">
             <input
               type="email"
               value={email}
@@ -69,7 +71,7 @@ const SignUp = () => {
           </form>
 
           {/* Divider */}
-          <div className="relative mb-4">
+          <div className="relative mb-4 mx-auto w-3/4">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300"></div>
             </div>
@@ -81,7 +83,7 @@ const SignUp = () => {
           </div>
 
           {/* Social Sign Up Buttons */}
-          <div className="flex gap-3 mb-6">
+          <div className="flex gap-3 mb-6 mx-auto w-3/4">
             <button
               onClick={handleGoogleSignUp}
               type="button"

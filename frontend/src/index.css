@@ -1,1 +1,34 @@
 @import "tailwindcss";
+
+/* Hide scrollbars for markdown editor overlay */
+.markdown-overlay::-webkit-scrollbar {
+  display: none;
+}
+
+.markdown-overlay {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.textarea-overlay::-webkit-scrollbar {
+  display: none;
+}
+
+.textarea-overlay {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Slide-in animation for side panel */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.2s ease-out;
+}

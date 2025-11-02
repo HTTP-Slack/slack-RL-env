@@ -1,5 +1,6 @@
 import User from "../models/user.model.js";
 import jwt from 'jsonwebtoken';
+import passport from 'passport';
 
 // @desc signup user
 // @route POST /api/auth/register
@@ -49,6 +50,7 @@ export const register = async (req, res) => {
     res.cookie('token', token, {
       httpOnly: true, // Makes it inaccessible to client-side JS
       secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
+      sameSite: 'lax', // CSRF protection
       maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
     })
 
@@ -97,7 +99,20 @@ export const signin = async (req, res) => {
       });
     }
 
-    // 4. Send success response
+    // 4. Create Token
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: '10d', // Token expires in 10 days
+    })
+
+    // 5. Send token in an httpOnly cookie
+    res.cookie('token', token, {
+      httpOnly: true, // Makes it inaccessible to client-side JS
+      secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
+      sameSite: 'lax', // CSRF protection
+      maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
+    })
+
+    // 6. Send success response
     res.status(200).json({
       success: true,
       data: {
@@ -115,3 +130,30 @@ export const signin = async (req, res) => {
     });
   }
 }
+
+// @desc Google OAuth callback
+// @route GET /api/auth/google/callback
+// @access public
+export const googleCallback = (req, res) => {
+  const user = req.user;
+
+  if (!user) {
+    return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/signin?error=auth_failed`);
+  }
+
+  // Create Token
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+    expiresIn: '10d',
+  });
+
+  // Send token in an httpOnly cookie
+  res.cookie('token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
+  });
+
+  // Redirect to frontend home page
+  res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/home`);
+};

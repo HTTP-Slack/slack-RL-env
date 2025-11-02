@@ -40,7 +40,7 @@ const initializeSocket = (io) => {
           id,
           { $pull: { hasNotOpen: userId } },
           { new: true }
-        )
+        ).populate('collaborators')
         io.to(id).emit('convo-updated', updatedConversation)
       }
     })
@@ -93,13 +93,21 @@ const initializeSocket = (io) => {
             // Check if there are any messages for today in the channel
             await createTodaysFirstMessage({ channelId, organisation })
 
-            let newMessage = await Message.create({
+            const messageData = {
               organisation,
               sender: message.sender,
               content: message.content,
               channel: channelId,
               hasRead: false,
-            })
+            }
+
+            // Handle file attachments
+            if (message.attachments && message.attachments.length > 0) {
+              messageData.attachments = message.attachments
+              messageData.type = 'file'
+            }
+
+            let newMessage = await Message.create(messageData)
 
             newMessage = await newMessage.populate('sender')
             io.to(channelId).emit('message', { newMessage, organisation })
@@ -119,10 +127,15 @@ const initializeSocket = (io) => {
               organisation,
             })
           } else if (conversationId) {
+            console.log('📨 Creating message for conversation:', conversationId);
+            console.log('👤 Sender:', message.sender);
+            console.log('💬 Content:', message.content);
+            
             socket.join(conversationId)
             // Check if there are any messages for today in the channel
             await createTodaysFirstMessage({ conversationId, organisation })
-            let newMessage = await Message.create({
+            
+            const messageData = {
               organisation,
               sender: message.sender,
               content: message.content,
@@ -130,19 +143,31 @@ const initializeSocket = (io) => {
               collaborators,
               isSelf,
               hasRead: false,
-            })
+            }
+
+            // Handle file attachments
+            if (message.attachments && message.attachments.length > 0) {
+              messageData.attachments = message.attachments
+              messageData.type = 'file'
+            }
+
+            let newMessage = await Message.create(messageData)
+            console.log('✅ Message created with ID:', newMessage._id);
+            
             newMessage = await newMessage.populate('sender')
+            console.log('✅ Message sender populated:', newMessage.sender ? newMessage.sender.username : 'NO SENDER');
 
             io.to(conversationId).emit('message', {
               collaborators,
               organisation,
               newMessage,
             })
+            console.log('🚀 Message emitted to room:', conversationId)
             const updatedConversation = await Conversations.findByIdAndUpdate(
               conversationId,
               { hasNotOpen },
               { new: true }
-            )
+            ).populate('collaborators')
             io.to(conversationId).emit('convo-updated', updatedConversation)
             socket.broadcast.emit('notification', {
               collaborators,
