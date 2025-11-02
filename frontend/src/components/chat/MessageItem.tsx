@@ -6,6 +6,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import EmojiPicker from './EmojiPicker';
 import FileContextMenu from './FileContextMenu';
 import MessageContextMenu from './MessageContextMenu';
+import { convertEmojiShortcodes } from '../../constants/emojis';
 import './MessageComposer.css';
 
 interface MessageItemProps {
@@ -967,7 +968,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
                 <div className="message-content">
                   {/* Check if content is HTML (starts with <) or markdown */}
                   {message.content.trim().startsWith('<') ? (
-                    <div dangerouslySetInnerHTML={{ __html: message.content }} />
+                    <div dangerouslySetInnerHTML={{ __html: convertEmojiShortcodes(message.content) }} />
                   ) : (
                     <>
                       {parseMarkdown(message.content).map((part, idx) => (

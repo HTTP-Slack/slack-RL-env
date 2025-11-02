@@ -25,6 +25,7 @@ import {
   $createParagraphNode,
   $createTextNode,
   COMMAND_PRIORITY_HIGH,
+  COMMAND_PRIORITY_CRITICAL,
   KEY_ENTER_COMMAND,
   FORMAT_TEXT_COMMAND,
 } from 'lexical';
@@ -34,6 +35,7 @@ import { $createQuoteNode } from '@lexical/rich-text';
 import { $createCodeNode } from '@lexical/code';
 import { $createLinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
 import { $generateHtmlFromNodes } from '@lexical/html';
+import { getEmojiByName } from '../../constants/emojis';
 import './MessageComposer.css';
 
 interface User {
@@ -172,12 +174,52 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
         (event) => {
           if (!event) return false;
           
-          // Allow Shift+Enter for newlines (including in lists)
-          if (event.shiftKey) {
-            return false; // Let Lexical handle it
+          // First, check if suggestions are open - if so, let SuggestionKeyboardPlugin handle it
+          if (showEmojiSuggestions || showMentionSuggestions) {
+            return false; // Let SuggestionKeyboardPlugin handle Enter for selecting suggestions
           }
           
-          // Check if we're in a list - if so, let ListPlugin handle Enter
+          // Handle Shift+Enter
+          if (event.shiftKey) {
+            // Check if we're in a list
+            let isInList = false;
+            editor.getEditorState().read(() => {
+              const selection = $getSelection();
+              if ($isRangeSelection(selection)) {
+                const anchor = selection.anchor;
+                const node = anchor.getNode();
+                
+                let currentNode: any = node;
+                while (currentNode) {
+                  if ($isListItemNode(currentNode)) {
+                    isInList = true;
+                    break;
+                  }
+                  const parent = currentNode.getParent();
+                  if (!parent) break;
+                  currentNode = parent;
+                }
+              }
+            });
+            
+            if (isInList) {
+              // In a list with Shift+Enter: insert a line break within the current list item
+              editor.update(() => {
+                const selection = $getSelection();
+                if ($isRangeSelection(selection)) {
+                  selection.insertText('\n');
+                }
+              });
+              event.preventDefault();
+              return true;
+            }
+            
+            // Not in a list - Shift+Enter just inserts newline (standard behavior)
+            return false; // Let Lexical handle it normally
+          }
+          
+          // Normal Enter key
+          // Check if we're in a list - if so, let ListPlugin handle Enter to create new list items
           let isInList = false;
           editor.getEditorState().read(() => {
             const selection = $getSelection();
@@ -208,14 +250,14 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
             return false;
           }
           
-          // Not in a list - Enter should send the message
+          // Not in a list and no suggestions - Enter should send the message
           event.preventDefault();
           handleSend();
           return true;
         },
         COMMAND_PRIORITY_HIGH
       );
-    }, [editor]);
+    }, [editor, showEmojiSuggestions, showMentionSuggestions]);
 
     return null;
   }
@@ -367,9 +409,54 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
   function SuggestionKeyboardPlugin() {
     const [editor] = useLexicalComposerContext();
 
+    // Handle Enter key for suggestions (higher priority)
+    useEffect(() => {
+      return editor.registerCommand(
+        KEY_ENTER_COMMAND,
+        (event) => {
+          if (!event || event.shiftKey) return false;
+          
+          // Handle mention suggestions
+          if (showMentionSuggestions) {
+            const filteredUsers = users.filter(user =>
+              user.username.toLowerCase().includes(mentionSearchTerm.toLowerCase())
+            );
+            const specialMentions = [
+              { username: 'channel' },
+              { username: 'here' },
+              { username: 'everyone' },
+            ].filter(mention =>
+              mention.username.toLowerCase().includes(mentionSearchTerm.toLowerCase())
+            );
+            const allSuggestions = [...specialMentions, ...filteredUsers];
+            
+            if (allSuggestions.length > 0 && selectedMentionIndex < allSuggestions.length) {
+              event.preventDefault();
+              handleMentionSelect(allSuggestions[selectedMentionIndex].username);
+              return true;
+            }
+          }
+
+          // Handle emoji suggestions
+          if (showEmojiSuggestions) {
+            const filteredEmojis = getFilteredEmojis();
+            if (filteredEmojis.length > 0 && selectedEmojiIndex < filteredEmojis.length) {
+              event.preventDefault();
+              handleEmojiSelectFromSuggestions(filteredEmojis[selectedEmojiIndex].code);
+              return true;
+            }
+          }
+          
+          return false;
+        },
+        COMMAND_PRIORITY_CRITICAL // Higher priority than EnterKeyPlugin
+      );
+    }, [editor, showMentionSuggestions, showEmojiSuggestions, mentionSearchTerm, selectedMentionIndex, selectedEmojiIndex, users]);
+
+    // Handle other keys for suggestions navigation
     useEffect(() => {
       const handleKeyDown = (event: KeyboardEvent) => {
-        // Handle mention suggestions navigation
+        // Handle mention suggestions navigation (non-Enter keys)
         if (showMentionSuggestions) {
           const filteredUsers = users.filter(user =>
             user.username.toLowerCase().includes(mentionSearchTerm.toLowerCase())
@@ -393,7 +480,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
             setSelectedMentionIndex(prev => Math.max(0, prev - 1));
             return;
           }
-          if (event.key === 'Enter' || event.key === 'Tab') {
+          if (event.key === 'Tab') {
             event.preventDefault();
             if (allSuggestions.length > 0 && selectedMentionIndex < allSuggestions.length) {
               handleMentionSelect(allSuggestions[selectedMentionIndex].username);
@@ -407,7 +494,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
           }
         }
 
-        // Handle emoji suggestions navigation
+        // Handle emoji suggestions navigation (non-Enter keys)
         if (showEmojiSuggestions) {
           const filteredEmojis = getFilteredEmojis();
           if (event.key === 'ArrowDown') {
@@ -420,7 +507,7 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
             setSelectedEmojiIndex(prev => Math.max(0, prev - 1));
             return;
           }
-          if (event.key === 'Enter' || event.key === 'Tab') {
+          if (event.key === 'Tab') {
             event.preventDefault();
             if (filteredEmojis.length > 0 && selectedEmojiIndex < filteredEmojis.length) {
               handleEmojiSelectFromSuggestions(filteredEmojis[selectedEmojiIndex].code);
@@ -1034,6 +1121,10 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     const editor = editorRef.current;
     if (!editor) return;
 
+    // Get the actual emoji character from the code
+    const emojiChar = getEmojiByName(emojiCode);
+    const emojiToInsert = emojiChar || `:${emojiCode}:`;
+
     editor.update(() => {
       const selection = $getSelection();
       if ($isRangeSelection(selection)) {
@@ -1044,13 +1135,12 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
         const lastColonIndex = textBeforeCursor.lastIndexOf(':');
         
         if (lastColonIndex !== -1 && node.getType() === 'text') {
-          // Select from : to cursor and replace
-          selection.setTextNodeRange(node as any, lastColonIndex + 1, node as any, offset);
-          // Replace with emoji code
-          selection.insertText(emojiCode + ':');
+          // Select from : to cursor and replace with actual emoji
+          selection.setTextNodeRange(node as any, lastColonIndex, node as any, offset);
+          selection.insertText(emojiToInsert + ' ');
         } else {
-          // Fallback: just insert
-          selection.insertText(`:${emojiCode}:`);
+          // Fallback: just insert emoji
+          selection.insertText(emojiToInsert + ' ');
         }
       }
     });

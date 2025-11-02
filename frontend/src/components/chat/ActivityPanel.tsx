@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import axios from '../../config/axios';
 import { parseMarkdown } from '../../utils/markdown';
+import { convertEmojiShortcodes } from '../../constants/emojis';
 
 interface ActivityItem {
   _id: string;
@@ -303,9 +304,15 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({ isOpen, onNavigate
                       <div className="mb-1">
                         <span className="text-[#d1d2d3] text-[15px] font-bold">{activity.sender?.username}</span>
                         <span className="text-[#ababad] text-[15px] ml-1">
-                          {activity.message?.content && parseMarkdown(activity.message.content).map((part, idx) => (
-                            <React.Fragment key={idx}>{part}</React.Fragment>
-                          ))}
+                          {activity.message?.content && (
+                            activity.message.content.trim().startsWith('<') ? (
+                              <span dangerouslySetInnerHTML={{ __html: convertEmojiShortcodes(activity.message.content) }} />
+                            ) : (
+                              parseMarkdown(activity.message.content).map((part, idx) => (
+                                <React.Fragment key={idx}>{part}</React.Fragment>
+                              ))
+                            )
+                          )}
                         </span>
                       </div>
                       <div className="text-[#ababad] text-[13px]">{formatTime(activity.createdAt)}</div>
@@ -336,9 +343,15 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({ isOpen, onNavigate
                       <div className="mb-1">
                         <span className="text-[#d1d2d3] text-[15px] font-bold">{activity.sender?.username}</span>
                         <span className="text-[#ababad] text-[15px] ml-1">
-                          {activity.message?.content && parseMarkdown(activity.message.content).map((part, idx) => (
-                            <React.Fragment key={idx}>{part}</React.Fragment>
-                          ))}
+                          {activity.message?.content && (
+                            activity.message.content.trim().startsWith('<') ? (
+                              <span dangerouslySetInnerHTML={{ __html: convertEmojiShortcodes(activity.message.content) }} />
+                            ) : (
+                              parseMarkdown(activity.message.content).map((part, idx) => (
+                                <React.Fragment key={idx}>{part}</React.Fragment>
+                              ))
+                            )
+                          )}
                         </span>
                       </div>
                       <div className="text-[#ababad] text-[13px]">{formatTime(activity.createdAt)}</div>
