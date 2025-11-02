@@ -22,9 +22,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   console.log('🔍 Sidebar render - Conversations:', conversations.length, conversations);
   
   return (
-    <div className="w-[260px] bg-[#3c3836] flex flex-col border-r border-[#313030]">
+    <div className="w-[350px] bg-gradient-to-b from-[#211125] to-[#180d1b] flex flex-col border-r border-[#3b2d3e]">
       {/* Sidebar Header */}
-      <div className="h-[60px] px-4 flex items-center border-b border-[#313030] shrink-0">
+      <div className="h-[60px] px-4 flex items-center border-b border-[#3b2d3e] shrink-0">
         <div className="flex items-center flex-1 min-w-0">
           <div className="w-8 h-8 rounded bg-[#522653] flex items-center justify-center text-white font-bold text-sm mr-3 shrink-0">
             {currentUser.username?.charAt(0).toUpperCase() || 'U'}
@@ -39,7 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className="flex-1 overflow-y-auto">
         {/* Channels Section */}
         <div className="px-3 py-2">
-          <button className="w-full flex items-center justify-between px-2 py-1 hover:bg-[#40403b] rounded transition-colors group">
+          <button className="w-full flex items-center justify-between px-2 py-1 hover:bg-[#302234] rounded transition-colors group">
             <div className="flex items-center gap-1">
               <svg className="w-3 h-3 text-[#d1d2d3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -48,11 +48,11 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </button>
           <div role="tree" aria-label="Channels" className="mt-1">
-            <button className="w-full px-2 py-1 rounded flex items-center group hover:bg-[#40403b] transition-colors">
+            <button className="w-full px-2 py-1 rounded flex items-center group hover:bg-[#302234] transition-colors">
               <span className="text-[#d1d2d3] mr-2">#</span>
               <span className="text-[15px] text-[#d1d2d3] truncate flex-1 text-left">general</span>
             </button>
-            <button className="w-full px-2 py-1.5 rounded flex items-center group hover:bg-[#40403b] transition-colors mt-1">
+            <button className="w-full px-2 py-1.5 rounded flex items-center group hover:bg-[#302234] transition-colors mt-1">
               <svg className="w-4 h-4 text-[#d1d2d3] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
@@ -63,7 +63,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Direct Messages Section */}
         <div className="px-3 py-2 mt-4">
-          <button className="w-full flex items-center justify-between px-2 py-1 hover:bg-[#40403b] rounded transition-colors group">
+          <button className="w-full flex items-center justify-between px-2 py-1 hover:bg-[#302234] rounded transition-colors group">
             <div className="flex items-center gap-1">
               <svg className="w-3 h-3 text-[#d1d2d3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -103,8 +103,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <button
                   key={conversation._id}
                   onClick={() => onConversationSelect(conversation)}
-                  className={`w-full px-2 py-1.5 rounded flex items-center group hover:bg-[#40403b] transition-colors ${
-                    isActive ? 'bg-[#40403b]' : ''
+                  className={`w-full px-2 py-1.5 rounded flex items-center group hover:bg-[#302234] transition-colors ${
+                    isActive ? 'bg-[#7d3986]' : ''
                   }`}
                 >
                   <div className="relative mr-2 shrink-0">
@@ -132,7 +132,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <button
                   key={user._id}
                   onClick={() => onUserSelect(user._id)}
-                  className="w-full px-2 py-1.5 rounded flex items-center group hover:bg-[#40403b] transition-colors"
+                  className="w-full px-2 py-1.5 rounded flex items-center group hover:bg-[#302234] transition-colors"
                 >
                   <div className="relative mr-2 shrink-0">
                     <div className="w-5 h-5 rounded bg-[#522653] flex items-center justify-center text-white text-[10px] font-semibold">
@@ -146,7 +146,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               ));
             })()}
             
-            <button className="w-full px-2 py-1.5 rounded flex items-center group hover:bg-[#40403b] transition-colors mt-1">
+            <button className="w-full px-2 py-1.5 rounded flex items-center group hover:bg-[#302234] transition-colors mt-1">
               <svg className="w-4 h-4 text-[#d1d2d3] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>

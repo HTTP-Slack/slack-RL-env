@@ -183,7 +183,6 @@ const FileAttachment: React.FC<{ fileId: string; onClick: () => void; workspaceI
   const [isPdf, setIsPdf] = useState(false);
   const [isPpt, setIsPpt] = useState(false);
   const [isAudio, setIsAudio] = useState(false);
-  const [imageError, setImageError] = useState(false);
   const [videoThumbnail, setVideoThumbnail] = useState<string>('');
   const [videoDuration, setVideoDuration] = useState<string>('');
   const [audioDuration, setAudioDuration] = useState<string>('');
@@ -191,6 +190,7 @@ const FileAttachment: React.FC<{ fileId: string; onClick: () => void; workspaceI
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const fileUrl = getFileUrl(fileId, true);
   const downloadUrl = getFileUrl(fileId, false);
+  const menuButtonRef = React.useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     getFileInfo(fileId).then((info) => {
@@ -239,7 +239,7 @@ const FileAttachment: React.FC<{ fileId: string; onClick: () => void; workspaceI
       video.preload = 'metadata';
       video.muted = true; // Required for autoplay in some browsers
       
-      let timeoutId: NodeJS.Timeout;
+      let timeoutId: ReturnType<typeof setTimeout>;
       
       video.onloadedmetadata = () => {
         // Seek to 1 second or 10% of video, whichever is smaller
@@ -739,18 +739,15 @@ const FileAttachment: React.FC<{ fileId: string; onClick: () => void; workspaceI
                 if (altUrl !== fileUrl) {
                   e.currentTarget.src = altUrl;
                 } else {
-                  setImageError(true);
                   setIsImage(false);
                 }
               } else {
-                setImageError(true);
                 setIsImage(false);
               }
             }}
             onLoad={() => {
               // Image loaded successfully
               setIsImage(true);
-              setImageError(false);
             }}
           />
           <button
@@ -1012,13 +1009,14 @@ const MessageItem: React.FC<MessageItemProps> = ({
 
               {/* Reaction Bar */}
               <div className="flex items-center gap-1 mt-1">
-                {message.reactions && Object.entries(message.reactions).map(([emoji, users]) => (
-                  users.length > 0 && (
+                {message.reactions && Object.entries(message.reactions).map(([emoji, reactionData]) => {
+                  const users = Array.isArray(reactionData) ? reactionData : reactionData.reactedToBy || [];
+                  return users.length > 0 ? (
                     <button
                       key={emoji}
                       onClick={() => onReaction(emoji)}
                       className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-colors ${
-                        users.some((u) => u._id === user._id)
+                        users.some((u: any) => u._id === user._id)
                           ? 'bg-[rgb(0,116,217)] text-white'
                           : 'bg-[rgb(49,48,44)] text-[rgb(209,210,211)] hover:bg-[rgb(60,56,54)]'
                       }`}
@@ -1026,8 +1024,8 @@ const MessageItem: React.FC<MessageItemProps> = ({
                       <span>{emoji}</span>
                       <span>{users.length}</span>
                     </button>
-                  )
-                ))}
+                  ) : null;
+                })}
               </div>
             </>
           )}
@@ -1100,7 +1098,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
       {showEmojiPicker && (
         <div className="absolute top-0 right-0 z-20">
           <EmojiPicker
-            onEmojiSelect={(emoji) => {
+            onSelectEmoji={(emoji: string) => {
               onReaction(emoji);
               setShowEmojiPicker(false);
             }}
