@@ -7,6 +7,7 @@ import ChannelChatPane from '../components/chat/ChannelChatPane';
 import ThreadPanel from '../components/chat/ThreadPanel';
 import { ActivityPanel } from '../components/chat/ActivityPanel';
 import { DMPanel } from '../components/chat/DMPanel';
+import { LaterPanel } from '../components/chat/LaterPanel';
 import ChannelContextMenu from '../components/chat/ChannelContextMenu';
 import ChannelSettingsModal from '../components/chat/ChannelSettingsModal';
 import ChannelActionsMenu from '../components/chat/ChannelActionsMenu';
@@ -51,6 +52,7 @@ const Dashboard: React.FC = () => {
   const [channelMessages, setChannelMessages] = useState<any[]>([]);
   const [isActivityOpen, setIsActivityOpen] = useState(false);
   const [isDMsOpen, setIsDMsOpen] = useState(false);
+  const [isLaterOpen, setIsLaterOpen] = useState(false);
   const [channelContextMenu, setChannelContextMenu] = useState<{
     channel: IChannel;
     position: { x: number; y: number };
@@ -482,20 +484,26 @@ const Dashboard: React.FC = () => {
           onActivityClick={() => {
             setIsActivityOpen(true);
             setIsDMsOpen(false);
+            setIsLaterOpen(false);
           }}
           onHomeClick={() => {
             setIsActivityOpen(false);
             setIsDMsOpen(false);
+            setIsLaterOpen(false);
           }}
           onDMsClick={() => {
             setIsDMsOpen(true);
             setIsActivityOpen(false);
+            setIsLaterOpen(false);
           }}
           onLaterClick={() => {
-            navigate(`/later?workspace=${currentWorkspaceId}`);
+            setIsLaterOpen(true);
+            setIsDMsOpen(false);
+            setIsActivityOpen(false);
           }}
           isActivityOpen={isActivityOpen}
           isDMsOpen={isDMsOpen}
+          isLaterOpen={isLaterOpen}
         />
         {isDMsOpen ? (
           <>
@@ -641,6 +649,11 @@ const Dashboard: React.FC = () => {
           </div>
         )}
           </>
+        ) : isLaterOpen ? (
+          <LaterPanel
+            isOpen={isLaterOpen}
+            onClose={() => setIsLaterOpen(false)}
+          />
         ) : (
           <>
             <Sidebar
