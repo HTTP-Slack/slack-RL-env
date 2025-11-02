@@ -1157,8 +1157,13 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
                       <div className="relative w-full h-full rounded-lg overflow-hidden bg-[rgb(34,37,41)]">
                         {/* Progress bar at top - only show during upload */}
                         {isUploading && (
-                          <div className="absolute top-0 left-0 right-0 h-1 bg-[rgba(255,255,255,0.2)] z-20">
-                            <div className="h-full bg-white transition-all duration-300 animate-pulse" style={{ width: '60%' }}></div>
+                          <div className="absolute top-0 left-0 right-0 h-1 bg-[rgba(255,255,255,0.2)] z-20 overflow-hidden">
+                            <div 
+                              className="h-full w-1/3 bg-gradient-to-r from-transparent via-white to-transparent"
+                              style={{
+                                animation: 'slideProgress 1.5s ease-in-out infinite'
+                              }}
+                            ></div>
                           </div>
                         )}
                         
@@ -1194,8 +1199,13 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
                       <div className="relative flex items-center gap-2 px-3 py-2 bg-[rgb(49,48,44)] rounded-lg text-sm text-[rgb(209,210,211)]">
                         {/* Progress bar at top - only show during upload */}
                         {isUploading && (
-                          <div className="absolute top-0 left-0 right-0 h-1 bg-[rgba(255,255,255,0.2)] rounded-t-lg">
-                            <div className="h-full bg-white transition-all duration-300 animate-pulse rounded-tl-lg" style={{ width: '60%' }}></div>
+                          <div className="absolute top-0 left-0 right-0 h-1 bg-[rgba(255,255,255,0.2)] rounded-t-lg overflow-hidden">
+                            <div 
+                              className="h-full w-1/3 bg-gradient-to-r from-transparent via-white to-transparent rounded-tl-lg"
+                              style={{
+                                animation: 'slideProgress 1.5s ease-in-out infinite'
+                              }}
+                            ></div>
                           </div>
                         )}
                         

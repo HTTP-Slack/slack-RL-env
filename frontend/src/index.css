@@ -42,3 +42,13 @@
 .animate-slide-in-right {
   animation: slide-in-right 0.2s ease-out;
 }
+
+/* Indeterminate progress bar animation */
+@keyframes slideProgress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
