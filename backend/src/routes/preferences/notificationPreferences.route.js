@@ -1,11 +1,11 @@
 import express from 'express';
 
-import { protectRoute } from '../middlewares/protectRoute.js';
+import { protectRoute } from '../../middlewares/protectRoute.js';
 import {
   getNotificationPreferences,
   updateNotificationPreferences,
   createNotificationPreferences,
-} from '../controllers/notificationPreferences.controller.js';
+} from '../../controllers/preferences/notificationPreferences.controller.js';
 
 const router = express.Router();
 

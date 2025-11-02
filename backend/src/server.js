@@ -26,8 +26,9 @@ import fileRoute from './routes/file.route.js';
 import sectionRoute from './routes/section.route.js';
 import listRoute from './routes/list.route.js';
 import canvasRoute from './routes/canvas.route.js';
-import preferencesRoute from './routes/preferences.route.js';
-import notificationPreferencesRoute from './routes/notificationPreferences.route.js';
+import preferencesRoute from './routes/preferences/preferences.route.js';
+import notificationPreferencesRoute from './routes/preferences/notificationPreferences.route.js';
+import vipPreferencesRoute from './routes/preferences/vipPreferences.route.js';
 
 //setup
 dotenv.config();
@@ -86,6 +87,7 @@ app.use('/api/users', userRoute);
 app.use('/api/files', fileRoute);
 app.use('/api/preferences', preferencesRoute);
 app.use('/api/notification-preferences', notificationPreferencesRoute);
+app.use('/api/vip-preferences', vipPreferencesRoute);
 
 server.listen(PORT, ()=> {
   console.log(`Server is running on port ${PORT}`);

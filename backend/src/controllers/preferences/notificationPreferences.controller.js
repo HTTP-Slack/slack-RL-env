@@ -1,5 +1,5 @@
-import Preferences from '../models/preferences.model.js';
-import NotificationPreferences from '../models/notificationPreferences.model.js';
+import Preferences from '../../models/preferences/preferences.model.js';
+import NotificationPreferences from '../../models/preferences/notificationPreferences.model.js';
 
 // @desc    get user's notification preferences
 // @route   GET /api/notification-preferences

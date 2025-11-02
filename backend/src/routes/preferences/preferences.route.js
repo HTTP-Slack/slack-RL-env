@@ -1,11 +1,11 @@
 import express from 'express';
 
-import { protectRoute } from '../middlewares/protectRoute.js';
+import { protectRoute } from '../../middlewares/protectRoute.js';
 import {
   getPreferences,
   updatePreferences,
   createPreferences,
-} from '../controllers/preferences.controller.js';
+} from '../../controllers/preferences/preferences.controller.js';
 
 const router = express.Router();
 
@@ -14,3 +14,4 @@ router.post('/', protectRoute, createPreferences);
 router.patch('/', protectRoute, updatePreferences);
 
 export default router;
+

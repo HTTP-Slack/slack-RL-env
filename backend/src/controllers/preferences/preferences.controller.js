@@ -1,5 +1,6 @@
-import Preferences from '../models/preferences.model.js';
-import NotificationPreferences from '../models/notificationPreferences.model.js';
+import Preferences from '../../models/preferences/preferences.model.js';
+import NotificationPreferences from '../../models/preferences/notificationPreferences.model.js';
+import VIPPreferences from '../../models/preferences/vipPreferences.model.js';
 
 // @desc    get user's complete preferences
 // @route   GET /api/preferences
@@ -92,8 +93,23 @@ export const updatePreferences = async (req, res) => {
       }
     }
 
+    // Handle VIP update
+    if (updateData.vip) {
+      if (preferences.vip) {
+        await VIPPreferences.findByIdAndUpdate(
+          preferences.vip,
+          updateData.vip,
+          { new: true }
+        );
+      } else {
+        const vipPrefs = await VIPPreferences.create(updateData.vip);
+        preferences.vip = vipPrefs._id;
+        await preferences.save();
+      }
+    }
+
     // TODO: Handle other preference categories as they are implemented
-    // Similar pattern for vip, navigation, home, etc.
+    // Similar pattern for navigation, home, etc.
 
     // Reload preferences with populated fields
     preferences = await Preferences.findById(preferences._id)
@@ -171,3 +187,4 @@ export const createPreferences = async (req, res) => {
     });
   }
 };
+

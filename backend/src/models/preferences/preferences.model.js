@@ -81,3 +81,4 @@ const preferencesSchema = new mongoose.Schema(
 );
 
 export default mongoose.model('Preferences', preferencesSchema);
+
