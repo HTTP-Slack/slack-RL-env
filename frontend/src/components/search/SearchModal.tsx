@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { searchWorkspace } from '../../services/searchApi';
+import { useNavigate } from 'react-router-dom';
+import { advancedSearch } from '../../services/searchApi';
+import { parseSearchQuery } from '../../utils/searchParser';
 import type { SearchResults, SearchResult } from '../../types/search';
 
 interface SearchModalProps {
@@ -20,6 +22,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   channelFilter,
   onResultSelect,
 }) => {
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResults | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -56,11 +59,15 @@ export const SearchModal: React.FC<SearchModalProps> = ({
 
       setIsLoading(true);
       try {
-        const searchResults = await searchWorkspace({
-          query: searchQuery,
-          organisationId,
-          channelId: channelFilter?.id,
-        });
+        // Parse the search query for advanced syntax
+        const filters = parseSearchQuery(searchQuery);
+
+        // If there's a channel filter, add it
+        if (channelFilter?.id) {
+          filters.in = channelFilter.id;
+        }
+
+        const searchResults = await advancedSearch(filters, organisationId);
         setResults(searchResults);
       } catch (error) {
         console.error('Search failed:', error);
@@ -95,10 +102,17 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSelectedIndex((prev) => Math.max(prev - 1, 0));
-    } else if (e.key === 'Enter' && flatResults[selectedIndex]) {
+    } else if (e.key === 'Enter') {
       e.preventDefault();
-      onResultSelect(flatResults[selectedIndex]);
-      onClose();
+      if (flatResults[selectedIndex]) {
+        // If there's a selected result, open it
+        onResultSelect(flatResults[selectedIndex]);
+        onClose();
+      } else if (query.trim()) {
+        // If no result selected but there's a query, navigate to search results page
+        navigate(`/search?q=${encodeURIComponent(query)}`);
+        onClose();
+      }
     } else if (e.key === 'Escape') {
       e.preventDefault();
       onClose();
@@ -164,7 +178,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
       case 'message':
         return result.content.length > 60 ? `${result.content.substring(0, 60)}...` : result.content;
       case 'file':
-        return `File in ${result.channel?.name || result.conversation?.name || 'conversation'}`;
+        return result.filename || 'Untitled file';
       case 'canvas':
         return result.title;
       case 'conversation':
@@ -183,7 +197,9 @@ export const SearchModal: React.FC<SearchModalProps> = ({
       case 'message':
         return `in ${result.channel?.name || result.conversation?.name || 'conversation'}`;
       case 'file':
-        return `Shared by ${result.sender?.username || 'Unknown'}`;
+        const fileSize = result.length ? `${(result.length / 1024).toFixed(1)} KB` : '';
+        const fileType = result.contentType ? ` • ${result.contentType.split('/')[1]?.toUpperCase() || 'File'}` : '';
+        return `${fileSize}${fileType}`;
       case 'canvas':
         return `Created by ${result.createdBy?.username || 'Unknown'}`;
       case 'conversation':

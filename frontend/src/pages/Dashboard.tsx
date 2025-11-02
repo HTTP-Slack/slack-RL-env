@@ -248,16 +248,9 @@ const Dashboard: React.FC = () => {
         }
         break;
       case 'file':
-        // Open file preview/download
-        if (result.channel) {
-          await handleChannelSelect(result.channel._id);
-        } else if (result.conversation) {
-          const conversation = conversations.find(c => c._id === result.conversation._id);
-          if (conversation) {
-            setActiveConversation(conversation);
-            setActiveChannel(null);
-          }
-        }
+        // Open file in new tab or download
+        const fileUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8080/api'}/files/${result._id}`;
+        window.open(fileUrl, '_blank');
         break;
       case 'canvas':
         // Navigate to canvas view

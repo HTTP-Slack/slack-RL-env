@@ -17,6 +17,7 @@ import ProfileStep3 from './pages/ProfileStep3';
 import ProfileStep4 from './pages/ProfileStep4';
 import JoinWorkspace from './pages/JoinWorkspace';
 import Dashboard from './pages/Dashboard';
+import { SearchResults } from './pages/search/SearchResults';
 
 const App = () => {
   return (
@@ -81,13 +82,21 @@ const App = () => {
               </ProtectedRoute>
             } 
           />
-          <Route 
-            path="/dashboard" 
+          <Route
+            path="/dashboard"
             element={
               <ProtectedRoute>
                 <Dashboard />
               </ProtectedRoute>
-            } 
+            }
+          />
+          <Route
+            path="/search"
+            element={
+              <ProtectedRoute>
+                <SearchResults />
+              </ProtectedRoute>
+            }
           />
           <Route path="/join/:joinLink" element={<JoinWorkspace />} />
         </Routes>

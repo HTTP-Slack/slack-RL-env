@@ -3,24 +3,43 @@ import Channel from '../models/channel.model.js';
 import Message from '../models/message.model.js';
 import Canvas from '../models/canvas.model.js';
 import Conversation from '../models/conversation.model.js';
+import { searchFiles } from '../services/gridfs.service.js';
 
 export const unifiedSearch = async (req, res) => {
   try {
-    const { query, organisation, channelId, limit = 20 } = req.query;
+    const {
+      query,
+      organisation,
+      channelId,
+      limit = 20,
+      // Advanced filters
+      from,
+      with: withUser,
+      before,
+      after,
+      on,
+      hasFile,
+      hasLink,
+      isDM,
+      isThread,
+      isSaved,
+      isPinned,
+      fileType,
+    } = req.query;
     const userId = req.user._id;
 
-    if (!query || !organisation) {
+    if (!organisation) {
       return res.status(400).json({
         success: false,
-        message: 'Query and organisation are required'
+        message: 'Organisation is required'
       });
     }
 
-    // Create case-insensitive regex for search
-    const searchRegex = new RegExp(query, 'i');
+    // Create case-insensitive regex for search (if query exists)
+    const searchRegex = query ? new RegExp(query, 'i') : null;
 
     // Parallel search across all entity types
-    const [users, channels, messages, files, canvases, conversations] = await Promise.all([
+    const [users, channels, messages, gridFSFiles, canvases, conversations] = await Promise.all([
       // Search users in the organisation
       User.find({
         $or: [
@@ -46,70 +65,104 @@ export const unifiedSearch = async (req, res) => {
         .populate('collaborators', 'username email')
         .lean(),
 
-      // Search messages in accessible channels/conversations
-      channelId
-        ? // If channelId is provided, search only in that channel
-          Message.find({
-            channel: channelId,
-            organisation,
-            content: searchRegex
-          })
-            .limit(parseInt(limit))
-            .populate('sender', 'username email profilePicture profilePictureMimeType')
-            .populate('channel', 'name')
-            .sort({ createdAt: -1 })
-            .lean()
-        : // Otherwise, search in all accessible channels and conversations
-          Message.find({
-            organisation,
-            $or: [
-              { collaborators: userId }, // Messages in conversations
-              { channel: { $exists: true } } // Messages in channels (will filter by access below)
-            ],
-            content: searchRegex
-          })
-            .limit(parseInt(limit))
-            .populate('sender', 'username email profilePicture profilePictureMimeType')
-            .populate('channel', 'name')
-            .populate('conversation', 'name')
-            .sort({ createdAt: -1 })
-            .lean()
-            .then(msgs =>
-              // Filter messages to only include those from channels user has access to
-              msgs.filter(msg =>
-                msg.collaborators?.some(c => c.toString() === userId.toString()) ||
-                !msg.channel // Keep DM messages
-              )
-            ),
+      // Search messages with advanced filters
+      (async () => {
+        const messageQuery = {
+          organisation,
+        };
 
-      // Search files (from message attachments with filenames)
-      channelId
-        ? // Search files in specific channel
-          Message.find({
-            channel: channelId,
-            organisation,
-            attachments: { $exists: true, $ne: [] }
-          })
-            .limit(parseInt(limit))
-            .populate('sender', 'username email')
-            .populate('channel', 'name')
-            .sort({ createdAt: -1 })
-            .lean()
-        : // Search files in all accessible messages
-          Message.find({
-            organisation,
+        // Text search
+        if (searchRegex) {
+          messageQuery.content = searchRegex;
+        }
+
+        // Channel filter
+        if (channelId) {
+          messageQuery.channel = channelId;
+        } else if (!isDM) {
+          messageQuery.$or = [
+            { collaborators: userId },
+            { channel: { $exists: true } }
+          ];
+        }
+
+        // DM filter
+        if (isDM === 'true') {
+          messageQuery.conversation = { $exists: true };
+          messageQuery.collaborators = userId;
+        }
+
+        // From filter (sender)
+        if (from) {
+          // Try to find user by username
+          const fromUser = await User.findOne({
             $or: [
-              { collaborators: userId },
-              { channel: { $exists: true } }
-            ],
-            attachments: { $exists: true, $ne: [] }
-          })
-            .limit(parseInt(limit))
-            .populate('sender', 'username email')
-            .populate('channel', 'name')
-            .populate('conversation', 'name')
-            .sort({ createdAt: -1 })
-            .lean(),
+              { username: new RegExp(`^${from}$`, 'i') },
+              { email: new RegExp(`^${from}$`, 'i') }
+            ]
+          });
+          if (fromUser) {
+            messageQuery.sender = fromUser._id;
+          }
+        }
+
+        // Date filters
+        if (before || after || on) {
+          messageQuery.createdAt = {};
+          if (before) messageQuery.createdAt.$lt = new Date(before);
+          if (after) messageQuery.createdAt.$gt = new Date(after);
+          if (on) {
+            const onDate = new Date(on);
+            const nextDay = new Date(onDate);
+            nextDay.setDate(nextDay.getDate() + 1);
+            messageQuery.createdAt.$gte = onDate;
+            messageQuery.createdAt.$lt = nextDay;
+          }
+        }
+
+        // Has file filter
+        if (hasFile === 'true') {
+          messageQuery.attachments = { $exists: true, $ne: [] };
+        }
+
+        // Saved/Pinned filters (these would need to be implemented in your message model)
+        if (isSaved === 'true') {
+          messageQuery.isBookmarked = true;
+        }
+
+        // Thread filter
+        if (isThread === 'true') {
+          messageQuery.threadRepliesCount = { $gt: 0 };
+        }
+
+        const msgs = await Message.find(messageQuery)
+          .limit(parseInt(limit))
+          .populate('sender', 'username email profilePicture profilePictureMimeType')
+          .populate('channel', 'name')
+          .populate('conversation', 'name')
+          .sort({ createdAt: -1 })
+          .lean();
+
+        // Filter messages to only include those from channels user has access to
+        return msgs.filter(msg =>
+          msg.collaborators?.some(c => c.toString() === userId.toString()) ||
+          !msg.channel
+        );
+      })(),
+
+      // Search files by filename in GridFS
+      searchFiles(query, organisation, channelId, parseInt(limit))
+        .then(files => {
+          // Convert GridFS files to a format similar to our other results
+          return files.map(file => ({
+            _id: file._id.toString(),
+            filename: file.filename,
+            contentType: file.contentType,
+            length: file.length,
+            uploadDate: file.uploadDate,
+            metadata: file.metadata,
+          }));
+        }),
 
       // Search canvases (workflows) user has access to
       Canvas.find({
@@ -147,7 +200,7 @@ export const unifiedSearch = async (req, res) => {
         ...message,
         type: 'message'
       })),
-      files: files.map(file => ({
+      files: gridFSFiles.map(file => ({
         ...file,
         type: 'file'
       })),
@@ -168,7 +221,7 @@ export const unifiedSearch = async (req, res) => {
         users.length +
         channels.length +
         messages.length +
-        files.length +
+        gridFSFiles.length +
         canvases.length +
         conversations.length
     });

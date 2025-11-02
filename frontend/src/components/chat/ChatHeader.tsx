@@ -9,6 +9,7 @@ interface ChatHeaderProps {
   onHuddleClick?: () => void;
   onNotificationsClick?: () => void;
   onMoreClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onSearchClick?: () => void;
 }
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -18,6 +19,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   onHuddleClick,
   onNotificationsClick,
   onMoreClick,
+  onSearchClick,
 }) => {
   const [showHuddleTooltip, setShowHuddleTooltip] = useState(false);
 
@@ -186,6 +188,29 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             </div>
           )}
         </div>
+
+        {/* Search button - only show for channels */}
+        {channel && (
+          <button
+            onClick={onSearchClick}
+            className="w-7 h-7 flex items-center justify-center rounded-[8px] border border-[rgba(121,124,129,0.3)] hover:border-[rgba(121,124,129,0.5)] transition-all ml-2"
+            aria-label="Search in channel"
+          >
+            <svg
+              viewBox="0 0 20 20"
+              className="w-5 h-5"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                clipRule="evenodd"
+                d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11M2 9a7 7 0 1 1 12.452 4.391l3.328 3.329a.75.75 0 1 1-1.06 1.06l-3.329-3.328A7 7 0 0 1 2 9"
+                fill="rgba(232,232,232,0.7)"
+              />
+            </svg>
+          </button>
+        )}
 
         {/* Notifications button */}
         <button

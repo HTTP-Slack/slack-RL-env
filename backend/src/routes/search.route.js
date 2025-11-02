@@ -1,6 +1,6 @@
 import express from 'express';
 import { unifiedSearch } from '../controllers/search.controller.js';
-import protectRoute from '../middlewares/protectRoute.js';
+import { protectRoute } from '../middlewares/protectRoute.js';
 
 const router = express.Router();
 

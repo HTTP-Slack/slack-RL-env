@@ -21,6 +21,8 @@ import {
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useProfile } from '../../features/profile/ProfileContext';
 import { useAuth } from '../../context/AuthContext';
+import { ChannelSearchDropdown } from '../search/ChannelSearchDropdown';
+import type { SearchResult } from '../../types/search';
 
 interface ChannelChatPaneProps {
   currentUser: User;
@@ -61,6 +63,8 @@ const ChannelChatPane: React.FC<ChannelChatPaneProps> = ({
   const [showChannelDetails, setShowChannelDetails] = useState(false);
   const [firstUnreadMessageId, setFirstUnreadMessageId] = useState<string | null>(null);
   const [pinnedMessages, setPinnedMessages] = useState<Map<string, PinnedMessage>>(new Map());
+  const [showChannelSearch, setShowChannelSearch] = useState(false);
+  const searchHeaderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -186,34 +190,69 @@ const ChannelChatPane: React.FC<ChannelChatPaneProps> = ({
 
   const memberCount = channel.collaborators?.length || 0;
 
+  const handleSearchResultSelect = (result: SearchResult) => {
+    if (result.type === 'message') {
+      // Scroll to the message
+      const messageElement = messageRefs.current.get(result._id);
+      if (messageElement) {
+        messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Highlight the message
+        messageElement.classList.add('bg-[#1164a3]');
+        setTimeout(() => {
+          messageElement.classList.remove('bg-[#1164a3]');
+        }, 2000);
+      }
+    } else if (result.type === 'file') {
+      // Open file in new tab
+      const fileUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:8080/api'}/files/${result._id}`;
+      window.open(fileUrl, '_blank');
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-[rgb(26,29,33)]">
       {/* Channel Header */}
-      <ChatHeader
-        channel={channel}
-        onUserClick={() => {
-          if (onOpenChannelSettings) {
-            onOpenChannelSettings();
-          } else {
-            setShowChannelDetails(!showChannelDetails);
-          }
-        }}
-        onHuddleClick={() => console.log('Start huddle')}
-        onNotificationsClick={() => {
-          if (onOpenChannelSettings) {
-            onOpenChannelSettings();
-          }
-        }}
-        onMoreClick={(e) => {
-          if (onOpenMoreOptions && e) {
-            const rect = e.currentTarget.getBoundingClientRect();
-            onOpenMoreOptions({
-              x: rect.right - 260,
-              y: rect.bottom + 4,
-            });
-          }
-        }}
-      />
+      <div ref={searchHeaderRef} className="relative">
+        <ChatHeader
+          channel={channel}
+          onUserClick={() => {
+            if (onOpenChannelSettings) {
+              onOpenChannelSettings();
+            } else {
+              setShowChannelDetails(!showChannelDetails);
+            }
+          }}
+          onHuddleClick={() => console.log('Start huddle')}
+          onNotificationsClick={() => {
+            if (onOpenChannelSettings) {
+              onOpenChannelSettings();
+            }
+          }}
+          onMoreClick={(e) => {
+            if (onOpenMoreOptions && e) {
+              const rect = e.currentTarget.getBoundingClientRect();
+              onOpenMoreOptions({
+                x: rect.right - 260,
+                y: rect.bottom + 4,
+              });
+            }
+          }}
+          onSearchClick={() => setShowChannelSearch(!showChannelSearch)}
+        />
+
+        {/* Channel Search Dropdown */}
+        {currentWorkspaceId && (
+          <ChannelSearchDropdown
+            isOpen={showChannelSearch}
+            onClose={() => setShowChannelSearch(false)}
+            organisationId={currentWorkspaceId}
+            channelId={channel._id}
+            channelName={channel.name}
+            onResultSelect={handleSearchResultSelect}
+            anchorElement={searchHeaderRef.current}
+          />
+        )}
+      </div>
 
       {/* Chat View Header - Navigation tabs */}
       <ChatViewHeader

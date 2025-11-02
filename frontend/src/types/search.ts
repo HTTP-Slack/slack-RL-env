@@ -29,17 +29,16 @@ export interface MessageSearchResult {
 
 export interface FileSearchResult {
   _id: string;
-  attachments: string[];
-  sender: IUser;
-  channel?: {
-    _id: string;
-    name: string;
+  filename: string;
+  contentType: string;
+  length: number;
+  uploadDate: string;
+  metadata: {
+    organisation: string;
+    uploader: string;
+    channel?: string;
+    conversation?: string;
   };
-  conversation?: {
-    _id: string;
-    name: string;
-  };
-  createdAt: string;
   type: 'file';
 }
 
