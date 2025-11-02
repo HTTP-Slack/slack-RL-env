@@ -23,8 +23,6 @@ import teammatesRoute from './routes/teammates.route.js';
 import threadRoute from './routes/thread.route.js';
 import userRoute from './models/user.model.js';
 import fileRoute from './routes/file.route.js';
-import { protectRoute } from './middlewares/protectRoute.js';
-import { streamFileByWorkspace } from './controllers/file.controller.js';
 
 //setup
 dotenv.config();
@@ -77,7 +75,6 @@ app.use('/api/conversation', conversationRoute);
 app.use('/api/teammates', teammatesRoute);
 app.use('/api/threads', threadRoute);
 app.use('/api/users', userRoute);
-app.get('/files/:workspaceId/:id/:filename', protectRoute, streamFileByWorkspace);
 app.use('/api/files', fileRoute);
 
 server.listen(PORT, ()=> {
