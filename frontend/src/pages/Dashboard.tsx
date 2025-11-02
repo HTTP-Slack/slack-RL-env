@@ -5,6 +5,11 @@ import Sidebar from '../components/chat/Sidebar';
 import ChatPane from '../components/chat/ChatPane';
 import ChannelChatPane from '../components/chat/ChannelChatPane';
 import ThreadPanel from '../components/chat/ThreadPanel';
+import ChannelContextMenu from '../components/chat/ChannelContextMenu';
+import ChannelSettingsModal from '../components/chat/ChannelSettingsModal';
+import MoreOptionsMenu from '../components/chat/MoreOptionsMenu';
+import ChannelActionsMenu from '../components/chat/ChannelActionsMenu';
+import { ConfirmDialog } from '../features/preferences/components/ConfirmDialog';
 import { PreferencesModal } from '../features/preferences/PreferencesModal';
 import { ProfilePanel } from '../features/profile/ProfilePanel';
 import { UserProfileModal } from '../features/profile/UserProfileModal';
@@ -12,7 +17,7 @@ import { useProfile } from '../features/profile/ProfileContext';
 import { useAuth } from '../context/AuthContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { getWorkspaces } from '../services/workspaceApi';
-import { getChannel } from '../services/channelApi';
+import { getChannel, leaveChannel, archiveChannel, deleteChannel, starChannel } from '../services/channelApi';
 import { getMessages } from '../services/messageApi';
 import type { Workspace } from '../types/workspace';
 import type { IChannel } from '../types/channel';
@@ -40,6 +45,19 @@ const Dashboard: React.FC = () => {
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
   const [activeChannel, setActiveChannel] = useState<IChannel | null>(null);
   const [channelMessages, setChannelMessages] = useState<any[]>([]);
+  const [channelContextMenu, setChannelContextMenu] = useState<{
+    channel: IChannel;
+    position: { x: number; y: number };
+  } | null>(null);
+  const [isChannelSettingsOpen, setIsChannelSettingsOpen] = useState(false);
+  const [moreOptionsMenu, setMoreOptionsMenu] = useState<{
+    position: { x: number; y: number };
+  } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
 
   // Initialize workspace from URL or fetch workspaces
   useEffect(() => {
@@ -349,6 +367,9 @@ const Dashboard: React.FC = () => {
           }}
           onUserSelect={handleUserSelect}
           onChannelSelect={handleChannelSelect}
+          onChannelMenuClick={(channel, position) => {
+            setChannelContextMenu({ channel, position });
+          }}
         />
         {activeChannel ? (
           <>
@@ -364,6 +385,12 @@ const Dashboard: React.FC = () => {
               onOpenThread={handleOpenThread}
               onReaction={handleReaction}
               onRefreshChannel={handleRefreshChannel}
+              onOpenChannelSettings={() => {
+                setIsChannelSettingsOpen(true);
+              }}
+              onOpenMoreOptions={(position) => {
+                setMoreOptionsMenu({ position });
+              }}
             />
             {activeThread && (
               <ThreadPanel
@@ -405,6 +432,189 @@ const Dashboard: React.FC = () => {
         )}
       </div>
       
+      {/* Channel Context Menu */}
+      {channelContextMenu && (
+        <ChannelContextMenu
+          channel={channelContextMenu.channel}
+          position={channelContextMenu.position}
+          onClose={() => setChannelContextMenu(null)}
+          onOpenChannelDetails={() => {
+            setActiveChannel(channelContextMenu.channel);
+            setIsChannelSettingsOpen(true);
+          }}
+          onSummarizeChannel={() => {
+            // TODO: Implement channel summarization
+            console.log('Summarize channel:', channelContextMenu.channel._id);
+          }}
+          onEditNotifications={() => {
+            setActiveChannel(channelContextMenu.channel);
+            setIsChannelSettingsOpen(true);
+            // Could add logic to open notifications tab directly
+          }}
+          onStarChannel={async () => {
+            try {
+              await starChannel(channelContextMenu.channel._id);
+              // Refresh channel if it's active
+              if (activeChannel?._id === channelContextMenu.channel._id) {
+                await handleRefreshChannel();
+              }
+            } catch (error) {
+              console.error('Failed to star channel:', error);
+            }
+          }}
+          onMoveChannel={() => {
+            // TODO: Implement move channel
+            console.log('Move channel:', channelContextMenu.channel._id);
+          }}
+          onAddTemplate={() => {
+            // TODO: Implement add template
+            console.log('Add template to channel:', channelContextMenu.channel._id);
+          }}
+          onAddWorkflow={() => {
+            // TODO: Implement add workflow
+            console.log('Add workflow to channel:', channelContextMenu.channel._id);
+          }}
+          onEditSettings={() => {
+            setActiveChannel(channelContextMenu.channel);
+            setIsChannelSettingsOpen(true);
+          }}
+          onCopy={(type) => {
+            console.log('Copy', type, 'from channel:', channelContextMenu.channel._id);
+          }}
+          onSearchInChannel={() => {
+            // TODO: Implement search in channel
+            console.log('Search in channel:', channelContextMenu.channel._id);
+          }}
+          onLeaveChannel={() => {
+            setConfirmDialog({
+              title: 'Leave Channel',
+              message: `Are you sure you want to leave #${channelContextMenu.channel.name}? You'll stop receiving notifications about activity in this channel.`,
+              onConfirm: async () => {
+                try {
+                  await leaveChannel(channelContextMenu.channel._id);
+                  setActiveChannel(null);
+                  setChannelContextMenu(null);
+                  setConfirmDialog(null);
+                } catch (error) {
+                  console.error('Failed to leave channel:', error);
+                  setConfirmDialog(null);
+                }
+              },
+            });
+          }}
+        />
+      )}
+
+      {/* Channel Settings Modal */}
+      {isChannelSettingsOpen && activeChannel && (
+        <ChannelSettingsModal
+          isOpen={isChannelSettingsOpen}
+          onClose={() => {
+            setIsChannelSettingsOpen(false);
+          }}
+          channel={activeChannel}
+          currentUser={user!}
+          onChannelUpdated={async (updatedChannel) => {
+            setActiveChannel(updatedChannel);
+            await handleRefreshChannel();
+          }}
+        />
+      )}
+
+      {/* More Options Menu */}
+      {moreOptionsMenu && activeChannel && (
+        <ChannelActionsMenu
+          position={moreOptionsMenu.position}
+          onClose={() => setMoreOptionsMenu(null)}
+          channel={activeChannel}
+          onOpenChannelDetails={() => {
+            setIsChannelSettingsOpen(true);
+            setMoreOptionsMenu(null);
+          }}
+          onSummarizeChannel={() => {
+            // TODO: Implement channel summarization
+            console.log('Summarize channel:', activeChannel._id);
+            setMoreOptionsMenu(null);
+          }}
+          onEditNotifications={() => {
+            setIsChannelSettingsOpen(true);
+            setMoreOptionsMenu(null);
+            // Could add logic to open notifications tab directly
+          }}
+          onStarChannel={async () => {
+            try {
+              await starChannel(activeChannel._id);
+              await handleRefreshChannel();
+              setMoreOptionsMenu(null);
+            } catch (error) {
+              console.error('Failed to star channel:', error);
+            }
+          }}
+          onMoveChannel={() => {
+            // TODO: Implement move channel
+            console.log('Move channel:', activeChannel._id);
+            setMoreOptionsMenu(null);
+          }}
+          onAddTemplate={() => {
+            // TODO: Implement add template
+            console.log('Add template to channel:', activeChannel._id);
+            setMoreOptionsMenu(null);
+          }}
+          onAddWorkflow={() => {
+            // TODO: Implement add workflow
+            console.log('Add workflow to channel:', activeChannel._id);
+            setMoreOptionsMenu(null);
+          }}
+          onEditSettings={() => {
+            setIsChannelSettingsOpen(true);
+            setMoreOptionsMenu(null);
+          }}
+          onCopy={() => {
+            // TODO: Implement copy options
+            console.log('Copy from channel:', activeChannel._id);
+            setMoreOptionsMenu(null);
+          }}
+          onSearchInChannel={() => {
+            // TODO: Implement search in channel
+            console.log('Search in channel:', activeChannel._id);
+            setMoreOptionsMenu(null);
+          }}
+          onLeaveChannel={() => {
+            setConfirmDialog({
+              title: 'Leave Channel',
+              message: `Are you sure you want to leave #${activeChannel.name}? You'll stop receiving notifications about activity in this channel.`,
+              onConfirm: async () => {
+                try {
+                  await leaveChannel(activeChannel._id);
+                  setActiveChannel(null);
+                  setMoreOptionsMenu(null);
+                  setConfirmDialog(null);
+                } catch (error) {
+                  console.error('Failed to leave channel:', error);
+                  setConfirmDialog(null);
+                }
+              },
+            });
+            setMoreOptionsMenu(null);
+          }}
+        />
+      )}
+
+      {/* Confirm Dialog */}
+      {confirmDialog && (
+        <ConfirmDialog
+          isOpen={!!confirmDialog}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          confirmLabel="Confirm"
+          cancelLabel="Cancel"
+          onConfirm={() => {
+            confirmDialog.onConfirm();
+          }}
+          onCancel={() => setConfirmDialog(null)}
+        />
+      )}
+
       {/* Preferences and Profile Modals */}
       <PreferencesModal />
       <ProfilePanel />
