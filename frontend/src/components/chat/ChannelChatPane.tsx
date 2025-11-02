@@ -5,6 +5,17 @@ import type { IChannel } from '../../types/channel';
 import MessageItem from './MessageItem';
 import MessageComposer from './MessageComposer';
 import AddMembersToChannelModal from './AddMembersToChannelModal';
+import JumpToMenu from './JumpToMenu';
+import UnreadDivider from './UnreadDivider';
+import PinnedMessageLabel from './PinnedMessageLabel';
+import { getTargetDate } from '../../utils/dateUtils';
+import {
+  getPinnedMessages,
+  pinMessage,
+  unpinMessage,
+  type PinnedMessage,
+} from '../../services/pinnedMessageApi';
+import { useWorkspace } from '../../context/WorkspaceContext';
 
 interface ChannelChatPaneProps {
   currentUser: User;
@@ -32,13 +43,73 @@ const ChannelChatPane: React.FC<ChannelChatPaneProps> = ({
   onReaction,
   onRefreshChannel,
 }) => {
+  const { currentWorkspaceId } = useWorkspace();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [showAddMembers, setShowAddMembers] = useState(false);
   const [showChannelDetails, setShowChannelDetails] = useState(false);
+  const [firstUnreadMessageId, setFirstUnreadMessageId] = useState<string | null>(null);
+  const [pinnedMessages, setPinnedMessages] = useState<Map<string, PinnedMessage>>(new Map());
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Fetch pinned messages when channel changes
+  useEffect(() => {
+    if (channel._id && currentWorkspaceId) {
+      fetchPinnedMessages();
+    }
+  }, [channel._id, currentWorkspaceId]);
+
+  const fetchPinnedMessages = async () => {
+    try {
+      if (!currentWorkspaceId) return;
+
+      const pinned = await getPinnedMessages(
+        channel._id,
+        undefined,
+        currentWorkspaceId
+      );
+
+      const pinnedMap = new Map<string, PinnedMessage>();
+      pinned.forEach((pin) => {
+        pinnedMap.set(pin.message._id, pin);
+      });
+      setPinnedMessages(pinnedMap);
+    } catch (error) {
+      console.error('Error fetching pinned messages:', error);
+    }
+  };
+
+  const handlePinMessage = async (messageId: string) => {
+    try {
+      if (!currentWorkspaceId) return;
+
+      const isPinned = pinnedMessages.has(messageId);
+
+      if (isPinned) {
+        // Unpin the message
+        await unpinMessage(messageId, channel._id, undefined);
+        const newPinnedMessages = new Map(pinnedMessages);
+        newPinnedMessages.delete(messageId);
+        setPinnedMessages(newPinnedMessages);
+      } else {
+        // Pin the message
+        const pinnedMessage = await pinMessage(
+          messageId,
+          channel._id,
+          undefined,
+          currentWorkspaceId
+        );
+        const newPinnedMessages = new Map(pinnedMessages);
+        newPinnedMessages.set(messageId, pinnedMessage);
+        setPinnedMessages(newPinnedMessages);
+      }
+    } catch (error) {
+      console.error('Error pinning/unpinning message:', error);
+    }
+  };
 
   const formatTime = (date: Date) => {
     const hours = date.getHours();
@@ -50,6 +121,46 @@ const ChannelChatPane: React.FC<ChannelChatPaneProps> = ({
 
   const getThreadCount = (message: Message) => {
     return message.threadRepliesCount || 0;
+  };
+
+  const handleMarkUnread = (messageId: string) => {
+    setFirstUnreadMessageId(messageId);
+  };
+
+  const handleJumpToDate = (
+    option: 'today' | 'yesterday' | 'lastWeek' | 'lastMonth' | 'beginning' | 'custom',
+    customDate?: Date
+  ) => {
+    const targetDate = getTargetDate(option, customDate);
+
+    // Find the first message on or after the target date
+    const targetMessage = messages.find(msg => {
+      const msgDate = new Date(msg.createdAt);
+      return msgDate >= targetDate;
+    });
+
+    if (targetMessage) {
+      // Scroll to the message
+      const messageElement = messageRefs.current.get(targetMessage._id);
+      if (messageElement) {
+        messageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    } else if (messages.length > 0) {
+      // If no message found after target date, scroll to the beginning
+      const firstMessage = messages[0];
+      const messageElement = messageRefs.current.get(firstMessage._id);
+      if (messageElement) {
+        messageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  };
+
+  const setMessageRef = (messageId: string, element: HTMLDivElement | null) => {
+    if (element) {
+      messageRefs.current.set(messageId, element);
+    } else {
+      messageRefs.current.delete(messageId);
+    }
   };
 
   const memberCount = channel.collaborators?.length || 0;
@@ -134,14 +245,9 @@ const ChannelChatPane: React.FC<ChannelChatPaneProps> = ({
           </div>
         ) : (
           <div className="px-5">
-            {/* Today divider */}
+            {/* Jump to date menu */}
             <div className="flex items-center justify-center my-4">
-              <button className="flex items-center gap-1 px-2 py-1 rounded hover:bg-[rgb(49,48,44)] transition-colors">
-                <span className="text-[13px] font-semibold text-[rgb(209,210,211)]">Today</span>
-                <svg className="w-3 h-3 text-[rgb(209,210,211)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
+              <JumpToMenu onJumpToDate={handleJumpToDate} />
             </div>
             {messages
               .filter(message => message.sender && message.sender._id)
@@ -153,8 +259,14 @@ const ChannelChatPane: React.FC<ChannelChatPaneProps> = ({
               const shouldShowTimestamp = index === 0 || 
                 new Date(message.createdAt).getTime() - new Date(validMessages[index - 1].createdAt).getTime() > 600000;
 
+              const isPinned = pinnedMessages.has(message._id);
+              const pinnedInfo = pinnedMessages.get(message._id);
+
               return (
-                <div key={message._id}>
+                <div key={message._id} ref={(el) => setMessageRef(message._id, el)}>
+                  {/* Show unread divider before this message if it's marked as first unread */}
+                  {firstUnreadMessageId === message._id && <UnreadDivider />}
+
                   {shouldShowTimestamp && index > 0 && (
                     <div className="flex items-center my-4">
                       <div className="flex-1 border-t border-[rgb(49,48,44)]"></div>
@@ -164,6 +276,15 @@ const ChannelChatPane: React.FC<ChannelChatPaneProps> = ({
                       <div className="flex-1 border-t border-[rgb(49,48,44)]"></div>
                     </div>
                   )}
+
+                  {/* Show pinned label if message is pinned */}
+                  {isPinned && pinnedInfo && (
+                    <PinnedMessageLabel
+                      pinnedByCurrentUser={pinnedInfo.pinnedBy._id === currentUser._id}
+                      pinnedBy={pinnedInfo.pinnedBy}
+                    />
+                  )}
+
                   <MessageItem
                     message={message}
                     user={messageUser}
@@ -171,10 +292,13 @@ const ChannelChatPane: React.FC<ChannelChatPaneProps> = ({
                     showAvatar={showAvatar}
                     threadCount={threadCount}
                     isEditing={editingMessageId === message._id}
+                    isPinned={isPinned}
                     onEdit={(newText) => onEditMessage(message._id, newText)}
                     onDelete={() => onDeleteMessage(message._id)}
                     onOpenThread={() => onOpenThread(message._id)}
                     onReaction={(emoji) => onReaction(message._id, emoji)}
+                    onMarkUnread={() => handleMarkUnread(message._id)}
+                    onPin={() => handlePinMessage(message._id)}
                     formatTime={formatTime}
                   />
                 </div>

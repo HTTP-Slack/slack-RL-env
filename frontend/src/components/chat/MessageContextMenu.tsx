@@ -5,6 +5,8 @@ interface MessageContextMenuProps {
   onEdit?: () => void;
   onDelete?: () => void;
   onMarkUnread: () => void;
+  onPin?: () => void;
+  isPinned?: boolean;
   onClose: () => void;
   position: { x: number; y: number };
 }
@@ -14,6 +16,8 @@ const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
   onEdit,
   onDelete,
   onMarkUnread,
+  onPin,
+  isPinned = false,
   onClose,
   position,
 }) => {
@@ -179,9 +183,13 @@ const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
         </button>
 
         <button
+          onClick={() => {
+            onPin?.();
+            onClose();
+          }}
           className="w-full px-6 py-2 text-left text-[15px] text-white hover:bg-[rgb(18,100,163)] flex items-center justify-between transition-colors"
         >
-          <span>Pin to this conversation</span>
+          <span>{isPinned ? 'Unpin from this conversation' : 'Pin to this conversation'}</span>
           <span className="text-[rgb(171,171,173)] text-[13px]">P</span>
         </button>
 

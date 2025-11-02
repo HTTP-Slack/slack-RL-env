@@ -14,11 +14,13 @@ interface MessageItemProps {
   showAvatar: boolean;
   threadCount: number;
   isEditing: boolean;
+  isPinned?: boolean;
   onEdit: (newText: string) => void;
   onDelete: () => void;
   onOpenThread: () => void;
   onReaction: (emoji: string) => void;
   onMarkUnread: () => void;
+  onPin?: () => void;
   formatTime: (date: Date) => string;
 }
 
@@ -842,11 +844,13 @@ const MessageItem: React.FC<MessageItemProps> = ({
   showAvatar,
   threadCount,
   isEditing,
+  isPinned = false,
   onEdit,
   onDelete,
   onOpenThread,
   onReaction,
   onMarkUnread,
+  onPin,
   formatTime,
 }) => {
   const { currentWorkspaceId } = useWorkspace();
@@ -1135,6 +1139,8 @@ const MessageItem: React.FC<MessageItemProps> = ({
           onEdit={handleEditClick}
           onDelete={onDelete}
           onMarkUnread={onMarkUnread}
+          onPin={onPin}
+          isPinned={isPinned}
           onClose={() => setShowContextMenu(false)}
           position={contextMenuPosition}
         />
