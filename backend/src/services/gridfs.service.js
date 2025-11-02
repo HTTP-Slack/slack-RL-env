@@ -100,5 +100,34 @@ export const searchFiles = async (searchQuery, organisationId, channelId = null,
   return await files.toArray();
 };
 
+/**
+ * Update file metadata (filename and/or custom metadata fields)
+ * @param {ObjectId|string} fileId - GridFS file ID
+ * @param {Object} updates - Updates to apply { filename?, metadata? }
+ * @returns {Promise<Object>} - Updated file document
+ */
+export const updateFileMetadata = async (fileId, updates) => {
+  const db = mongoose.connection.db;
+  const filesCollection = db.collection('files.files');
+  
+  const id = typeof fileId === 'string' ? new ObjectId(fileId) : fileId;
+  
+  const updateDoc = {};
+  if (updates.filename) {
+    updateDoc.filename = updates.filename;
+  }
+  if (updates.metadata) {
+    // Merge with existing metadata to preserve required fields
+    updateDoc['metadata.description'] = updates.metadata.description;
+  }
+  
+  await filesCollection.updateOne(
+    { _id: id },
+    { $set: updateDoc }
+  );
+  
+  return await findFileById(id);
+};
+
 export { MAX_FILE_SIZE };
 
