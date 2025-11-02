@@ -4,6 +4,8 @@ import VIPPreferences from '../../models/preferences/vipPreferences.model.js';
 import NavigationPreferences from '../../models/preferences/navigationPreferences.model.js';
 import HomePreferences from '../../models/preferences/homePreferences.model.js';
 import AppearancePreferences from '../../models/preferences/appearancePreferences.model.js';
+import MessagesMediaPreferences from '../../models/preferences/messagesMediaPreferences.model.js';
+import LanguageRegionPreferences from '../../models/preferences/languageRegionPreferences.model.js';
 
 // @desc    get user's complete preferences
 // @route   GET /api/preferences
@@ -156,8 +158,38 @@ export const updatePreferences = async (req, res) => {
       }
     }
 
+    // Handle messages & media update
+    if (updateData.messagesMedia) {
+      if (preferences.messagesMedia) {
+        await MessagesMediaPreferences.findByIdAndUpdate(
+          preferences.messagesMedia,
+          updateData.messagesMedia,
+          { new: true }
+        );
+      } else {
+        const messagesMediaPrefs = await MessagesMediaPreferences.create(updateData.messagesMedia);
+        preferences.messagesMedia = messagesMediaPrefs._id;
+        await preferences.save();
+      }
+    }
+
+    // Handle language & region update
+    if (updateData.languageRegion) {
+      if (preferences.languageRegion) {
+        await LanguageRegionPreferences.findByIdAndUpdate(
+          preferences.languageRegion,
+          updateData.languageRegion,
+          { new: true }
+        );
+      } else {
+        const languageRegionPrefs = await LanguageRegionPreferences.create(updateData.languageRegion);
+        preferences.languageRegion = languageRegionPrefs._id;
+        await preferences.save();
+      }
+    }
+
     // TODO: Handle other preference categories as they are implemented
-    // Similar pattern for messagesMedia, languageRegion, etc.
+    // Similar pattern for accessibility, markAsRead, etc.
 
     // Reload preferences with populated fields
     preferences = await Preferences.findById(preferences._id)
