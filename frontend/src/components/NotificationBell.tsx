@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { NotificationDropdown } from './NotificationDropdown';
 import { getUnreadCount } from '../services/notificationApi';
 import { useWorkspace } from '../context/WorkspaceContext';
@@ -7,6 +7,16 @@ export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const { currentWorkspaceId, socket } = useWorkspace();
+
+  const fetchUnreadCount = useCallback(async () => {
+    if (!currentWorkspaceId) return;
+    try {
+      const count = await getUnreadCount(currentWorkspaceId);
+      setUnreadCount(count);
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  }, [currentWorkspaceId]);
 
   useEffect(() => {
     if (currentWorkspaceId) {
@@ -17,7 +27,7 @@ export function NotificationBell() {
       
       return () => clearInterval(interval);
     }
-  }, [currentWorkspaceId]);
+  }, [currentWorkspaceId, fetchUnreadCount]);
 
   useEffect(() => {
     if (!socket) return;
@@ -32,17 +42,7 @@ export function NotificationBell() {
     return () => {
       socket.off('new-notification', handleNewNotification);
     };
-  }, [socket, isOpen]);
-
-  const fetchUnreadCount = async () => {
-    if (!currentWorkspaceId) return;
-    try {
-      const count = await getUnreadCount(currentWorkspaceId);
-      setUnreadCount(count);
-    } catch (error) {
-      console.error('Error fetching unread count:', error);
-    }
-  };
+  }, [socket, isOpen, fetchUnreadCount]);
 
   return (
     <div className="relative">
