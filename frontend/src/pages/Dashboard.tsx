@@ -81,17 +81,38 @@ const Dashboard: React.FC = () => {
 
   // Listen for notification navigation events
   useEffect(() => {
-    const handleNavigateToChannel = async (e: CustomEvent) => {
-      const { channelId } = e.detail;
+    const handleNavigateToChannel = async (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { channelId } = customEvent.detail;
       if (channelId) {
-        await handleChannelSelect(channelId);
+        try {
+          const channelData = await getChannel(channelId);
+          setActiveChannel(channelData.data);
+          setActiveConversation(null);
+          setChannelMessages([]);
+          
+          if (socket && currentWorkspaceId && user) {
+            socket.emit('channel-open', { 
+              id: channelId,
+              userId: user._id 
+            });
+            
+            const messages = await getMessages({
+              channelId,
+              organisation: currentWorkspaceId,
+            });
+            setChannelMessages(messages);
+          }
+        } catch (error) {
+          console.error('Failed to load channel:', error);
+        }
       }
     };
 
-    const handleNavigateToConversation = async (e: CustomEvent) => {
-      const { conversationId } = e.detail;
+    const handleNavigateToConversation = async (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { conversationId } = customEvent.detail;
       if (conversationId) {
-        // Find conversation in the list
         const conversation = conversations.find(c => c._id === conversationId);
         if (conversation) {
           setActiveConversation(conversation);
@@ -100,15 +121,14 @@ const Dashboard: React.FC = () => {
       }
     };
 
-    window.addEventListener('navigate-to-channel', handleNavigateToChannel as EventListener);
-    window.addEventListener('navigate-to-conversation', handleNavigateToConversation as EventListener);
+    window.addEventListener('navigate-to-channel', handleNavigateToChannel);
+    window.addEventListener('navigate-to-conversation', handleNavigateToConversation);
 
     return () => {
-      window.removeEventListener('navigate-to-channel', handleNavigateToChannel as EventListener);
-      window.removeEventListener('navigate-to-conversation', handleNavigateToConversation as EventListener);
+      window.removeEventListener('navigate-to-channel', handleNavigateToChannel);
+      window.removeEventListener('navigate-to-conversation', handleNavigateToConversation);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversations, handleChannelSelect, setActiveConversation]);
+  }, [conversations, setActiveConversation, socket, currentWorkspaceId, user]);
 
   // Initialize workspace from URL or fetch workspaces
   useEffect(() => {
