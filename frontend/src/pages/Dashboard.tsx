@@ -73,6 +73,7 @@ const Dashboard: React.FC = () => {
     id: string;
     name: string;
   } | null>(null);
+  const [selectedListId, setSelectedListId] = useState<string | null>(null);
 
   // Keyboard shortcut for search (Cmd/Ctrl+K)
   useEffect(() => {
@@ -129,12 +130,24 @@ const Dashboard: React.FC = () => {
       }
     };
 
+    const handleOpenList = async (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { listId } = customEvent.detail;
+      if (listId) {
+        // Open Files panel and set active list
+        setIsFilesOpen(true);
+        setSelectedListId(listId);
+      }
+    };
+
     window.addEventListener('navigate-to-channel', handleNavigateToChannel);
     window.addEventListener('navigate-to-conversation', handleNavigateToConversation);
+    window.addEventListener('open-list', handleOpenList);
 
     return () => {
       window.removeEventListener('navigate-to-channel', handleNavigateToChannel);
       window.removeEventListener('navigate-to-conversation', handleNavigateToConversation);
+      window.removeEventListener('open-list', handleOpenList);
     };
   }, [conversations, setActiveConversation, socket, currentWorkspaceId, user]);
 
@@ -510,6 +523,7 @@ const Dashboard: React.FC = () => {
             setIsDMsOpen(false);
             setIsActivityOpen(false);
             setIsLaterOpen(false);
+            setSelectedListId(null);
           }}
           isActivityOpen={isActivityOpen}
           isDMsOpen={isDMsOpen}
@@ -668,7 +682,11 @@ const Dashboard: React.FC = () => {
         ) : isFilesOpen ? (
           <FilesPanel
             isOpen={isFilesOpen}
-            onClose={() => setIsFilesOpen(false)}
+            onClose={() => {
+              setIsFilesOpen(false);
+              setSelectedListId(null);
+            }}
+            initialListId={selectedListId || undefined}
           />
         ) : (
           <>
@@ -992,6 +1010,7 @@ const Dashboard: React.FC = () => {
           onResultSelect={handleSearchResultSelect}
         />
       )}
+
     </div>
   );
 };

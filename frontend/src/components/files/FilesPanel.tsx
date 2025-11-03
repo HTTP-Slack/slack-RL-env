@@ -10,9 +10,10 @@ type ViewType = 'all' | 'canvases' | 'lists';
 interface FilesPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  initialListId?: string;
 }
 
-export const FilesPanel: React.FC<FilesPanelProps> = ({ isOpen }) => {
+export const FilesPanel: React.FC<FilesPanelProps> = ({ isOpen, initialListId }) => {
   const { currentWorkspaceId } = useWorkspace();
   const [activeView, setActiveView] = useState<ViewType>('all');
   const [lists, setLists] = useState<ListData[]>([]);
@@ -27,6 +28,17 @@ export const FilesPanel: React.FC<FilesPanelProps> = ({ isOpen }) => {
       fetchLists();
     }
   }, [isOpen, currentWorkspaceId]);
+
+  // Handle initial list selection when opened from message
+  useEffect(() => {
+    if (initialListId && lists.length > 0) {
+      const list = lists.find(l => l._id === initialListId);
+      if (list) {
+        setSelectedList(list);
+        setActiveView('lists');
+      }
+    }
+  }, [initialListId, lists]);
 
   const fetchLists = async () => {
     setIsLoading(true);

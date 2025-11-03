@@ -923,9 +923,9 @@ const ListAttachment: React.FC<{ listId: string | ListData }> = ({ listId }) => 
     <div 
       className="flex items-center gap-3 px-3 py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg cursor-pointer hover:bg-yellow-500/30 transition-colors"
       onClick={() => {
-        // TODO: Open list view modal
         const actualId = typeof listId === 'string' ? listId : listId._id;
-        console.log('Open list:', actualId);
+        // Dispatch custom event to open list view
+        window.dispatchEvent(new CustomEvent('open-list', { detail: { listId: actualId } }));
       }}
     >
       <div className="w-5 h-5 bg-yellow-500 rounded flex items-center justify-center flex-shrink-0">
