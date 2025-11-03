@@ -124,16 +124,16 @@ const initializeSocket = (io) => {
             }
 
             // Handle list attachments
-            console.log('📋 Received listAttachments:', message.listAttachments)
             if (message.listAttachments && message.listAttachments.length > 0) {
               messageData.listAttachments = message.listAttachments
-              console.log('✅ Added listAttachments to messageData:', messageData.listAttachments)
             }
 
-            console.log('📦 Final messageData before create:', messageData)
             let newMessage = await Message.create(messageData)
 
             newMessage = await newMessage.populate('sender')
+            if (messageData.listAttachments) {
+              newMessage = await newMessage.populate('listAttachments')
+            }
             io.to(channelId).emit('message', { newMessage, organisation })
 
             const updatedChannel = await Channels.findByIdAndUpdate(
@@ -194,6 +194,11 @@ const initializeSocket = (io) => {
             
             newMessage = await newMessage.populate('sender')
             console.log('✅ Message sender populated:', newMessage.sender ? newMessage.sender.username : 'NO SENDER');
+            
+            if (messageData.listAttachments) {
+              newMessage = await newMessage.populate('listAttachments')
+              console.log('✅ Message listAttachments populated');
+            }
 
             io.to(conversationId).emit('message', {
               collaborators,

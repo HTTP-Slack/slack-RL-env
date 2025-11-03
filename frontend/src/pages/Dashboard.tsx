@@ -329,16 +329,12 @@ const Dashboard: React.FC = () => {
   const handleSendChannelMessage = async (text: string, attachments?: string[], listAttachments?: string[]) => {
     if (!activeChannel || !socket || !user || !currentWorkspaceId) return;
     
-    console.log('🚀 handleSendChannelMessage called with listAttachments:', listAttachments);
-    
     const messageData = {
       sender: user._id,
       content: text,
       attachments: attachments || [],
       listAttachments: listAttachments || [],
     };
-
-    console.log('📦 messageData being sent:', messageData);
 
     // Get list of users who haven't opened this channel (all collaborators except sender)
     const hasNotOpen = activeChannel.collaborators

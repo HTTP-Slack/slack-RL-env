@@ -824,10 +824,6 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
       const attachments = attachmentIds.length > 0 ? attachmentIds : undefined;
       const listAttachments = attachedLists.length > 0 ? attachedLists : undefined;
 
-      console.log('📤 Sending message with attachments:', attachments);
-      console.log('📋 Sending message with listAttachments:', listAttachments);
-      console.log('📝 attachedLists state:', attachedLists);
-
       // Send via channel or DM context - send HTML content
       if (channelId && currentWorkspaceId) {
         await onSend(text, attachments, listAttachments);
