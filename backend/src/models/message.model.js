@@ -11,6 +11,12 @@ const messageSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
     },
   ],
+  listAttachments: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'List',
+    },
+  ],
   channel: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Channel',

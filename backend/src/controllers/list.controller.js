@@ -14,7 +14,7 @@ import User from '../models/user.model.js';
 */
 export const createList = async (req, res) => {
   try {
-    const { title, description, organisationId } = req.body;
+    const { title, description, organisationId, columns, template } = req.body;
     if (!title || !organisationId) {
       return res.status(400).json({
         success: false,
@@ -28,6 +28,8 @@ export const createList = async (req, res) => {
       organisation: organisationId,
       createdBy: req.user.id,
       collaborators: [req.user.id],
+      columns: columns || [],
+      template: template || null,
     });
 
     res.status(201).json({
@@ -93,9 +95,18 @@ export const getList = async (req, res) => {
       });
     }
 
+    // Update lastViewedBy
+    await List.findByIdAndUpdate(id, {
+      $addToSet: {
+        lastViewedBy: {
+          userId: req.user.id,
+          timestamp: new Date(),
+        },
+      },
+    });
+
     // Fetch list items separately
     const items = await ListItem.find({ listId: id })
-      .populate('assignee')
       .sort({ order: 1, _id: -1 });
 
     const responseData = {
@@ -129,7 +140,7 @@ export const getList = async (req, res) => {
 export const updateList = async (req, res) => {
   try {
     const id = req.params.id;
-    const { title, description } = req.body;
+    const { title, description, columns } = req.body;
 
     const list = await List.findById(id);
     if (!list) {
@@ -155,6 +166,7 @@ export const updateList = async (req, res) => {
     const updateData = {};
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
+    if (columns !== undefined) updateData.columns = columns;
 
     const updatedList = await List.findByIdAndUpdate(id, updateData, {
       new: true,
@@ -301,15 +313,7 @@ export const addUserToList = async (req, res) => {
 export const createListItem = async (req, res) => {
   try {
     const { listId } = req.params;
-    const { name, status, priority, description, assignee, dueDate, order } =
-      req.body;
-
-    if (!name) {
-      return res.status(400).json({
-        success: false,
-        message: 'name is required',
-      });
-    }
+    const { data, order } = req.body;
 
     // Verify list exists
     const list = await List.findById(listId);
@@ -321,23 +325,14 @@ export const createListItem = async (req, res) => {
     }
 
     const listItem = await ListItem.create({
-      name,
       listId,
-      status,
-      priority,
-      description,
-      assignee,
-      dueDate,
-      order,
+      data: data || {},
+      order: order || 0,
     });
-
-    const populatedItem = await ListItem.findById(listItem._id).populate(
-      'assignee'
-    );
 
     res.status(201).json({
       success: true,
-      data: populatedItem,
+      data: listItem,
     });
   } catch (error) {
     console.log('Error in createListItem:', error);
@@ -360,7 +355,7 @@ export const createListItem = async (req, res) => {
 export const getListItems = async (req, res) => {
   try {
     const { listId } = req.params;
-    const { status, search } = req.query;
+    const { search } = req.query;
 
     // Verify list exists
     const list = await List.findById(listId);
@@ -373,21 +368,13 @@ export const getListItems = async (req, res) => {
 
     const query = { listId };
 
-    // Add status filter if provided
-    if (status) {
-      query.status = status;
-    }
-
     // Add search filter if provided
     if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-      ];
+      // Search through the data map - this is a simple implementation
+      query.data = { $regex: search, $options: 'i' };
     }
 
     const items = await ListItem.find(query)
-      .populate('assignee')
       .sort({ order: 1, _id: -1 });
 
     res.status(200).json({
@@ -421,8 +408,7 @@ export const getListItems = async (req, res) => {
 export const updateListItem = async (req, res) => {
   try {
     const { listId, itemId } = req.params;
-    const { name, status, priority, description, assignee, dueDate, order } =
-      req.body;
+    const { data, order } = req.body;
 
     // Verify list exists
     const list = await List.findById(listId);
@@ -443,17 +429,12 @@ export const updateListItem = async (req, res) => {
     }
 
     const updateData = {};
-    if (name !== undefined) updateData.name = name;
-    if (status !== undefined) updateData.status = status;
-    if (priority !== undefined) updateData.priority = priority;
-    if (description !== undefined) updateData.description = description;
-    if (assignee !== undefined) updateData.assignee = assignee;
-    if (dueDate !== undefined) updateData.dueDate = dueDate;
+    if (data !== undefined) updateData.data = data;
     if (order !== undefined) updateData.order = order;
 
     const updatedItem = await ListItem.findByIdAndUpdate(itemId, updateData, {
       new: true,
-    }).populate('assignee');
+    });
 
     res.status(200).json({
       success: true,
@@ -502,6 +483,167 @@ export const deleteListItem = async (req, res) => {
     });
   } catch (error) {
     console.log('Error in deleteListItem:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message,
+    });
+  }
+};
+
+// @desc    reorder list items
+// @route   PATCH /api/list/:listId/items/reorder
+// @access  Private
+/*
+  body {
+    items: [{ id: itemId, order: number }]
+  }
+*/
+export const reorderItems = async (req, res) => {
+  try {
+    const { listId } = req.params;
+    const { items } = req.body;
+
+    // Verify list exists
+    const list = await List.findById(listId);
+    if (!list) {
+      return res.status(404).json({
+        success: false,
+        message: 'List not found',
+      });
+    }
+
+    // Update all items with new order
+    const updatePromises = items.map((item) =>
+      ListItem.findByIdAndUpdate(item.id, { order: item.order })
+    );
+    await Promise.all(updatePromises);
+
+    res.status(200).json({
+      success: true,
+      message: 'Items reordered successfully',
+    });
+  } catch (error) {
+    console.log('Error in reorderItems:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message,
+    });
+  }
+};
+
+// @desc    get templates
+// @route   GET /api/list/templates
+// @access  Private
+export const getTemplates = async (req, res) => {
+  try {
+    const templates = [
+      {
+        id: 'feedback-tracker',
+        name: 'Feedback tracker',
+        description: 'A streamlined approach to keeping track of feedback from colleagues.',
+        icon: '🎯',
+        columns: [
+          { id: 'col1', name: 'Feedback', type: 'text', required: true },
+          { id: 'col2', name: 'Details', type: 'text' },
+          {
+            id: 'col3',
+            name: 'Type',
+            type: 'enum',
+            options: ['Bug', 'Design note', 'Pain point', 'Praise'],
+          },
+          {
+            id: 'col4',
+            name: 'Severity',
+            type: 'enum',
+            options: ['Low', 'Medium', 'High'],
+          },
+          { id: 'col5', name: 'Submitted by', type: 'text' },
+          { id: 'col6', name: 'Date submitted', type: 'date' },
+          { id: 'col7', name: 'Assignee', type: 'text' },
+          {
+            id: 'col8',
+            name: 'Status',
+            type: 'enum',
+            options: ['Not started', 'In progress', 'Backlog', 'Done'],
+          },
+        ],
+      },
+      {
+        id: 'project-tracker',
+        name: 'Project tracker',
+        description: 'Keep track of your projects and their status.',
+        icon: '📋',
+        columns: [
+          { id: 'col1', name: 'Name', type: 'text', required: true },
+          { id: 'col2', name: 'Description', type: 'text' },
+          {
+            id: 'col3',
+            name: 'Status',
+            type: 'enum',
+            options: ['Not started', 'In progress', 'Blocked', 'Completed'],
+          },
+          {
+            id: 'col4',
+            name: 'Priority',
+            type: 'enum',
+            options: ['Low', 'Medium', 'High'],
+          },
+          { id: 'col5', name: 'Owner', type: 'text' },
+          { id: 'col6', name: 'Due date', type: 'date' },
+        ],
+      },
+      {
+        id: 'deal-tracker',
+        name: 'Deal tracker',
+        description: 'Track your sales deals and opportunities.',
+        icon: '💰',
+        columns: [
+          { id: 'col1', name: 'Company', type: 'text', required: true },
+          { id: 'col2', name: 'Contact', type: 'text' },
+          { id: 'col3', name: 'Amount', type: 'int' },
+          {
+            id: 'col4',
+            name: 'Stage',
+            type: 'enum',
+            options: ['Prospect', 'Qualified', 'Proposal', 'Negotiation', 'Closed'],
+          },
+          { id: 'col5', name: 'Close date', type: 'date' },
+        ],
+      },
+      {
+        id: 'help-request-tracker',
+        name: 'Help request tracker',
+        description: 'Track help requests and support tickets.',
+        icon: '🆘',
+        columns: [
+          { id: 'col1', name: 'Request', type: 'text', required: true },
+          { id: 'col2', name: 'Description', type: 'text' },
+          {
+            id: 'col3',
+            name: 'Priority',
+            type: 'enum',
+            options: ['Low', 'Medium', 'High', 'Urgent'],
+          },
+          {
+            id: 'col4',
+            name: 'Status',
+            type: 'enum',
+            options: ['Open', 'In progress', 'Resolved', 'Closed'],
+          },
+          { id: 'col5', name: 'Assignee', type: 'text' },
+          { id: 'col6', name: 'Created', type: 'date' },
+        ],
+      },
+    ];
+
+    res.status(200).json({
+      success: true,
+      data: templates,
+    });
+  } catch (error) {
+    console.log('Error in getTemplates:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',

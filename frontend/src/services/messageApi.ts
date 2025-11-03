@@ -1,4 +1,5 @@
 import api from '../config/axios';
+import type { ListData } from '../types/list';
 
 export interface User {
   _id: string;
@@ -13,6 +14,7 @@ export interface Message {
   sender: User;
   content: string;
   attachments?: string[];
+  listAttachments?: (string | ListData)[];
   channel?: string;
   organisation: string;
   conversation?: string;

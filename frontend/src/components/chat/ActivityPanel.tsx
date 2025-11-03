@@ -5,6 +5,14 @@ import axios from '../../config/axios';
 import { parseMarkdown } from '../../utils/markdown';
 import { convertEmojiShortcodes } from '../../constants/emojis';
 
+// Check if content contains actual HTML tags (not just text starting with <)
+const containsHtmlTags = (content: string): boolean => {
+  // Match HTML tags like <p>, </p>, <strong>, etc.
+  // Pattern: < or </, followed by a letter, followed by tag name and attributes
+  const htmlTagRegex = /<\/?[a-z][^>]*>/i;
+  return htmlTagRegex.test(content);
+};
+
 // Sanitize HTML content with safe configuration
 const sanitizeHtml = (html: string): string => {
   try {
@@ -330,7 +338,7 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({ isOpen, onNavigate
                         <span className="text-[#ababad] text-[15px] ml-1">
                           {activity.message?.content && (() => {
                             const content = activity.message.content;
-                            if (content.trim().startsWith('<')) {
+                            if (containsHtmlTags(content)) {
                               const sanitized = sanitizeHtml(convertEmojiShortcodes(content));
                               // If sanitization fails or removes all content, fall back to markdown
                               if (!sanitized || sanitized.trim() === '') {
@@ -376,7 +384,7 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({ isOpen, onNavigate
                         <span className="text-[#ababad] text-[15px] ml-1">
                           {activity.message?.content && (() => {
                             const content = activity.message.content;
-                            if (content.trim().startsWith('<')) {
+                            if (containsHtmlTags(content)) {
                               const sanitized = sanitizeHtml(convertEmojiShortcodes(content));
                               // If sanitization fails or removes all content, fall back to markdown
                               if (!sanitized || sanitized.trim() === '') {

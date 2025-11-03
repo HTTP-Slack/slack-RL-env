@@ -3,12 +3,22 @@ import DOMPurify from 'dompurify';
 import type { Message as ApiMessage, User as ApiUser } from '../../services/messageApi';
 import { parseMarkdown } from '../../utils/markdown';
 import { getFileUrl, getFileInfo, type FileMetadata } from '../../services/fileApi';
+import { getList } from '../../services/listApi';
+import type { ListData } from '../../types/list';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import EmojiPicker from './EmojiPicker';
 import FileContextMenu from './FileContextMenu';
 import MessageContextMenu from './MessageContextMenu';
 import { convertEmojiShortcodes } from '../../constants/emojis';
 import './MessageComposer.css';
+
+// Check if content contains actual HTML tags (not just text starting with <)
+const containsHtmlTags = (content: string): boolean => {
+  // Match HTML tags like <p>, </p>, <strong>, etc.
+  // Pattern: < or </, followed by a letter, followed by tag name and attributes
+  const htmlTagRegex = /<\/?[a-z][^>]*>/i;
+  return htmlTagRegex.test(content);
+};
 
 // Sanitize HTML content with safe configuration
 const sanitizeHtml = (html: string): string => {
@@ -864,6 +874,82 @@ const FileAttachment: React.FC<{ fileId: string; onClick: () => void; workspaceI
   );
 };
 
+const ListAttachment: React.FC<{ listId: string | ListData }> = ({ listId }) => {
+  const [listData, setListData] = useState<ListData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchListData = async () => {
+      try {
+        // If listId is already an object (populated), use it directly
+        if (typeof listId === 'object' && listId !== null) {
+          setListData(listId as ListData);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Otherwise, fetch by ID
+        const data = await getList(listId as string);
+        setListData(data);
+      } catch (error) {
+        console.error('Failed to fetch list data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchListData();
+  }, [listId]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-3 px-3 py-2 bg-[rgb(49,48,44)] rounded border border-[rgb(60,56,54)]">
+        <div className="w-5 h-5 bg-yellow-500 rounded animate-pulse"></div>
+        <span className="text-sm text-[rgb(209,210,211)]">Loading list...</span>
+      </div>
+    );
+  }
+
+  if (!listData) {
+    return (
+      <div className="flex items-center gap-3 px-3 py-2 bg-[rgb(49,48,44)] rounded border border-[rgb(60,56,54)]">
+        <div className="w-5 h-5 bg-gray-500 rounded"></div>
+        <span className="text-sm text-[rgb(209,210,211)]">List not found</span>
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className="flex items-center gap-3 px-3 py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg cursor-pointer hover:bg-yellow-500/30 transition-colors"
+      onClick={() => {
+        const actualId = typeof listId === 'string' ? listId : listId._id;
+        // Dispatch custom event to open list view
+        window.dispatchEvent(new CustomEvent('open-list', { detail: { listId: actualId } }));
+      }}
+    >
+      <div className="w-5 h-5 bg-yellow-500 rounded flex items-center justify-center flex-shrink-0">
+        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm text-white font-medium truncate">
+          {listData.title}
+        </div>
+        {listData.description && (
+          <div className="text-xs text-yellow-200 truncate">
+            {listData.description}
+          </div>
+        )}
+      </div>
+      <svg className="w-4 h-4 text-yellow-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      </svg>
+    </div>
+  );
+};
+
 const MessageItem: React.FC<MessageItemProps> = ({
   message,
   user,
@@ -990,8 +1076,8 @@ const MessageItem: React.FC<MessageItemProps> = ({
             <>
               <div className="text-[15px] text-white break-words leading-[1.46668]">
                 <div className="message-content">
-                  {/* Check if content is HTML (starts with <) or markdown */}
-                  {message.content.trim().startsWith('<') ? (() => {
+                  {/* Check if content contains HTML tags or is markdown */}
+                  {containsHtmlTags(message.content) ? (() => {
                     const sanitized = sanitizeHtml(convertEmojiShortcodes(message.content));
                     // If sanitization fails or removes all content, fall back to markdown
                     if (!sanitized || sanitized.trim() === '') {
@@ -1057,6 +1143,15 @@ const MessageItem: React.FC<MessageItemProps> = ({
                       />
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* List Attachments */}
+              {message.listAttachments && message.listAttachments.length > 0 && (
+                <div className="mt-2 space-y-2">
+                  {message.listAttachments.map((listId) => (
+                    <ListAttachment key={typeof listId === 'string' ? listId : listId._id} listId={listId} />
+                  ))}
                 </div>
               )}
 

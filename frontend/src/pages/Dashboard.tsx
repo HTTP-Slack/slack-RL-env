@@ -8,6 +8,7 @@ import ThreadPanel from '../components/chat/ThreadPanel';
 import { ActivityPanel } from '../components/chat/ActivityPanel';
 import { DMPanel } from '../components/chat/DMPanel';
 import { LaterPanel } from '../components/chat/LaterPanel';
+import { FilesPanel } from '../components/files/FilesPanel';
 import ChannelContextMenu from '../components/chat/ChannelContextMenu';
 import ChannelSettingsModal from '../components/chat/ChannelSettingsModal';
 import ChannelActionsMenu from '../components/chat/ChannelActionsMenu';
@@ -53,6 +54,7 @@ const Dashboard: React.FC = () => {
   const [isActivityOpen, setIsActivityOpen] = useState(false);
   const [isDMsOpen, setIsDMsOpen] = useState(false);
   const [isLaterOpen, setIsLaterOpen] = useState(false);
+  const [isFilesOpen, setIsFilesOpen] = useState(false);
   const [channelContextMenu, setChannelContextMenu] = useState<{
     channel: IChannel;
     position: { x: number; y: number };
@@ -71,6 +73,7 @@ const Dashboard: React.FC = () => {
     id: string;
     name: string;
   } | null>(null);
+  const [selectedListId, setSelectedListId] = useState<string | null>(null);
 
   // Keyboard shortcut for search (Cmd/Ctrl+K)
   useEffect(() => {
@@ -127,12 +130,24 @@ const Dashboard: React.FC = () => {
       }
     };
 
+    const handleOpenList = async (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { listId } = customEvent.detail;
+      if (listId) {
+        // Open Files panel and set active list
+        setIsFilesOpen(true);
+        setSelectedListId(listId);
+      }
+    };
+
     window.addEventListener('navigate-to-channel', handleNavigateToChannel);
     window.addEventListener('navigate-to-conversation', handleNavigateToConversation);
+    window.addEventListener('open-list', handleOpenList);
 
     return () => {
       window.removeEventListener('navigate-to-channel', handleNavigateToChannel);
       window.removeEventListener('navigate-to-conversation', handleNavigateToConversation);
+      window.removeEventListener('open-list', handleOpenList);
     };
   }, [conversations, setActiveConversation, socket, currentWorkspaceId, user]);
 
@@ -324,13 +339,14 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleSendChannelMessage = async (text: string, attachments?: string[]) => {
+  const handleSendChannelMessage = async (text: string, attachments?: string[], listAttachments?: string[]) => {
     if (!activeChannel || !socket || !user || !currentWorkspaceId) return;
     
     const messageData = {
       sender: user._id,
       content: text,
       attachments: attachments || [],
+      listAttachments: listAttachments || [],
     };
 
     // Get list of users who haven't opened this channel (all collaborators except sender)
@@ -482,25 +498,37 @@ const Dashboard: React.FC = () => {
             setIsActivityOpen(true);
             setIsDMsOpen(false);
             setIsLaterOpen(false);
+            setIsFilesOpen(false);
           }}
           onHomeClick={() => {
             setIsActivityOpen(false);
             setIsDMsOpen(false);
             setIsLaterOpen(false);
+            setIsFilesOpen(false);
           }}
           onDMsClick={() => {
             setIsDMsOpen(true);
             setIsActivityOpen(false);
             setIsLaterOpen(false);
+            setIsFilesOpen(false);
           }}
           onLaterClick={() => {
             setIsLaterOpen(true);
             setIsDMsOpen(false);
             setIsActivityOpen(false);
+            setIsFilesOpen(false);
+          }}
+          onFilesClick={() => {
+            setIsFilesOpen(true);
+            setIsDMsOpen(false);
+            setIsActivityOpen(false);
+            setIsLaterOpen(false);
+            setSelectedListId(null);
           }}
           isActivityOpen={isActivityOpen}
           isDMsOpen={isDMsOpen}
           isLaterOpen={isLaterOpen}
+          isFilesOpen={isFilesOpen}
         />
         {isDMsOpen ? (
           <>
@@ -650,6 +678,15 @@ const Dashboard: React.FC = () => {
           <LaterPanel
             isOpen={isLaterOpen}
             onClose={() => setIsLaterOpen(false)}
+          />
+        ) : isFilesOpen ? (
+          <FilesPanel
+            isOpen={isFilesOpen}
+            onClose={() => {
+              setIsFilesOpen(false);
+              setSelectedListId(null);
+            }}
+            initialListId={selectedListId || undefined}
           />
         ) : (
           <>
@@ -973,6 +1010,7 @@ const Dashboard: React.FC = () => {
           onResultSelect={handleSearchResultSelect}
         />
       )}
+
     </div>
   );
 };

@@ -7,6 +7,9 @@ import EmojiPicker from './EmojiPicker';
 import FormattingHelpModal from './FormattingHelpModal';
 import EmojiSuggestions from './EmojiSuggestions';
 import MentionSuggestions from './MentionSuggestions';
+import AttachListModal from '../lists/AttachListModal';
+import { getList } from '../../services/listApi';
+import type { ListData } from '../../types/list';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
@@ -54,7 +57,7 @@ interface SelectedFile {
 }
 
 interface MessageComposerProps {
-  onSend: (text: string, attachments?: string[]) => void;
+  onSend: (text: string, attachments?: string[], listAttachments?: string[]) => void;
   placeholder?: string;
   userName?: string;
   users?: User[]; // Users available for @mentions
@@ -100,6 +103,9 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
   const [mentionSearchTerm, setMentionSearchTerm] = useState('');
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [mentionSuggestionsPosition, setMentionSuggestionsPosition] = useState({ bottom: 0, left: 0 });
+  const [showAttachListModal, setShowAttachListModal] = useState(false);
+  const [attachedLists, setAttachedLists] = useState<string[]>([]);
+  const [attachedListsData, setAttachedListsData] = useState<Map<string, ListData>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -811,19 +817,20 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
     const textContent = tempDiv.textContent || tempDiv.innerText || '';
     const hasContent = textContent.trim().length > 0;
     
-    if (!hasContent && selectedFiles.length === 0) return;
+    if (!hasContent && selectedFiles.length === 0 && attachedLists.length === 0) return;
 
     try {
       const attachmentIds = Array.from(uploadedFileIds.values());
       const attachments = attachmentIds.length > 0 ? attachmentIds : undefined;
+      const listAttachments = attachedLists.length > 0 ? attachedLists : undefined;
 
       // Send via channel or DM context - send HTML content
       if (channelId && currentWorkspaceId) {
-        await onSend(text, attachments);
+        await onSend(text, attachments, listAttachments);
       } else if (activeConversation?._id && currentWorkspaceId) {
-        await sendMessage(text, attachments);
+        await sendMessage(text, attachments, listAttachments);
       } else {
-        await onSend(text, attachments);
+        await onSend(text, attachments, listAttachments);
       }
 
       // Clear all states after successful send
@@ -847,6 +854,8 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
       setUploadingFileIds(new Set());
       setFilePreviewUrls(new Map());
       setUploadErrors(new Map());
+      setAttachedLists([]);
+      setAttachedListsData(new Map());
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -1953,6 +1962,50 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
           </div>
         )}
 
+        {/* Attached Lists Preview */}
+        {attachedLists.length > 0 && (
+          <div className="px-3 pb-2">
+            <div className="flex flex-wrap gap-2">
+              {attachedLists.map((listId) => {
+                const listData = attachedListsData.get(listId);
+                return (
+                  <div
+                    key={listId}
+                    className="relative group w-auto rounded-lg overflow-hidden"
+                  >
+                    <div className="relative flex items-center gap-2 px-3 py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-sm text-[rgb(209,210,211)]">
+                      <div className="w-5 h-5 bg-yellow-500 rounded flex items-center justify-center flex-shrink-0">
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                      </div>
+                      <span className="truncate max-w-[200px] text-white">
+                        {listData?.title || 'Loading...'}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setAttachedLists((prev) => prev.filter((id) => id !== listId));
+                          setAttachedListsData((prev) => {
+                            const newMap = new Map(prev);
+                            newMap.delete(listId);
+                            return newMap;
+                          });
+                        }}
+                        className="ml-2 w-5 h-5 rounded-full bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.2)] flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+                        title="Remove list"
+                      >
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Action Bar - Bottom - Slack Style */}
         <div className="px-1 py-1 flex items-center justify-between bg-[rgb(26,29,33)]">
           {/* Left side - Formatting & Action icons */}
@@ -2084,16 +2137,19 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
 
                 {/* List */}
                 <button
+                  onClick={() => {
+                    setShowAttachListModal(true);
+                    setShowAddMenu(false);
+                  }}
                   className="w-full h-7 min-h-[28px] px-6 flex items-center hover:bg-[rgba(255,255,255,0.04)] transition-colors text-left"
                   role="menuitem"
-                  disabled
                 >
                   <div className="w-5 h-7 mr-2 flex items-center justify-center">
                     <svg data-qa="lists" aria-hidden="true" viewBox="0 0 20 20" className="w-5 h-5 text-[rgb(248,248,248)]">
                       <path fill="currentColor" fillRule="evenodd" d="M1.5 5.25A3.75 3.75 0 0 1 5.25 1.5h9.5a3.75 3.75 0 0 1 3.75 3.75v9.5a3.75 3.75 0 0 1-3.75 3.75h-9.5a3.75 3.75 0 0 1-3.75-3.75zM5.25 3A2.25 2.25 0 0 0 3 5.25v9.5A2.25 2.25 0 0 0 5.25 17h9.5A2.25 2.25 0 0 0 17 14.75v-9.5A2.25 2.25 0 0 0 14.75 3zm3.654 9.204a.75.75 0 1 0-1.044-1.078l-1.802 1.745-.654-.634a.75.75 0 1 0-1.044 1.077l1.177 1.14a.75.75 0 0 0 1.043 0zm1.714.782a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5zm0-3.687a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5zm-.75-2.938a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75m-3.28 2.482c.2 0 .402-.114.737-.343.85-.586 1.513-1.317 1.513-2.082 0-.595-.486-1.075-1.168-1.075-.832 0-1.082.757-1.082.757s-.258-.757-1.082-.757c-.68 0-1.168.48-1.168 1.075 0 .765.66 1.498 1.51 2.078.337.231.54.347.74.347" clipRule="evenodd"></path>
                     </svg>
                   </div>
-                  <div className="flex-1 overflow-hidden whitespace-nowrap text-ellipsis text-[rgb(248,248,248)] text-[15px] leading-7 opacity-50">
+                  <div className="flex-1 overflow-hidden whitespace-nowrap text-ellipsis text-[rgb(248,248,248)] text-[15px] leading-7">
                     List
                   </div>
                 </button>
@@ -2732,6 +2788,26 @@ const MessageComposer: React.FC<MessageComposerProps> = ({ onSend, placeholder =
             </div>
           </div>
         </div>
+      )}
+
+      {/* Attach List Modal */}
+      {currentWorkspaceId && (
+        <AttachListModal
+          isOpen={showAttachListModal}
+          onClose={() => setShowAttachListModal(false)}
+          onSelect={async (listId) => {
+            setAttachedLists([...attachedLists, listId]);
+            // Fetch list details
+            try {
+              const listData = await getList(listId);
+              setAttachedListsData((prev) => new Map(prev).set(listId, listData));
+            } catch (error) {
+              console.error('Failed to fetch list details:', error);
+            }
+            setShowAttachListModal(false);
+          }}
+          organisationId={currentWorkspaceId}
+        />
       )}
     </div>
     </>
