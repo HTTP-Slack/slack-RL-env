@@ -64,3 +64,9 @@ rl/__pycache__/
 rl/.pytest_cache/
 rl/data/
 rl/evals/artifacts/
+
+# Docker volumes and local env
+.env
+.env.local
+docker-compose.override.yml
+
