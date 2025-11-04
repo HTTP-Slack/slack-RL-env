@@ -19,8 +19,8 @@ RUN useradd --user-group --create-home --shell /bin/false appuser \
   && chown -R appuser:appuser /usr/src/app
 USER appuser
 
-# Expose default port (Render sets PORT envvar at runtime)
-EXPOSE 8080
+# Expose default port for local Docker (backend uses PORT env var)
+EXPOSE 5000
 
 # Default NODE_ENV for production
 ENV NODE_ENV=production

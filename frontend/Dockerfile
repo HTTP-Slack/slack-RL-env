@@ -9,6 +9,11 @@ RUN npm ci
 
 # Copy source and build
 COPY . .
+# Allow passing the API URL at build time via build-arg and make it available as an env var
+ARG VITE_API_URL
+ENV VITE_API_URL=${VITE_API_URL:-http://localhost:5000/api}
+
+# Build the Vite app (VITE_API_URL must be set at build time)
 RUN npm run build
 
 # Production image: nginx serving static files

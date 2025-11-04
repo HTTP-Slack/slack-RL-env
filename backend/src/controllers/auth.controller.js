@@ -46,17 +46,18 @@ export const register = async (req, res) => {
       expiresIn: '10d', // Token expires in 10 day
     })
 
-    // 5. Send token in an httpOnly cookie
+    // 5. Send token in an httpOnly cookie (for browser flows)
     res.cookie('token', token, {
-      httpOnly: true, // Makes it inaccessible to client-side JS
-      secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
-      sameSite: 'lax', // CSRF protection
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
       maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
     })
 
-    // 6. Send success response
+    // 6. Send success response and include token in body for API clients
     res.status(201).json({
       success: true,
+      token,
       data: {
         _id: user._id,
         username: user.username,
@@ -104,17 +105,18 @@ export const signin = async (req, res) => {
       expiresIn: '10d', // Token expires in 10 days
     })
 
-    // 5. Send token in an httpOnly cookie
+    // 5. Send token in an httpOnly cookie (for browser flows)
     res.cookie('token', token, {
-      httpOnly: true, // Makes it inaccessible to client-side JS
-      secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
-      sameSite: 'lax', // CSRF protection
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
       maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
     })
 
-    // 6. Send success response
+    // 6. Send success response and include token in body for API clients
     res.status(200).json({
       success: true,
+      token,
       data: {
         _id: user._id,
         username: user.username,

@@ -3,9 +3,13 @@ import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js';
 
 export const protectRoute = async (req, res, next) => {
-  let token;
+  // Priority: accept Authorization header (Bearer token) for API clients
+  let token = null;
 
-  if(req.cookies.token) {
+  if (req.headers && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    token = req.headers.authorization.split(' ')[1];
+  } else if (req.cookies && req.cookies.token) {
+    // Fallback to cookie-based auth (web clients)
     token = req.cookies.token;
   }
 

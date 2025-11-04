@@ -3,13 +3,13 @@ version: '3.8'
 services:
   # MongoDB Database
   mongodb:
-    image: mongo:6.0
+    image: mongo:7.0
     container_name: slack-clone-mongodb
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: admin123
-      MONGO_INITDB_DATABASE: slack_clone_db
+      MONGO_INITDB_DATABASE: test
     ports:
       - "27017:27017"
     volumes:
@@ -18,7 +18,7 @@ services:
     networks:
       - slack-network
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/slack_clone_db --quiet
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
       interval: 10s
       timeout: 5s
       retries: 5
@@ -32,41 +32,42 @@ services:
     restart: unless-stopped
     environment:
       # Database
-      MONGO_URI: mongodb://admin:admin123@mongodb:27017/slack_clone_db?authSource=admin
-      
+      MONGO_URI: mongodb://admin:admin123@mongodb:27017/test?authSource=admin
+
       # Authentication
       JWT_SECRET: your-super-secret-jwt-key-change-in-production-docker
       SESSION_SECRET: your-session-secret-key-change-in-production-docker
-      
+
       # Google OAuth (Optional)
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      GOOGLE_CALLBACK_URL: http://localhost:8080/api/auth/google/callback
-      
+      GOOGLE_CALLBACK_URL: http://localhost:5000/api/auth/google/callback
+
       # Email Service (Optional)
       EMAIL_HOST: ${EMAIL_HOST:-smtp.gmail.com}
       EMAIL_PORT: ${EMAIL_PORT:-587}
       EMAIL_USER: ${EMAIL_USER:-}
       EMAIL_PASSWORD: ${EMAIL_PASSWORD:-}
       EMAIL_FROM: ${EMAIL_FROM:-"Slack Clone" <noreply@slack-clone.com>}
-      
+
       # Server Configuration
-      PORT: 8080
-      NODE_ENV: production
+      PORT: 5000
+      # Use development locally so cookies are not set as `secure` (allows HTTP testing)
+      NODE_ENV: development
       CLIENT_URL: http://localhost:3000
-      
+
       # URLs for workspace links
       STAGING_URL: http://localhost:3000
       PRODUCTION_URL: http://localhost:3000
     ports:
-      - "8080:8080"
+      - "5000:5000"
     depends_on:
       mongodb:
         condition: service_healthy
     networks:
       - slack-network
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/api/users/me', (r) => process.exit(r.statusCode === 401 ? 0 : 1))"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/api/users/me', (r) => process.exit(r.statusCode === 401 ? 0 : 1))"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -78,7 +79,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: http://localhost:8080/api
+        VITE_API_URL: http://localhost:5000/api
     container_name: slack-clone-frontend
     restart: unless-stopped
     ports:
@@ -88,7 +89,8 @@ services:
     networks:
       - slack-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      # Check the nginx server (serving on container localhost:80)
+      test: ["CMD", "curl", "-f", "http://localhost"]
       interval: 30s
       timeout: 10s
       retries: 3

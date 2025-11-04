@@ -49,7 +49,7 @@ Write-Host "✅ Application is ready!" -ForegroundColor Green
 Write-Host ""
 Write-Host "🌐 Access the application:" -ForegroundColor Cyan
 Write-Host "   Frontend:  http://localhost:3000" -ForegroundColor White
-Write-Host "   Backend:   http://localhost:8080" -ForegroundColor White
+Write-Host "   Backend:   http://localhost:5000" -ForegroundColor White
 Write-Host "   MongoDB:   localhost:27017" -ForegroundColor White
 Write-Host ""
 Write-Host "📝 View logs:" -ForegroundColor Cyan

@@ -42,7 +42,7 @@ const io = new Server(server, {
     methods: ['GET', 'POST', 'PATCH', 'DELETE']
   }
 });
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 5000;
 
 // CORS configuration
 app.use(cors({
