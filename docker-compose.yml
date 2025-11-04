@@ -1,28 +1,6 @@
 version: '3.8'
 
 services:
-  # MongoDB Database
-  mongodb:
-    image: mongo:7.0
-    container_name: slack-clone-mongodb
-    restart: unless-stopped
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: admin123
-      MONGO_INITDB_DATABASE: test
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-      - mongodb_config:/data/configdb
-    networks:
-      - slack-network
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # Backend API
   backend:
     build:
@@ -31,8 +9,8 @@ services:
     container_name: slack-clone-backend
     restart: unless-stopped
     environment:
-      # Database
-      MONGO_URI: mongodb://admin:admin123@mongodb:27017/test?authSource=admin
+      # Database - MongoDB Atlas
+      MONGO_URI: mongodb+srv://admin:admin123@cluster0.32qh05d.mongodb.net/test?retryWrites=true&w=majority&appName=Cluster0
 
       # Authentication
       JWT_SECRET: your-super-secret-jwt-key-change-in-production-docker
@@ -61,9 +39,6 @@ services:
       PRODUCTION_URL: http://localhost:3000
     ports:
       - "5000:5000"
-    depends_on:
-      mongodb:
-        condition: service_healthy
     networks:
       - slack-network
     healthcheck:
@@ -94,12 +69,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-
-volumes:
-  mongodb_data:
-    driver: local
-  mongodb_config:
-    driver: local
 
 networks:
   slack-network:
